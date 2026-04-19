@@ -423,7 +423,7 @@ pulse.profile.url=<deep link>   # root-only; populated when pulse.profiling.pyro
 
 ```yaml
 pulse:
-  profiling:
+	profiling:
 	pyroscope-url: https://pyroscope.example.com   # optional; enables the deep-link attribute
 ```
 

@@ -2,6 +2,7 @@ package io.github.arun0009.pulse.actuator;
 
 import io.github.arun0009.pulse.autoconfigure.PulseProperties;
 import io.github.arun0009.pulse.guardrails.CardinalityFirewall;
+import io.github.arun0009.pulse.jobs.JobRegistry;
 import io.github.arun0009.pulse.propagation.KafkaPropagationContext;
 import io.github.arun0009.pulse.slo.SloProjector;
 import org.jspecify.annotations.Nullable;
@@ -23,6 +24,7 @@ public final class PulseDiagnostics {
     private final String version;
     private final @Nullable CardinalityFirewall cardinalityFirewall;
     private final @Nullable SloProjector sloProjector;
+    private final @Nullable JobRegistry jobRegistry;
 
     public PulseDiagnostics(
             PulseProperties properties,
@@ -30,13 +32,26 @@ public final class PulseDiagnostics {
             String environment,
             String version,
             @Nullable CardinalityFirewall cardinalityFirewall,
-            @Nullable SloProjector sloProjector) {
+            @Nullable SloProjector sloProjector,
+            @Nullable JobRegistry jobRegistry) {
         this.properties = properties;
         this.serviceName = serviceName;
         this.environment = environment;
         this.version = version;
         this.cardinalityFirewall = cardinalityFirewall;
         this.sloProjector = sloProjector;
+        this.jobRegistry = jobRegistry;
+    }
+
+    /** Backward-compatible constructor pre-jobs. */
+    public PulseDiagnostics(
+            PulseProperties properties,
+            String serviceName,
+            String environment,
+            String version,
+            @Nullable CardinalityFirewall cardinalityFirewall,
+            @Nullable SloProjector sloProjector) {
+        this(properties, serviceName, environment, version, cardinalityFirewall, sloProjector, null);
     }
 
     /** Backward-compatible constructor without SLO projection. */
@@ -46,7 +61,7 @@ public final class PulseDiagnostics {
             String environment,
             String version,
             @Nullable CardinalityFirewall cardinalityFirewall) {
-        this(properties, serviceName, environment, version, cardinalityFirewall, null);
+        this(properties, serviceName, environment, version, cardinalityFirewall, null, null);
     }
 
     public Map<String, Object> snapshot() {
@@ -78,6 +93,7 @@ public final class PulseDiagnostics {
         pulse.put("slo", properties.slo());
         pulse.put("health", properties.health());
         pulse.put("shutdown", properties.shutdown());
+        pulse.put("jobs", properties.jobs());
         return Map.of("pulse", pulse);
     }
 
@@ -85,6 +101,7 @@ public final class PulseDiagnostics {
         Map<String, Object> runtime = new LinkedHashMap<>();
         runtime.put("cardinalityFirewall", cardinalityRuntime());
         runtime.put("slo", sloRuntime());
+        runtime.put("jobs", jobsRuntime());
         return runtime;
     }
 
@@ -200,6 +217,14 @@ public final class PulseDiagnostics {
                                         properties.slo().objectives().stream()
                                                 .map(o -> o.name())
                                                 .toList())));
+        map.put(
+                "jobs",
+                entry(
+                        properties.jobs().enabled(),
+                        Map.of(
+                                "healthIndicatorEnabled", properties.jobs().healthIndicatorEnabled(),
+                                "failureGracePeriod",
+                                        properties.jobs().failureGracePeriod().toString())));
         return map;
     }
 
@@ -229,6 +254,43 @@ public final class PulseDiagnostics {
                             row.put("currentRatio", s.currentRatio());
                             row.put("sampleCount", s.sampleCount());
                             row.put("status", s.status());
+                            return row;
+                        })
+                        .toList());
+        return root;
+    }
+
+    private Map<String, Object> jobsRuntime() {
+        if (jobRegistry == null) {
+            return Map.of("wired", false);
+        }
+        Map<String, JobRegistry.JobSnapshot> jobs = jobRegistry.snapshot();
+        Map<String, Object> root = new LinkedHashMap<>();
+        root.put("wired", true);
+        root.put("observedJobs", jobs.size());
+        root.put(
+                "jobs",
+                jobs.entrySet().stream()
+                        .map(e -> {
+                            Map<String, Object> row = new LinkedHashMap<>();
+                            row.put("name", e.getKey());
+                            row.put("successCount", e.getValue().successCount());
+                            row.put("failureCount", e.getValue().failureCount());
+                            row.put(
+                                    "lastSuccessAt",
+                                    e.getValue().lastSuccessAt() != null
+                                            ? e.getValue().lastSuccessAt().toString()
+                                            : null);
+                            row.put(
+                                    "lastFailureAt",
+                                    e.getValue().lastFailureAt() != null
+                                            ? e.getValue().lastFailureAt().toString()
+                                            : null);
+                            row.put("lastFailureCause", e.getValue().lastFailureCause());
+                            row.put(
+                                    "lastDurationMs",
+                                    java.util.concurrent.TimeUnit.NANOSECONDS.toMillis(
+                                            e.getValue().lastDurationNanos()));
                             return row;
                         })
                         .toList());

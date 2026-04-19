@@ -39,7 +39,8 @@ public record PulseProperties(
         @DefaultValue Histograms histograms,
         @DefaultValue Slo slo,
         @DefaultValue Health health,
-        @DefaultValue Shutdown shutdown) {
+        @DefaultValue Shutdown shutdown,
+        @DefaultValue Jobs jobs) {
 
     /** MDC enrichment from the inbound HTTP request. */
     public record Context(
@@ -217,4 +218,24 @@ public record PulseProperties(
     public record Shutdown(
             @DefaultValue("true") boolean otelFlushEnabled,
             @DefaultValue("10s") Duration otelFlushTimeout) {}
+
+    /**
+     * Background-job observability — wraps every {@code @Scheduled} method (and any other
+     * {@link Runnable} routed through Spring's {@link org.springframework.scheduling.TaskScheduler})
+     * with metrics + a registry that powers the {@code jobs} health indicator.
+     *
+     * <p>Metrics emitted (cardinality bounded by your {@code @Scheduled} method count):
+     * {@code pulse.jobs.executions{job, outcome}}, {@code pulse.jobs.duration{job, outcome}},
+     * {@code pulse.jobs.in_flight{job}}.
+     *
+     * <p>{@link #failureGracePeriod()} controls when {@code JobsHealthIndicator} flips a job to
+     * {@code DOWN}: any job that has been observed running but has not succeeded within this
+     * window is considered stuck. The default of 1 hour is generous enough to cover daily and
+     * hourly jobs without false-positiving five-minute jobs that briefly fail and recover.
+     * Tighten per environment if you run sub-minute jobs.
+     */
+    public record Jobs(
+            @DefaultValue("true") boolean enabled,
+            @DefaultValue("true") boolean healthIndicatorEnabled,
+            @DefaultValue("1h") Duration failureGracePeriod) {}
 }

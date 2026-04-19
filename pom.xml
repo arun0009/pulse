@@ -416,6 +416,21 @@
                     <encoding>UTF-8</encoding>
                     <fork>true</fork>
                     <annotationProcessorPaths>
+                        <!-- Spring Boot's configuration processor — generates
+                             META-INF/spring-configuration-metadata.json from every
+                             @ConfigurationProperties record so IntelliJ / VS Code can
+                             autocomplete `pulse.*` keys, link them back to the record
+                             field, and surface the @DefaultValue / Javadoc.
+                             MUST live here: declaring annotationProcessorPaths at all
+                             switches javac off classpath-based processor discovery, so
+                             a `<dependency><optional>true</optional></dependency>` is
+                             ignored. The explicit <version> is required because
+                             annotationProcessorPaths doesn't honour dependencyManagement. -->
+                        <path>
+                            <groupId>org.springframework.boot</groupId>
+                            <artifactId>spring-boot-configuration-processor</artifactId>
+                            <version>${spring.boot.version}</version>
+                        </path>
                         <path>
                             <groupId>com.google.errorprone</groupId>
                             <artifactId>error_prone_core</artifactId>

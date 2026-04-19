@@ -55,7 +55,7 @@ public class RestClientPropagationConfiguration {
         public RestClientCustomizer pulseTimeoutBudgetRestClientCustomizer(
                 PulseProperties properties, MeterRegistry registry) {
             TimeoutBudgetOutboundInterceptor interceptor =
-                    new TimeoutBudgetOutboundInterceptor(properties.timeoutBudget(), registry);
+                    new TimeoutBudgetOutboundInterceptor(properties.timeoutBudget(), registry, "restclient");
             return builder -> builder.requestInterceptor(interceptor);
         }
     }

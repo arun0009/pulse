@@ -49,9 +49,11 @@ public final class PulseOtelShutdownLifecycle implements SmartLifecycle {
         if (!flush.isSuccess()) {
             log.warn("Pulse: OTel exporter flush did not complete within {}ms — some spans may be lost", timeoutMs);
         }
-
-        CompletableResultCode shutdown = sdk.shutdown();
-        shutdown.join(timeoutMs, java.util.concurrent.TimeUnit.MILLISECONDS);
+        // Deliberately do NOT call sdk.shutdown() here. Spring Boot's OpenTelemetry auto-config
+        // registers the SDK as a managed bean with destroyMethod="close", which itself invokes
+        // shutdown(). Calling shutdown() now would race or double-close the BatchSpanProcessor /
+        // exporters. Our role is only to *block* the lifecycle until the flush has drained the
+        // queue; the actual shutdown belongs to the bean that owns the SDK.
     }
 
     @Override

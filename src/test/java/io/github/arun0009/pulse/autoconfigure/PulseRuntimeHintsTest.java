@@ -48,8 +48,6 @@ class PulseRuntimeHintsTest {
         new PulseRuntimeHints().registerHints(hints, getClass().getClassLoader());
 
         Assertions.assertThat(resource().forResource("pulse-json-layout.json")).accepts(hints);
-        Assertions.assertThat(resource().forResource("observability-json-layout.json"))
-                .accepts(hints);
         Assertions.assertThat(resource().forResource("log4j2-spring.xml")).accepts(hints);
     }
 

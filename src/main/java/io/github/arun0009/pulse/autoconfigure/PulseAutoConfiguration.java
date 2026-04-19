@@ -55,9 +55,10 @@ import org.springframework.core.env.Environment;
  * and Kafka propagation.
  *
  * <p>{@link AutoConfigureAfter} pins Pulse after Boot's metrics + OpenTelemetry auto-configs so
- * we observe the {@code MeterRegistry} and {@code OpenTelemetrySdk} they create. The web tier
- * is pinned {@code @AutoConfigureBefore} Spring MVC's exception-handling auto-config so {@code
- * PulseExceptionHandler} is registered as the lowest-precedence default.
+ * we observe the {@code MeterRegistry} and {@code OpenTelemetrySdk} they create. The web tier's
+ * {@code PulseExceptionHandler} carries {@code @Order(Ordered.LOWEST_PRECEDENCE)} so it acts as
+ * the application-wide default {@code @RestControllerAdvice} — any user-supplied advice with a
+ * higher precedence still wins.
  */
 @AutoConfiguration
 @AutoConfigureAfter(
@@ -169,6 +170,28 @@ public class PulseAutoConfiguration {
         return new PulseStartupBanner(properties, env, serviceName);
     }
 
+    /**
+     * Spring-managed fallback {@link org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler}
+     * used by {@link PulseSchedulingConfigurer} when the application has not declared its own
+     * {@link org.springframework.scheduling.TaskScheduler}. Registered as a bean (rather than
+     * created ad-hoc inside the configurer) so Spring shuts down its thread pool on context
+     * close — eliminates the "lingering pulse-scheduled-* threads" leak.
+     */
+    @Bean(destroyMethod = "shutdown")
+    @ConditionalOnMissingBean(org.springframework.scheduling.TaskScheduler.class)
+    @ConditionalOnProperty(
+            prefix = "pulse.async",
+            name = "scheduled-propagation-enabled",
+            havingValue = "true",
+            matchIfMissing = true)
+    public org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler pulseTaskScheduler() {
+        var scheduler = new org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler();
+        scheduler.setPoolSize(2);
+        scheduler.setThreadNamePrefix("pulse-scheduled-");
+        scheduler.setRemoveOnCancelPolicy(true);
+        return scheduler;
+    }
+
     @Bean
     @ConditionalOnMissingBean
     @ConditionalOnProperty(
@@ -176,8 +199,8 @@ public class PulseAutoConfiguration {
             name = "scheduled-propagation-enabled",
             havingValue = "true",
             matchIfMissing = true)
-    public PulseSchedulingConfigurer pulseSchedulingConfigurer() {
-        return new PulseSchedulingConfigurer();
+    public PulseSchedulingConfigurer pulseSchedulingConfigurer(org.springframework.scheduling.TaskScheduler scheduler) {
+        return new PulseSchedulingConfigurer(scheduler);
     }
 
     @Bean(destroyMethod = "")

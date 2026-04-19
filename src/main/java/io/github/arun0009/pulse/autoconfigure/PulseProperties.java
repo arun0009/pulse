@@ -17,7 +17,7 @@ import java.util.List;
  * <pre>
  * pulse:
  *   trace-guard.fail-on-missing: false
- *   cardinality.max-tag-values: 1000
+ *   cardinality.max-tag-values-per-meter: 1000
  *   timeout-budget.default-budget: 2s
  *   wide-events.counter-enabled: true
  * </pre>

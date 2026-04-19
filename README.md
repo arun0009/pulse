@@ -65,7 +65,7 @@ export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
 ```bash
 $ curl -s localhost:8080/actuator/pulse | jq '.subsystems | keys'
 [
-	"audit", "cardinalityFirewall", "exceptionHandler", "histograms",
+	"async", "audit", "cardinalityFirewall", "exceptionHandler", "histograms",
 	"kafka", "logging", "requestContext", "sampling", "slo",
 	"timeoutBudget", "traceGuard", "wideEvents"
 ]
@@ -355,7 +355,7 @@ class OrderServiceTest {
 		pulse.assertEvent("order.placed")
 				.exists()
 				.hasAttribute("amount", "10")
-				.incrementedCounter("pulse.events", "event.name", "order.placed", 1.0);
+				.incrementedCounter("pulse.events", "event", "order.placed", 1.0);
 	}
 }
 ```

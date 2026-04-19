@@ -190,3 +190,66 @@ groups:
         annotations:
           summary: "{{ $labels.application }}: p99 > 1s for 10m"
           description: "p99 = {{ $value }}s"
+
+      # ── Saturation: HikariCP connection pool ──────────────────────────
+      # Spring Boot exposes hikaricp.connections.* via Micrometer when HikariCP
+      # is on the classpath. Pulse adds these alerts so a saturated pool is
+      # surfaced before requests start timing out at the JDBC layer.
+      - alert: PulseHikariCpExhausted
+        expr: |
+          sum by (application, env, pool)
+            (hikaricp_connections_pending) > 0
+          and
+          (
+            sum by (application, env, pool) (hikaricp_connections_active)
+            /
+            sum by (application, env, pool) (hikaricp_connections_max)
+          ) >= 0.95
+        for: 2m
+        labels:
+          severity: page
+          slo: saturation
+          subsystem: jdbc
+        annotations:
+          summary: "{{ $labels.application }} HikariCP pool {{ $labels.pool }} exhausted"
+          description: |
+            Connection pool {{ $labels.pool }} is ≥95% utilized AND threads are queued
+            waiting for a connection. New requests will block on `getConnection()` until
+            an existing one is returned. Likely causes: a slow downstream query, a leak
+            (connections checked out and never returned), or a pool size that is too small
+            for current traffic.
+          runbook_url: "https://github.com/arun0009/pulse/blob/main/docs/runbooks/hikaricp-saturation.md"
+
+      - alert: PulseHikariCpConnectionAcquireSlow
+        expr: |
+          histogram_quantile(0.95,
+            sum by (application, env, pool, le)
+              (rate(hikaricp_connections_acquire_seconds_bucket[5m]))
+          ) > 0.1
+        for: 10m
+        labels:
+          severity: ticket
+          slo: latency
+          subsystem: jdbc
+        annotations:
+          summary: "{{ $labels.application }} HikariCP pool {{ $labels.pool }} acquire p95 > 100ms"
+          description: |
+            p95 connection-acquire latency on pool {{ $labels.pool }} has exceeded 100ms
+            for 10 minutes. The pool is becoming a bottleneck — check active vs max
+            utilization and slow-query traces.
+
+      - alert: PulseHikariCpConnectionTimeoutsRising
+        expr: |
+          sum by (application, env, pool)
+            (rate(hikaricp_connections_timeout_total[5m])) > 0
+        for: 5m
+        labels:
+          severity: page
+          slo: availability
+          subsystem: jdbc
+        annotations:
+          summary: "{{ $labels.application }} HikariCP pool {{ $labels.pool }} returning timeouts"
+          description: |
+            Threads are timing out waiting for a connection from pool {{ $labels.pool }}.
+            Each timeout becomes a 500 to the caller. Increase pool size or fix the
+            query / leak holding connections open.

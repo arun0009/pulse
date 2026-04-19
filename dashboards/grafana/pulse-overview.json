@@ -383,6 +383,97 @@
         { "expr": "sum by (route) (rate(pulse_trace_received_total{application=~\"$service\",env=~\"$env\"}[5m]))", "legendFormat": "received — {{route}}" },
         { "expr": "sum by (route) (rate(pulse_trace_missing_total{application=~\"$service\",env=~\"$env\"}[5m]))", "legendFormat": "MISSING — {{route}}" }
       ]
+    },
+    {
+      "type": "row",
+      "title": "Saturation — HikariCP",
+      "description": "Connection-pool saturation panels. Spring Boot exposes hikaricp.connections.* via Micrometer when HikariCP is on the classpath; Pulse just charts and alerts on it.",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 44 },
+      "collapsed": false
+    },
+    {
+      "type": "timeseries",
+      "title": "HikariCP utilization (active / max)",
+      "description": "Fraction of the pool that's actively in use. Sustained values >0.9 indicate the pool is the bottleneck — increase size or fix the slow query.",
+      "datasource": "${DS_PROMETHEUS}",
+      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 45 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "#EAB839", "value": 0.75 },
+              { "color": "red", "value": 0.95 }
+            ]
+          }
+        }
+      },
+      "targets": [{
+        "expr": "sum by (pool) (hikaricp_connections_active{application=~\"$service\",env=~\"$env\"}) / sum by (pool) (hikaricp_connections_max{application=~\"$service\",env=~\"$env\"})",
+        "legendFormat": "{{pool}}"
+      }]
+    },
+    {
+      "type": "timeseries",
+      "title": "HikariCP pending acquisitions",
+      "description": "Threads waiting on `getConnection()`. Anything sustained > 0 is queueing — requests are now serialized on the pool.",
+      "datasource": "${DS_PROMETHEUS}",
+      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 45 },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "#EAB839", "value": 1 },
+              { "color": "red", "value": 5 }
+            ]
+          }
+        }
+      },
+      "targets": [{
+        "expr": "sum by (pool) (hikaricp_connections_pending{application=~\"$service\",env=~\"$env\"})",
+        "legendFormat": "{{pool}}"
+      }]
+    },
+    {
+      "type": "timeseries",
+      "title": "HikariCP acquire latency p50 / p95 / p99",
+      "description": "Percentile time spent acquiring a connection. Below 10ms is healthy; >100ms p95 means the pool is saturated.",
+      "datasource": "${DS_PROMETHEUS}",
+      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 52 },
+      "fieldConfig": { "defaults": { "unit": "s" } },
+      "targets": [
+        { "expr": "histogram_quantile(0.50, sum by (pool, le) (rate(hikaricp_connections_acquire_seconds_bucket{application=~\"$service\",env=~\"$env\"}[5m])))", "legendFormat": "p50 — {{pool}}" },
+        { "expr": "histogram_quantile(0.95, sum by (pool, le) (rate(hikaricp_connections_acquire_seconds_bucket{application=~\"$service\",env=~\"$env\"}[5m])))", "legendFormat": "p95 — {{pool}}" },
+        { "expr": "histogram_quantile(0.99, sum by (pool, le) (rate(hikaricp_connections_acquire_seconds_bucket{application=~\"$service\",env=~\"$env\"}[5m])))", "legendFormat": "p99 — {{pool}}" }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "HikariCP timeouts (5m)",
+      "description": "Acquire timeouts. Each one becomes a 500 to the caller — should be flat at zero.",
+      "datasource": "${DS_PROMETHEUS}",
+      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 52 },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 1 }
+            ]
+          }
+        }
+      },
+      "targets": [{
+        "expr": "sum(rate(hikaricp_connections_timeout_total{application=~\"$service\",env=~\"$env\"}[5m]))",
+        "legendFormat": "timeouts/s"
+      }]
     }
   ]
 }

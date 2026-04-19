@@ -8,6 +8,17 @@ and follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format.
 ## [Unreleased]
 
 ### Added
+- _(Nothing yet — see [`1.0.0`](#100--2026-04-19) below.)_
+
+## [1.0.0] — 2026-04-19
+
+First public Maven Central release. Pulse 1.0 establishes the public API surface for
+production-correctness on Spring Boot 4 — cardinality firewall, timeout-budget propagation,
+SLO-as-code, structured-logging-with-build-metadata, and the `@PulseTest` slice — and
+commits to backwards compatibility for all `pulse.*` configuration keys, actuator
+endpoints, and `io.github.arun0009.pulse.*` package classes through the 1.x line.
+
+### Added
 - **Cardinality firewall** — automatic per-meter cap on distinct tag values (default 1,000) with overflow bucketing.
 - **Timeout-budget propagation** — inbound `X-Timeout-Ms` header parsed, baggage-stored, deducted on every outbound hop. Outbound interceptor for `RestTemplate` sets the residual budget.
 - **Wide-event API** — `SpanEvents.emit(name, attrs)` writes a span event, increments a bounded counter, and stamps a structured log line in one call.
@@ -31,6 +42,14 @@ and follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format.
 - **`pulse.cardinality.overflow`** metric (`pulse_cardinality_overflow_total` in Prometheus) for generic overflow alerting and dashboarding.
 - **On-call runbook** for error-budget burn alerts (`docs/runbooks/error-budget-burn.md`).
 - **Pulse logo asset** (`assets/pulse-logo.svg`) used in project docs.
+- **Multi-source `app.version` / `build.commit` resolution** — `PulseLoggingEnvironmentPostProcessor` reads JVM system properties → classpath `META-INF/build-info.properties` + `git.properties` → `OTEL_RESOURCE_ATTRIBUTES` → common CI env vars → boot JAR `Implementation-Version`, seeding both as JVM system properties so the JSON layout stamps every log line — including pre-Spring-boot lines from background threads.
+- **`additional-spring-configuration-metadata.json`** — IDE autocomplete with descriptions and value hints for every `pulse.*` property in IntelliJ and VS Code.
+- **Test slice now ships in the main starter** — `@PulseTest`, `PulseTestHarness`, and `PulseTestConfiguration` moved from `src/test` to `src/main/java/io/github/arun0009/pulse/test/`. JUnit, AssertJ, Spring Boot test, and OpenTelemetry SDK testing are declared `optional` so they don't propagate to production classpaths. `@PulseTest` now auto-discovers the consumer's `@SpringBootApplication` instead of forcing its own boot class.
+
+### Build & release
+- **Reproducible builds** — `project.build.outputTimestamp` set so the JAR is bytewise-identical across rebuilds.
+- **POM completeness for Maven Central** — added `organization`, `issueManagement`, `ciManagement`; corrected `scm.developerConnection` URL.
+- **Javadoc strict mode** — removed `failOnError=false`; broken Javadoc now fails the release build (using `doclint=all,-missing` to allow pragmatic gaps).
 
 ### Changed
 - **Timeout-budget hardening** — inbound `X-Timeout-Ms` is now clamped by `pulse.timeout-budget.maximum-budget` before safety-margin/minimum logic.
@@ -57,4 +76,5 @@ and follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format.
 Reproduce with `make bench`. Numbers are not absolute (your hardware will
 differ); they exist so the perf claim is falsifiable, not a vibe.
 
-[Unreleased]: https://github.com/arun0009/pulse/commits/main
+[Unreleased]: https://github.com/arun0009/pulse/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/arun0009/pulse/releases/tag/v1.0.0

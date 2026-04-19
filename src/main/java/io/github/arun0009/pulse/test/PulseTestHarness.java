@@ -5,14 +5,18 @@ import io.opentelemetry.sdk.testing.exporter.InMemorySpanExporter;
 import io.opentelemetry.sdk.trace.data.EventData;
 import io.opentelemetry.sdk.trace.data.SpanData;
 import org.assertj.core.api.AbstractAssert;
+import org.jspecify.annotations.Nullable;
 
 import java.util.List;
 import java.util.Optional;
 
 /**
- * Fluent assertions over Pulse's in-memory observability state. Captures both the span/event stream
- * (via {@link InMemorySpanExporter}) and the Micrometer meter registry so tests can assert on the
- * trifecta a single wide-event call produces.
+ * Fluent assertions over Pulse's in-memory observability state. Captures the span / span-event
+ * stream (via {@link InMemorySpanExporter}) and the Micrometer meter registry, so a single test
+ * can assert on the trifecta a wide-event call produces (span event + counter increment + log,
+ * though the log is asserted via standard {@code OutputCaptureExtension} if needed).
+ *
+ * <p>Wired automatically by {@link PulseTest}; inject as {@code @Autowired PulseTestHarness}.
  */
 public class PulseTestHarness {
 
@@ -24,7 +28,7 @@ public class PulseTestHarness {
         this.meterRegistry = meterRegistry;
     }
 
-    /** Drops captured spans and metric values — call between tests. */
+    /** Drops captured spans and metric values — call from {@code @BeforeEach} for isolation. */
     public void reset() {
         spanExporter.reset();
         meterRegistry.clear();
@@ -38,6 +42,7 @@ public class PulseTestHarness {
         return meterRegistry;
     }
 
+    /** Starts a fluent assertion chain on a span event by name. */
     public PulseEventAssert assertEvent(String eventName) {
         EventData event = spans().stream()
                 .flatMap(s -> s.getEvents().stream())
@@ -47,6 +52,7 @@ public class PulseTestHarness {
         return new PulseEventAssert(event, eventName, this);
     }
 
+    /** Returns the first event with the given name, if any. */
     public Optional<EventData> findEvent(String eventName) {
         return spans().stream()
                 .flatMap(s -> s.getEvents().stream())
@@ -54,35 +60,38 @@ public class PulseTestHarness {
                 .findFirst();
     }
 
+    /** Returns the current counter value, or {@code 0.0} if no counter has been registered yet. */
     public double counterValue(String name, String... tagPairs) {
         var counter = meterRegistry.find(name).tags(tagPairs).counter();
         return counter == null ? 0.0 : counter.count();
     }
 
-    /** Fluent assertion for a wide-event captured on a span. */
+    /** Fluent assertion for a span event captured by Pulse's wide-event API. */
     public static class PulseEventAssert extends AbstractAssert<PulseEventAssert, EventData> {
 
         private final String eventName;
         private final PulseTestHarness harness;
 
-        public PulseEventAssert(EventData actual, String eventName, PulseTestHarness harness) {
+        public PulseEventAssert(@Nullable EventData actual, String eventName, PulseTestHarness harness) {
             super(actual, PulseEventAssert.class);
             this.eventName = eventName;
             this.harness = harness;
         }
 
+        /** Asserts that an event with the configured name was captured. */
         public PulseEventAssert exists() {
             isNotNull();
             return this;
         }
 
+        /** Asserts the captured event carries an attribute with the given key + value. */
         public PulseEventAssert hasAttribute(String key, Object expected) {
             isNotNull();
             Object actualValue = readAttribute(key);
             if (actualValue == null) {
                 failWithMessage(
-                        "Expected event <%s> to carry attribute <%s>=<%s> but attribute was"
-                                + " missing. Present attributes: %s",
+                        "Expected event <%s> to carry attribute <%s>=<%s> but attribute was missing."
+                                + " Present attributes: %s",
                         eventName, key, expected, actual.getAttributes());
             }
             String actualStr = String.valueOf(actualValue);
@@ -95,23 +104,27 @@ public class PulseTestHarness {
             return this;
         }
 
+        /**
+         * Asserts that a counter named {@code counterName} tagged {@code tagKey=tagValue} reached
+         * the given value. Useful for verifying the metric side-effect of a wide-event call.
+         */
         public PulseEventAssert incrementedCounter(
                 String counterName, String tagKey, String tagValue, double byAmount) {
             isNotNull();
             double actualCount = harness.counterValue(counterName, tagKey, tagValue);
             if (actualCount != byAmount) {
                 failWithMessage(
-                        "Expected counter <%s{%s=%s}> to have value <%s> after event <%s> but was" + " <%s>",
+                        "Expected counter <%s{%s=%s}> to have value <%s> after event <%s> but was <%s>",
                         counterName, tagKey, tagValue, byAmount, eventName, actualCount);
             }
             return this;
         }
 
-        private Object readAttribute(String key) {
+        @Nullable private Object readAttribute(String key) {
             return actual.getAttributes().asMap().entrySet().stream()
                     .filter(e -> e.getKey().getKey().equals(key))
                     .findFirst()
-                    .map(e -> e.getValue())
+                    .map(java.util.Map.Entry::getValue)
                     .orElse(null);
         }
     }

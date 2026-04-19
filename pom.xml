@@ -12,6 +12,11 @@
     <description>Opinionated production-correctness layer for Spring Boot. Cardinality firewall, timeout-budget propagation, wide-event API, structured logging, and trace-correlated MDC — pre-installed.</description>
     <url>https://github.com/arun0009/pulse</url>
 
+    <organization>
+        <name>Pulse contributors</name>
+        <url>https://github.com/arun0009/pulse</url>
+    </organization>
+
     <licenses>
         <license>
             <name>MIT License</name>
@@ -29,10 +34,21 @@
     </developers>
 
     <scm>
-        <connection>scm:git:git://github.com/arun0009/pulse.git</connection>
-        <developerConnection>scm:git:ssh://github.com:arun0009/pulse.git</developerConnection>
+        <connection>scm:git:https://github.com/arun0009/pulse.git</connection>
+        <developerConnection>scm:git:ssh://git@github.com/arun0009/pulse.git</developerConnection>
+        <tag>HEAD</tag>
         <url>https://github.com/arun0009/pulse</url>
     </scm>
+
+    <issueManagement>
+        <system>GitHub Issues</system>
+        <url>https://github.com/arun0009/pulse/issues</url>
+    </issueManagement>
+
+    <ciManagement>
+        <system>GitHub Actions</system>
+        <url>https://github.com/arun0009/pulse/actions</url>
+    </ciManagement>
 
     <properties>
         <!-- Static analysis (Google's Error Prone + Uber's NullAway, configured
@@ -51,6 +67,10 @@
         <maven.compiler.target>21</maven.compiler.target>
         <nullaway.version>0.13.3</nullaway.version>
         <opentelemetry.semconv.version>1.34.0</opentelemetry.semconv.version>
+        <!-- Reproducible builds: byte-identical artifacts across rebuilds.
+             Override per-release via -Dproject.build.outputTimestamp=… or set to a
+             commit SHA / commit time. See https://maven.apache.org/guides/mini/guide-reproducible-builds.html -->
+        <project.build.outputTimestamp>2026-01-01T00:00:00Z</project.build.outputTimestamp>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <spotless.version>3.4.0</spotless.version>
@@ -154,11 +174,14 @@
             <groupId>org.apache.logging.log4j</groupId>
             <artifactId>log4j-layout-template-json</artifactId>
         </dependency>
-        <dependency>
-            <groupId>jakarta.servlet</groupId>
-            <artifactId>jakarta.servlet-api</artifactId>
-            <scope>provided</scope>
-        </dependency>
+        <!--
+          jakarta.servlet types are reached transitively via spring-boot-starter-web →
+          tomcat-embed-core (provided scope). Declaring jakarta.servlet-api directly created
+          a JPMS split-package conflict during Javadoc generation — both jars export the
+          same packages, so the release Javadoc jar would not build. tomcat-embed-core is
+          sufficient for compilation and any consumer using Pulse with a non-Tomcat servlet
+          container will still bring their own jakarta.servlet implementation.
+        -->
 
         <!-- ========================================================================
              OpenTelemetry — Spring Boot 4 native starter + OTel SDK + OTLP.
@@ -260,6 +283,40 @@
             <optional>true</optional>
         </dependency>
 
+        <!-- ========================================================================
+             Test slice (@PulseTest, PulseTestHarness) — shipped in src/main so
+             consumers can pull it in via the starter and use it from their own
+             test sources. All test-time helpers are marked optional so they're
+             not transitively forced on consumers' production classpaths; users
+             of @PulseTest already have JUnit + AssertJ + spring-boot-test in
+             their test scope via spring-boot-starter-test.
+             ======================================================================== -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-test</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-test-autoconfigure</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-api</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>io.opentelemetry</groupId>
+            <artifactId>opentelemetry-sdk-testing</artifactId>
+            <optional>true</optional>
+        </dependency>
+
         <!-- JSpecify nullness annotations. Provided + optional: consumers don't
              need it transitively, but it's required for our own @NullMarked
              package-info files to compile. -->
@@ -288,11 +345,6 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-opentelemetry-test</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>io.opentelemetry</groupId>
-            <artifactId>opentelemetry-sdk-testing</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -654,6 +706,16 @@
                     <plugin>
                         <artifactId>maven-javadoc-plugin</artifactId>
                         <version>${maven-javadoc-plugin.version}</version>
+                        <configuration>
+                            <!-- Strict-but-pragmatic. doclint=all,-missing flags broken @link / malformed
+                                 HTML / etc. (the things consumers actually see) without firing on the
+                                 deliberate omissions of @param/@return on internal helpers. -->
+                            <doclint>all,-missing</doclint>
+                            <quiet>true</quiet>
+                            <doctitle>Pulse ${project.version} API</doctitle>
+                            <windowtitle>Pulse ${project.version}</windowtitle>
+                            <bottom><![CDATA[Copyright &#169; {currentYear} Pulse contributors. Released under the MIT License.]]></bottom>
+                        </configuration>
                         <executions>
                             <execution>
                                 <id>attach-javadoc</id>
@@ -661,9 +723,6 @@
                                     <goal>jar</goal>
                                 </goals>
                                 <phase>package</phase>
-                                <configuration>
-                                    <failOnError>false</failOnError>
-                                </configuration>
                             </execution>
                         </executions>
                     </plugin>

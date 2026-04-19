@@ -1,5 +1,6 @@
 package io.github.arun0009.pulse.test;
 
+import io.micrometer.core.instrument.MeterRegistry;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.sdk.OpenTelemetrySdk;
 import io.opentelemetry.sdk.testing.exporter.InMemorySpanExporter;
@@ -10,8 +11,9 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
 
 /**
- * Test configuration that supplies an in-memory OpenTelemetry SDK so that spans and span events can
- * be asserted against without a backing exporter. Wired by the {@link PulseTest} annotation.
+ * Test configuration that supplies an in-memory OpenTelemetry SDK so spans and span events can be
+ * captured and asserted against without a backing exporter. Wired automatically by {@link
+ * PulseTest}; can also be {@code @Import}ed onto a hand-rolled {@code @SpringBootTest}.
  */
 @TestConfiguration(proxyBeanMethods = false)
 public class PulseTestConfiguration {
@@ -21,6 +23,11 @@ public class PulseTestConfiguration {
         return InMemorySpanExporter.create();
     }
 
+    /**
+     * In-memory {@link OpenTelemetry} that records spans into the {@link InMemorySpanExporter}
+     * bean. {@code @Primary} so it shadows the production SDK during tests without requiring the
+     * application to exclude its real SDK bean.
+     */
     @Bean
     @Primary
     public OpenTelemetry pulseTestOpenTelemetry(InMemorySpanExporter exporter) {
@@ -31,8 +38,7 @@ public class PulseTestConfiguration {
     }
 
     @Bean
-    public PulseTestHarness pulseTestHarness(
-            InMemorySpanExporter spanExporter, io.micrometer.core.instrument.MeterRegistry meterRegistry) {
+    public PulseTestHarness pulseTestHarness(InMemorySpanExporter spanExporter, MeterRegistry meterRegistry) {
         return new PulseTestHarness(spanExporter, meterRegistry);
     }
 }

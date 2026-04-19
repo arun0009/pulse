@@ -17,6 +17,11 @@
 	<img alt="Spring Boot 4" src="https://img.shields.io/badge/Spring%20Boot-4-6DB33F?logo=springboot&logoColor=white"/>
 </p>
 
+> **Requires Spring Boot 4.x and Java 21+.** Pulse uses Boot 4's repackaged actuator
+> API (`org.springframework.boot.health.contributor`), the new Micrometer + OTel
+> starters, and Java 21 records / pattern matching. A Boot 3.x backport may follow in
+> 1.x but is not on the 1.0 roadmap. See [Requirements](#requirements).
+
 ---
 
 ## What ships in the box
@@ -335,19 +340,34 @@ For a runnable end-to-end demo (with-Pulse vs without-Pulse showing the same fai
 @PulseTest
 class OrderServiceTest {
 
-		@Autowired PulseTestHarness pulse;
+	@Autowired PulseTestHarness pulse;
+	@Autowired OrderService orders;
 
-		@Test
-		void emits_business_event_with_amount(@Autowired OrderService svc) {
-				svc.place(new Order(99, BigDecimal.TEN));
-				pulse.assertSpanWithEvent("order.placed").hasAttribute("amount", "10");
-				pulse.assertCounter("orders.placed").hasCount(1);
-		}
+	@BeforeEach
+	void resetHarness() {
+		pulse.reset();
+	}
+
+	@Test
+	void emitsBusinessEvent() {
+		orders.place(new Order(99, BigDecimal.TEN));
+
+		pulse.assertEvent("order.placed")
+				.exists()
+				.hasAttribute("amount", "10")
+				.incrementedCounter("pulse.events", "event.name", "order.placed", 1.0);
+	}
 }
 ```
 
-`@PulseTest` is a Spring Boot test slice that wires an in-memory OTel SDK and a fluent
-assertion harness. No external Collector, no Testcontainers, no flake.
+`@PulseTest` is a Spring Boot test slice that wires an in-memory OpenTelemetry SDK and a
+fluent assertion harness over both spans and Micrometer meters. No external Collector,
+no Testcontainers, no flake.
+
+**Ships in the main starter** — JUnit, AssertJ, Spring Boot test, and the OTel
+in-memory SDK are declared as `optional` dependencies, so they don't pollute production
+classpaths but are available wherever `spring-boot-starter-test` is on the test scope
+(which is everywhere a Spring Boot app is tested). No separate `-test` artifact required.
 
 ---
 
@@ -450,8 +470,10 @@ Pulse holds itself to the same bar it sets for your observability:
 - **CycloneDX SBOM** — supply-chain audit artifact generated on every build
 - **Sigstore signing** — keyless provenance on every release artifact via GitHub OIDC
 - **JMH benchmarks** — overhead claims are falsifiable, run on every PR
-- **GraalVM native hints** — `RuntimeHints` registered for all Pulse classes
+- **GraalVM native hints** — `RuntimeHints` registered for the reflection / proxy / resource edges Spring AOT cannot infer
+- **Reproducible builds** — `project.build.outputTimestamp` set; bytewise-identical artifacts across rebuilds
 - **Multi-JDK CI** — tested on Java 21 and 25
+- **IDE autocomplete** — ships `META-INF/spring-configuration-metadata.json` so `pulse.*` properties autocomplete in IntelliJ / VS Code with descriptions and value hints
 
 ---
 

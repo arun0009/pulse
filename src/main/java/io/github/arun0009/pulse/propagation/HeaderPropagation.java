@@ -41,4 +41,18 @@ public final class HeaderPropagation {
         }
         return map;
     }
+
+    /**
+     * Same as {@link #headerToMdcKey(PulseProperties.Context, PulseProperties.Retry)} plus the
+     * request-priority header (default {@code Pulse-Priority}). Priority propagation is opt-out
+     * via {@code pulse.priority.enabled=false}.
+     */
+    public static Map<String, String> headerToMdcKey(
+            PulseProperties.Context config, PulseProperties.Retry retry, PulseProperties.Priority priority) {
+        Map<String, String> map = headerToMdcKey(config, retry);
+        if (priority != null && priority.enabled()) {
+            map.put(priority.headerName(), ContextKeys.PRIORITY);
+        }
+        return map;
+    }
 }

@@ -16,25 +16,20 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
- * Auto-instruments {@link CaffeineCacheManager} so consumers do not have to remember to call
- * {@code recordStats()} on every Caffeine spec they ship.
+ * Auto-binds every {@link CaffeineCacheManager} bean to Micrometer so {@code cache.gets},
+ * {@code cache.puts}, {@code cache.evictions}, and {@code cache.hit_ratio} land on the registry
+ * with no extra configuration.
  *
- * <p>What ships:
- * <ul>
- *   <li>A {@link BeanPostProcessor} that, on every {@link CaffeineCacheManager} bean, replaces the
- *       configured Caffeine builder with one that has {@code recordStats()} enabled. Existing
- *       customizations (max size, expiry, weight, etc.) survive because we wrap rather than
- *       replace the spec.
- *   <li>A second post-step that, after each cache is created, binds it to Micrometer via
- *       {@link CaffeineCacheMetrics} so {@code cache.gets}, {@code cache.puts},
- *       {@code cache.evictions}, {@code cache.hit_ratio} land on the registry without an extra
- *       configuration class.
- * </ul>
+ * <p>Pulse <em>intentionally</em> does <strong>not</strong> mutate the application's Caffeine
+ * spec. Earlier iterations called {@code manager.setCaffeine(Caffeine.newBuilder().recordStats())}
+ * to "auto-enable" stats — that silently discarded the caller's {@code maximumSize},
+ * {@code expireAfterWrite}, weighers, removal listeners, and every other policy in their builder.
+ * That trade is unacceptable: Pulse must never make a cache configuration change that the
+ * operator did not author. If a Caffeine cache lacks {@code recordStats()} the bind happens
+ * anyway and the resulting hit/miss meters simply report zero — Pulse logs a one-time WARN per
+ * manager bean so the missing call is visible.
  *
- * <p>Cache-miss span events are deliberately scoped to a follow-up release: span attributes on
- * every miss can blow span size on hot caches, and the value is largely covered by the
- * cache.hit_ratio gauge that ships here. This module is opt-out via
- * {@code pulse.cache.caffeine.enabled=false}.
+ * <p>Opt out via {@code pulse.cache.caffeine.enabled=false}.
  */
 @Configuration(proxyBeanMethods = false)
 @ConditionalOnClass({CaffeineCacheManager.class, Caffeine.class})
@@ -50,8 +45,8 @@ public class PulseCaffeineConfiguration {
     }
 
     /**
-     * On Spring's {@link CaffeineCacheManager} initialization: enable {@code recordStats()} on
-     * the configured Caffeine builder, then bind every cache the manager exposes to Micrometer.
+     * Binds every {@link CaffeineCache} exposed by a {@link CaffeineCacheManager} bean to
+     * Micrometer at bean-initialization time. This never mutates the manager's Caffeine spec.
      */
     public static final class PulseCaffeineCacheCustomizer implements BeanPostProcessor {
 
@@ -64,23 +59,26 @@ public class PulseCaffeineConfiguration {
         @Override
         public Object postProcessAfterInitialization(Object bean, String beanName) {
             if (bean instanceof CaffeineCacheManager manager) {
-                try {
-                    Caffeine<Object, Object> builder = Caffeine.newBuilder().recordStats();
-                    manager.setCaffeine(builder);
-                } catch (RuntimeException e) {
-                    log.debug("Pulse: could not enable recordStats() on CaffeineCacheManager bean '{}'", beanName, e);
-                }
                 bindAllToMicrometer(manager, beanName);
             }
             return bean;
         }
 
         private void bindAllToMicrometer(CaffeineCacheManager manager, String beanName) {
+            boolean warnedRecordStats = false;
             for (String cacheName : manager.getCacheNames()) {
                 try {
                     Cache cache = manager.getCache(cacheName);
                     if (cache instanceof CaffeineCache cc) {
-                        CaffeineCacheMetrics.monitor(registry, cc.getNativeCache(), cacheName, "manager", beanName);
+                        com.github.benmanes.caffeine.cache.Cache<Object, Object> nativeCache = cc.getNativeCache();
+                        if (!warnedRecordStats && !nativeCache.policy().isRecordingStats()) {
+                            log.warn(
+                                    "Pulse: CaffeineCacheManager bean '{}' is configured without recordStats(); cache hit/miss meters will report zero. "
+                                            + "Add `.recordStats()` to your Caffeine builder to enable rich cache metrics.",
+                                    beanName);
+                            warnedRecordStats = true;
+                        }
+                        CaffeineCacheMetrics.monitor(registry, nativeCache, cacheName, "manager", beanName);
                     }
                 } catch (RuntimeException e) {
                     log.debug("Pulse: could not bind Caffeine cache '{}' to Micrometer", cacheName, e);

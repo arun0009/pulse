@@ -25,6 +25,19 @@ import java.util.regex.Pattern;
  * by both the Log4j2 JSON layout and the Logback encoder. This is the same mechanism Pulse
  * already uses for {@code service.version} and {@code build.commit}.
  *
+ * <h2>Relationship to {@code opentelemetry-resources}</h2>
+ *
+ * <p>The OTel SDK's optional {@code opentelemetry-resources} artifact ships ServiceLoader-based
+ * detectors ({@code ContainerResource}, {@code HostResource}, {@code OsResource},
+ * {@code ProcessResource}) that enrich the SDK {@code Resource} attached to <em>spans and
+ * metrics</em>. Pulse delegates to those for the trace/metric path — they are the canonical
+ * source. What this resolver covers is the <em>log</em> path: the JSON log layout cannot read
+ * the SDK {@code Resource}, so Pulse derives the same values once at startup and exposes them
+ * as system properties the layout substitutes into every log line. The two paths are
+ * complementary — the SDK enriches OTLP signals, this resolver enriches log records — and the
+ * resolver always honors operator overrides via the OTel-standard
+ * {@code OTEL_RESOURCE_ATTRIBUTES} env var, so a single override flows everywhere.
+ *
  * <h2>Resolution sources (highest priority first)</h2>
  *
  * <ol>

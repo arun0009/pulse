@@ -2,7 +2,6 @@ package io.github.arun0009.pulse.autoconfigure;
 
 import io.github.arun0009.pulse.actuator.PulseDiagnostics;
 import io.github.arun0009.pulse.async.ExecutorConfiguration;
-import io.github.arun0009.pulse.audit.AuditLogger;
 import io.github.arun0009.pulse.cache.PulseCaffeineConfiguration;
 import io.github.arun0009.pulse.container.PulseContainerMemoryConfiguration;
 import io.github.arun0009.pulse.db.PulseDbConfiguration;
@@ -22,6 +21,7 @@ import io.github.arun0009.pulse.metrics.CommonTagsConfiguration;
 import io.github.arun0009.pulse.metrics.DeployInfoMetrics;
 import io.github.arun0009.pulse.metrics.HistogramMeterFilter;
 import io.github.arun0009.pulse.openfeature.PulseOpenFeatureConfiguration;
+import io.github.arun0009.pulse.priority.PulsePriorityConfiguration;
 import io.github.arun0009.pulse.profiling.PulseProfilingConfiguration;
 import io.github.arun0009.pulse.propagation.KafkaPropagationConfiguration;
 import io.github.arun0009.pulse.propagation.OkHttpPropagationConfiguration;
@@ -68,7 +68,7 @@ import org.springframework.core.env.Environment;
  *
  * <p>Web-specific beans (servlet filters, controller advices, actuator endpoints) live in
  * {@link PulseWebAutoConfiguration} so non-web worker apps still benefit from Pulse's
- * cardinality firewall, MDC propagation across {@code @Async}/{@code @Scheduled}, audit logger,
+ * cardinality firewall, MDC propagation across {@code @Async}/{@code @Scheduled},
  * and Kafka propagation.
  *
  * <p>{@link AutoConfigureAfter} pins Pulse after Boot's metrics + OpenTelemetry auto-configs so
@@ -102,6 +102,7 @@ import org.springframework.core.env.Environment;
     PulseProfilingConfiguration.class,
     PulseDependenciesConfiguration.class,
     PulseTenantConfiguration.class,
+    PulsePriorityConfiguration.class,
     PulseContainerMemoryConfiguration.class,
     PulseOpenFeatureConfiguration.class,
     PulseCaffeineConfiguration.class,
@@ -137,13 +138,6 @@ public class PulseAutoConfiguration {
     @ConditionalOnProperty(prefix = "pulse.wide-events", name = "enabled", havingValue = "true", matchIfMissing = true)
     public SpanEvents pulseSpanEvents(MeterRegistry registry, PulseProperties properties) {
         return new SpanEvents(registry, properties.wideEvents());
-    }
-
-    @Bean
-    @ConditionalOnMissingBean
-    @ConditionalOnProperty(prefix = "pulse.audit", name = "enabled", havingValue = "true", matchIfMissing = true)
-    public AuditLogger pulseAuditLogger() {
-        return new AuditLogger();
     }
 
     @Bean

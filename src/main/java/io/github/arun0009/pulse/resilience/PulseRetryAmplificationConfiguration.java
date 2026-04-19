@@ -14,7 +14,7 @@ import org.springframework.context.annotation.Configuration;
  * Wires the retry-amplification subsystem.
  *
  * <p>The inbound {@link RetryDepthFilter} is independent of Resilience4j — depth can be
- * propagated by any client that sets {@code X-Pulse-Retry-Depth}. The outbound side is wired
+ * propagated by any client that sets {@code Pulse-Retry-Depth}. The outbound side is wired
  * inside the existing transport interceptors (RestTemplate, RestClient, WebClient, OkHttp,
  * Kafka) via {@code HeaderPropagation.headerToMdcKey(context, retry)}, so once
  * {@code pulse.retry.enabled=true} (the default) the depth flows through every supported

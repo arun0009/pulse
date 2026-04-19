@@ -47,7 +47,8 @@ public class PulseKafkaRecordInterceptor implements RecordInterceptor<Object, Ob
 
     public PulseKafkaRecordInterceptor(
             PulseProperties properties, @Nullable KafkaConsumerTimeLagMetrics timeLagMetrics) {
-        this.headerToMdcKey = HeaderPropagation.headerToMdcKey(properties.context(), properties.retry());
+        this.headerToMdcKey =
+                HeaderPropagation.headerToMdcKey(properties.context(), properties.retry(), properties.priority());
         this.timeoutBudgetHeader = properties.timeoutBudget().outboundHeader();
         this.timeoutBudgetEnabled = properties.timeoutBudget().enabled();
         this.timeLagMetrics = timeLagMetrics;

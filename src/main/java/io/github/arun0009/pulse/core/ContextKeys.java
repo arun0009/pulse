@@ -4,7 +4,7 @@ package io.github.arun0009.pulse.core;
  * Canonical MDC key names emitted by Pulse.
  *
  * <p>All Pulse-managed log fields are namespaced here so that downstream consumers (JSON layout,
- * exception handler, audit logger) reference one source of truth instead of stringly-typed keys.
+ * exception handler, dependency recorder) reference one source of truth instead of stringly-typed keys.
  *
  * <p>{@code traceId} and {@code spanId} are populated by the OpenTelemetry log appender /
  * Micrometer Tracing — never by Pulse code directly. They are listed here for reference only.
@@ -30,13 +30,26 @@ public final class ContextKeys {
 
     /**
      * Cross-service retry-amplification counter. Seeded from the inbound
-     * {@code X-Pulse-Retry-Depth} header (or whatever {@code pulse.retry.header-name} resolves
+     * {@code Pulse-Retry-Depth} header (or whatever {@code pulse.retry.header-name} resolves
      * to), bumped by every Resilience4j retry attempt observed by Pulse, and re-emitted on
      * outbound HTTP/Kafka calls so the next hop inherits it. When the inbound depth crosses
      * {@code pulse.retry.amplification-threshold}, Pulse emits an amplification metric, span
      * event, and WARN log.
      */
     public static final String RETRY_DEPTH = "retryDepth";
+
+    /**
+     * Request criticality / load-shedding hint. Carried over the wire as the
+     * {@code Pulse-Priority} header (default; configurable via
+     * {@code pulse.priority.header-name}), mirrored to MDC and OTel baggage so every log line
+     * and downstream call inherits it. The vocabulary is the five OpenTelemetry-aligned tiers
+     * {@code critical}, {@code high}, {@code normal}, {@code low}, {@code background}; an
+     * unknown value is normalized to {@code normal} on read. Application code consults
+     * {@link io.github.arun0009.pulse.priority.RequestPriority#current()} to make load-shedding
+     * decisions; unhandled-error and timeout-budget paths emit at {@code WARN} when a request
+     * with priority {@code critical} blows its budget.
+     */
+    public static final String PRIORITY = "priority";
 
     public static final String TRACE_ID = "traceId";
     public static final String SPAN_ID = "spanId";

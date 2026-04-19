@@ -84,7 +84,12 @@ class DependencyOutboundRecorderTest {
     }
 
     private DependencyOutboundRecorder build(boolean enabled) {
-        PulseProperties.Dependencies cfg = new PulseProperties.Dependencies(enabled, Map.of(), "unknown", 20);
+        PulseProperties.Dependencies cfg = new PulseProperties.Dependencies(
+                enabled,
+                Map.of(),
+                "unknown",
+                20,
+                new PulseProperties.Dependencies.Health(true, java.util.List.of(), 0.05, false));
         return new DependencyOutboundRecorder(registry, new DependencyResolver(cfg), cfg);
     }
 }

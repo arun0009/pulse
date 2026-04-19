@@ -59,6 +59,12 @@ class RequestFanoutFilterTest {
 
     private RequestFanoutFilter newFilter(int threshold) {
         return new RequestFanoutFilter(
-                registry, new PulseProperties.Dependencies(true, Map.of(), "unknown", threshold));
+                registry,
+                new PulseProperties.Dependencies(
+                        true,
+                        Map.of(),
+                        "unknown",
+                        threshold,
+                        new PulseProperties.Dependencies.Health(true, java.util.List.of(), 0.05, false)));
     }
 }

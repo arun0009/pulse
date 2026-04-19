@@ -16,7 +16,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Pulse turns each event into the documented metric, log, and span signal. The point of these
  * tests is to keep the public-contract metric names locked in — any rename would silently
  * break every downstream Grafana dashboard that depends on
- * {@code pulse.r4j.circuit_breaker.state_transitions}.
+ * {@code pulse.resilience.circuit_breaker.state_transitions}.
  */
 class CircuitBreakerObservationTest {
 
@@ -41,7 +41,7 @@ class CircuitBreakerObservationTest {
         // exactly one increment, tagged by name + from + to so dashboards can split by route.
         assertThat(meterRegistry
                         .counter(
-                                "pulse.r4j.circuit_breaker.state_transitions",
+                                "pulse.resilience.circuit_breaker.state_transitions",
                                 Tags.of("name", "orders-svc", "from", "CLOSED", "to", "OPEN"))
                         .count())
                 .isEqualTo(1.0);
@@ -56,7 +56,7 @@ class CircuitBreakerObservationTest {
         // rather than the enum name because Prometheus only stores numbers — this is the
         // contract a Grafana panel relies on.
         assertThat(meterRegistry
-                        .find("pulse.r4j.circuit_breaker.state")
+                        .find("pulse.resilience.circuit_breaker.state")
                         .tags("name", "downstream")
                         .gauge()
                         .value())
@@ -69,7 +69,7 @@ class CircuitBreakerObservationTest {
         breaker.onError(0, java.util.concurrent.TimeUnit.MILLISECONDS, new RuntimeException("upstream timed out"));
 
         assertThat(meterRegistry
-                        .counter("pulse.r4j.circuit_breaker.errors_total", Tags.of("name", "payments"))
+                        .counter("pulse.resilience.circuit_breaker.errors", Tags.of("name", "payments"))
                         .count())
                 .isEqualTo(1.0);
     }
@@ -99,7 +99,7 @@ class CircuitBreakerObservationTest {
         // Only one counter increment per transition, regardless of how many times we wired.
         assertThat(meterRegistry
                         .counter(
-                                "pulse.r4j.circuit_breaker.state_transitions",
+                                "pulse.resilience.circuit_breaker.state_transitions",
                                 Tags.of("name", "dup", "from", "OPEN", "to", "HALF_OPEN"))
                         .count())
                 .isEqualTo(1.0);

@@ -12,7 +12,8 @@ import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Tracks the wall-clock age of the most recently consumed Kafka record per
- * {@code (group, topic, partition)} as the {@code pulse.kafka.consumer.time_lag_seconds} gauge.
+ * {@code (group, topic, partition)} as the {@code pulse.kafka.consumer.time_lag} gauge
+ * (base unit {@code seconds}).
  *
  * <p>Kafka's native consumer-lag metric is reported in <em>messages</em>, which is meaningless
  * without knowing the producer rate ("you're 50,000 messages behind" can be 30 seconds or 30
@@ -28,7 +29,7 @@ import java.util.concurrent.atomic.AtomicLong;
  */
 public final class KafkaConsumerTimeLagMetrics {
 
-    static final String METRIC_NAME = "pulse.kafka.consumer.time_lag_seconds";
+    static final String METRIC_NAME = "pulse.kafka.consumer.time_lag";
     static final String UNKNOWN_GROUP = "unknown";
 
     private final MeterRegistry registry;

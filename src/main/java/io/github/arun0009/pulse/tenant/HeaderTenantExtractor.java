@@ -6,7 +6,7 @@ import org.springframework.core.Ordered;
 import java.util.Optional;
 
 /**
- * Reads the tenant id from a single request header (default {@code X-Tenant-ID}). The standard
+ * Reads the tenant id from a single request header (default {@code Pulse-Tenant-Id}). The standard
  * choice for service-to-service traffic where the platform proxy or auth gateway has already
  * resolved the tenant.
  *

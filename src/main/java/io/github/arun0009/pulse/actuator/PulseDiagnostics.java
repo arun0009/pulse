@@ -83,7 +83,6 @@ public final class PulseDiagnostics {
         pulse.put("async", properties.async());
         pulse.put("kafka", properties.kafka());
         pulse.put("exceptionHandler", properties.exceptionHandler());
-        pulse.put("audit", properties.audit());
         pulse.put("cardinality", properties.cardinality());
         pulse.put("timeoutBudget", properties.timeoutBudget());
         pulse.put("wideEvents", properties.wideEvents());
@@ -158,7 +157,6 @@ public final class PulseDiagnostics {
                 kafkaConfigured ? (kafkaWired ? "active" : "off (spring-kafka not on classpath)") : "disabled");
         map.put("kafka", entry(kafkaConfigured && kafkaWired, kafkaDetails));
         map.put("exceptionHandler", entry(properties.exceptionHandler().enabled(), Map.of()));
-        map.put("audit", entry(properties.audit().enabled(), Map.of()));
         map.put(
                 "cardinalityFirewall",
                 entry(

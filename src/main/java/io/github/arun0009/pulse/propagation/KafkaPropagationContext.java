@@ -17,7 +17,7 @@ import java.util.Map;
 public final class KafkaPropagationContext {
 
     private static volatile Map<String, String> headerToMdcKey = Map.of();
-    private static volatile String timeoutBudgetHeader = "X-Timeout-Ms";
+    private static volatile String timeoutBudgetHeader = "Pulse-Timeout-Ms";
     private static volatile @Nullable TimeoutBudgetOutbound budgetHelper = null;
     private static volatile boolean initialized = false;
 
@@ -50,7 +50,7 @@ public final class KafkaPropagationContext {
     /** Test-only — restore default state. */
     static synchronized void resetForTesting(@Nullable Map<String, String> headers, @Nullable String budgetHeader) {
         headerToMdcKey = headers == null ? Map.of() : Map.copyOf(headers);
-        timeoutBudgetHeader = budgetHeader == null ? "X-Timeout-Ms" : budgetHeader;
+        timeoutBudgetHeader = budgetHeader == null ? "Pulse-Timeout-Ms" : budgetHeader;
         budgetHelper = new TimeoutBudgetOutbound(null);
         initialized = headers != null;
     }

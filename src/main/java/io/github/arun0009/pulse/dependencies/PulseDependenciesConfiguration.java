@@ -5,6 +5,7 @@ import io.micrometer.core.instrument.MeterRegistry;
 import okhttp3.OkHttpClient;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.config.BeanPostProcessor;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -45,6 +46,19 @@ public class PulseDependenciesConfiguration {
     public DependencyOutboundRecorder pulseDependencyOutboundRecorder(
             MeterRegistry registry, DependencyResolver resolver, PulseProperties properties) {
         return new DependencyOutboundRecorder(registry, resolver, properties.dependencies());
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(name = "pulseDependencyHealthIndicator")
+    @ConditionalOnBean(MeterRegistry.class)
+    @ConditionalOnProperty(
+            prefix = "pulse.dependencies.health",
+            name = "enabled",
+            havingValue = "true",
+            matchIfMissing = true)
+    public DependencyHealthIndicator pulseDependencyHealthIndicator(
+            MeterRegistry registry, PulseProperties properties) {
+        return new DependencyHealthIndicator(registry, properties.dependencies().health());
     }
 
     @Configuration(proxyBeanMethods = false)

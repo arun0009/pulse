@@ -54,7 +54,7 @@ public final class PulseDrainObservabilityLifecycle implements SmartLifecycle {
         this.drainTimer = Timer.builder("pulse.shutdown.drain.duration")
                 .description("Wall-clock time spent waiting for inflight requests to drain at shutdown")
                 .register(registry);
-        this.droppedCounter = Counter.builder("pulse.shutdown.dropped_total")
+        this.droppedCounter = Counter.builder("pulse.shutdown.dropped")
                 .description("Number of inflight requests still running when the drain deadline elapsed")
                 .register(registry);
     }

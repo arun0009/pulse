@@ -20,8 +20,9 @@ import java.util.List;
  * Wires the multi-tenant context subsystem.
  *
  * <p>Built-in extractors are registered as {@code @ConditionalOnProperty} beans so an
- * application opts each one in independently. The header extractor is on by default to
- * match the pre-0.3.0 behavior of {@link PulseProperties.Context#tenantIdHeader()}.
+ * application opts each one in independently. The header extractor is on by default and
+ * reads the header named by {@link PulseProperties.Tenant.Header#name()} (default
+ * {@code Pulse-Tenant-Id}, RFC 6648 — no {@code X-} prefix).
  *
  * <p>Metric tagging (via {@link TenantObservationFilter}) is gated on the operator naming
  * the meters they want tagged in {@code pulse.tenant.tag-meters} — empty list = no tagging,

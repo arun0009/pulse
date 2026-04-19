@@ -49,7 +49,7 @@ class RetryDepthFilterTest {
 
         filter.doFilter(req, new MockHttpServletResponse(), (r, s) -> {});
 
-        assertThat(registry.find("pulse.retry.amplification_total")
+        assertThat(registry.find("pulse.retry.amplification")
                         .tag("endpoint", "/orders")
                         .counter()
                         .count())
@@ -64,7 +64,7 @@ class RetryDepthFilterTest {
 
         filter.doFilter(req, new MockHttpServletResponse(), (r, s) -> {});
 
-        assertThat(registry.find("pulse.retry.amplification_total").counter()).isNull();
+        assertThat(registry.find("pulse.retry.amplification").counter()).isNull();
     }
 
     @Test

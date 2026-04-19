@@ -22,8 +22,7 @@ class PulseDrainObservabilityLifecycleTest {
 
         assertThat(registry.get("pulse.shutdown.drain.duration").timer().count())
                 .isOne();
-        assertThat(registry.get("pulse.shutdown.dropped_total").counter().count())
-                .isZero();
+        assertThat(registry.get("pulse.shutdown.dropped").counter().count()).isZero();
     }
 
     @Test
@@ -35,8 +34,7 @@ class PulseDrainObservabilityLifecycleTest {
         lifecycle.start();
         lifecycle.stop();
 
-        assertThat(registry.get("pulse.shutdown.dropped_total").counter().count())
-                .isEqualTo(3.0);
+        assertThat(registry.get("pulse.shutdown.dropped").counter().count()).isEqualTo(3.0);
         assertThat(registry.get("pulse.shutdown.drain.duration").timer().count())
                 .isOne();
     }

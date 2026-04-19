@@ -9,7 +9,7 @@ import org.jspecify.annotations.Nullable;
  * request, summed across the entire call chain. Two sources increment it:
  *
  * <ol>
- *   <li>Inbound: the {@link RetryDepthFilter} reads the {@code X-Pulse-Retry-Depth} header (or
+ *   <li>Inbound: the {@link RetryDepthFilter} reads the {@code Pulse-Retry-Depth} header (or
  *       whatever {@code pulse.retry.header-name} is configured to) and seeds the local counter
  *       with the upstream's value.
  *   <li>Local: {@link RetryObservation} bumps the counter every time a Resilience4j {@code Retry}

@@ -22,7 +22,7 @@ import java.io.IOException;
 
 /**
  * Inbound filter that seeds {@link RetryDepthContext} from the upstream's
- * {@code X-Pulse-Retry-Depth} header (or whatever {@code pulse.retry.header-name} resolves to)
+ * {@code Pulse-Retry-Depth} header (or whatever {@code pulse.retry.header-name} resolves to)
  * and emits the amplification metric/event/log when the depth crosses the configured threshold.
  *
  * <p>Runs after {@link PulseRequestContextFilter} (so MDC is already populated with the standard
@@ -86,7 +86,7 @@ public final class RetryDepthFilter extends OncePerRequestFilter implements Orde
 
     private void fireAmplification(HttpServletRequest request, int depth) {
         String endpoint = endpoint(request);
-        Counter.builder("pulse.retry.amplification_total")
+        Counter.builder("pulse.retry.amplification")
                 .tag("endpoint", endpoint)
                 .description("Inbound requests whose retry-depth crossed the amplification threshold")
                 .register(registry)

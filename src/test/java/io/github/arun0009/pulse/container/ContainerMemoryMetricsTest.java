@@ -24,10 +24,8 @@ class ContainerMemoryMetricsTest {
 
         assertThat(metrics.register()).isTrue();
 
-        assertThat(registry.get("pulse.container.memory.used_bytes").gauge().value())
-                .isEqualTo(104_857_600.0);
-        assertThat(registry.get("pulse.container.memory.limit_bytes").gauge().value())
-                .isEqualTo(536_870_912.0);
+        assertThat(registry.get("pulse.container.memory.used").gauge().value()).isEqualTo(104_857_600.0);
+        assertThat(registry.get("pulse.container.memory.limit").gauge().value()).isEqualTo(536_870_912.0);
         assertThat(registry.get("pulse.container.memory.headroom_ratio").gauge().value())
                 .isCloseTo(0.8046875, org.assertj.core.api.Assertions.within(1e-6));
     }
@@ -39,6 +37,6 @@ class ContainerMemoryMetricsTest {
                 new CgroupMemoryReader(root.resolve("missing").toString()), registry);
 
         assertThat(metrics.register()).isFalse();
-        assertThat(registry.find("pulse.container.memory.used_bytes").gauge()).isNull();
+        assertThat(registry.find("pulse.container.memory.used").gauge()).isNull();
     }
 }

@@ -55,7 +55,7 @@ class RetryObservationTest {
 
         assertThat(calls.get()).isEqualTo(3);
         assertThat(meterRegistry
-                        .counter("pulse.r4j.retry.attempts_total", Tags.of("name", "upstream-flaky"))
+                        .counter("pulse.resilience.retry.attempts", Tags.of("name", "upstream-flaky"))
                         .count())
                 .isEqualTo(2.0);
     }
@@ -76,7 +76,7 @@ class RetryObservationTest {
                 .isInstanceOf(RuntimeException.class);
 
         assertThat(meterRegistry
-                        .counter("pulse.r4j.retry.exhausted_total", Tags.of("name", "exhauster"))
+                        .counter("pulse.resilience.retry.exhausted", Tags.of("name", "exhauster"))
                         .count())
                 .as("Exhaustion is the operationally meaningful signal — counting it lets SREs"
                         + " alert on retry-budget burn rather than just retry attempts")
@@ -88,9 +88,9 @@ class RetryObservationTest {
         Retry retry = retryRegistry.retry("happy-path");
         retry.executeRunnable(() -> {});
 
-        assertThat(meterRegistry.find("pulse.r4j.retry.attempts_total").counter())
+        assertThat(meterRegistry.find("pulse.resilience.retry.attempts").counter())
                 .isNull();
-        assertThat(meterRegistry.find("pulse.r4j.retry.exhausted_total").counter())
+        assertThat(meterRegistry.find("pulse.resilience.retry.exhausted").counter())
                 .isNull();
     }
 }

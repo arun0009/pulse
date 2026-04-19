@@ -29,7 +29,7 @@ import java.util.List;
  *
  * <p>Split out from {@link PulseAutoConfiguration} so that non-web (worker, batch, CLI)
  * applications can still benefit from Pulse's cardinality firewall, MDC propagation across
- * async hops, audit logger, and Kafka propagation, without dragging in servlet API
+ * async hops, and Kafka propagation, without dragging in servlet API
  * dependencies. {@link ConditionalOnWebApplication} gates the entire class on the servlet
  * stack being present.
  *

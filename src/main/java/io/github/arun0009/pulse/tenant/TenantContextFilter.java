@@ -27,15 +27,14 @@ import java.util.Optional;
  *
  * <p>Outbound propagation re-uses the existing
  * {@link io.github.arun0009.pulse.propagation.HeaderPropagation} machinery: the
- * {@code tenantId} MDC key is already mirrored onto outbound HTTP and Kafka requests as
- * {@code X-Tenant-ID}, so writing the resolved tenant to MDC is the only step needed for it
- * to flow downstream.
+ * {@code tenantId} MDC key is already mirrored onto outbound HTTP and Kafka requests using
+ * the configured tenant header (default {@code Pulse-Tenant-Id}), so writing the resolved
+ * tenant to MDC is the only step needed for it to flow downstream.
  *
  * <p>Runs after {@link PulseRequestContextFilter} so MDC is already populated; this filter
  * <em>overwrites</em> {@code tenantId} when the extractor chain produces a value, then
- * restores the previous value on exit. The pre-0.3.0 path (read {@code X-Tenant-ID} into MDC
- * via {@link io.github.arun0009.pulse.autoconfigure.PulseProperties.Context#tenantIdHeader()})
- * still works — a no-extractor configuration leaves MDC untouched, preserving back-compat.
+ * restores the previous value on exit. A no-extractor configuration leaves MDC untouched,
+ * so the simple "header → MDC" path still works for apps that don't need extractor logic.
  *
  * <p>Resolution priority:
  * <ol>

@@ -171,7 +171,7 @@ public class KafkaPropagationConfiguration {
 
         public KafkaPropagationContextInitializer(PulseProperties properties, @Nullable MeterRegistry registry) {
             KafkaPropagationContext.initialize(
-                    HeaderPropagation.headerToMdcKey(properties.context(), properties.retry()),
+                    HeaderPropagation.headerToMdcKey(properties.context(), properties.retry(), properties.priority()),
                     properties.timeoutBudget().outboundHeader(),
                     registry);
         }

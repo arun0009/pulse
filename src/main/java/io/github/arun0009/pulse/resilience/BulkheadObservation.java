@@ -21,13 +21,13 @@ import java.util.concurrent.ConcurrentMap;
  * the production picture; even one rejection per minute means the bulkhead is sized too tight
  * for the load.
  *
- * <p>Emits {@code pulse.r4j.bulkhead.rejected_total{name}} and one structured WARN line per
- * rejection. Pulse's JSON layout adds {@code traceId} so the operator can pivot from the alert
- * to the rejected request's trace.
+ * <p>Emits {@code pulse.resilience.bulkhead.rejected{name}} (counter; Prometheus exposition adds
+ * {@code _total}) and one structured WARN line per rejection. Pulse's JSON layout adds
+ * {@code traceId} so the operator can pivot from the alert to the rejected request's trace.
  */
 public final class BulkheadObservation implements SmartInitializingSingleton {
 
-    private static final Logger log = LoggerFactory.getLogger("pulse.r4j.bulkhead");
+    private static final Logger log = LoggerFactory.getLogger("pulse.resilience.bulkhead");
 
     private final BulkheadRegistry registry;
     private final MeterRegistry meterRegistry;
@@ -51,14 +51,14 @@ public final class BulkheadObservation implements SmartInitializingSingleton {
 
     private void onRejected(BulkheadOnCallRejectedEvent event) {
         meterRegistry
-                .counter("pulse.r4j.bulkhead.rejected_total", Tags.of("name", event.getBulkheadName()))
+                .counter("pulse.resilience.bulkhead.rejected", Tags.of("name", event.getBulkheadName()))
                 .increment();
 
         Span span = Span.current();
         if (span.getSpanContext().isValid()) {
             span.addEvent(
-                    "pulse.r4j.bulkhead.rejected",
-                    Attributes.of(AttributeKey.stringKey("pulse.r4j.bulkhead.name"), event.getBulkheadName()));
+                    "pulse.resilience.bulkhead.rejected",
+                    Attributes.of(AttributeKey.stringKey("pulse.resilience.bulkhead.name"), event.getBulkheadName()));
         }
 
         log.warn("bulkhead {} rejected a call (capacity exhausted)", event.getBulkheadName());

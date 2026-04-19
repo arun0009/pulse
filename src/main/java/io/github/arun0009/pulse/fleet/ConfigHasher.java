@@ -68,11 +68,24 @@ public final class ConfigHasher {
             return;
         }
         if (value instanceof Collection<?> col) {
+            // Sets have undefined iteration order — sort their string representations
+            // to guarantee deterministic hashes across JVM instances and restarts.
+            java.util.List<?> items = (value instanceof java.util.Set<?>)
+                    ? col.stream()
+                            .map(o -> o == null ? "null" : o.toString())
+                            .sorted()
+                            .collect(java.util.stream.Collectors.toList())
+                    : new java.util.ArrayList<>(col);
             sb.append('[');
             boolean first = true;
-            for (Object item : col) {
+            for (Object item : items) {
                 if (!first) sb.append(',');
-                canonicalize(item, sb);
+                if (value instanceof java.util.Set<?>) {
+                    // Already converted to sorted strings above.
+                    sb.append('"').append(item.toString().replace("\"", "\\\"")).append('"');
+                } else {
+                    canonicalize(item, sb);
+                }
                 first = false;
             }
             sb.append(']');

@@ -52,12 +52,12 @@ public final class ContainerMemoryMetrics {
         }
         last.set(snapshot);
 
-        Gauge.builder("pulse.container.memory.used_bytes", this, ContainerMemoryMetrics::usedBytes)
+        Gauge.builder("pulse.container.memory.used", this, ContainerMemoryMetrics::usedBytes)
                 .description("Container memory in use as the kernel sees it (cgroup memory.current / usage_in_bytes)")
                 .baseUnit("bytes")
                 .register(registry);
 
-        Gauge.builder("pulse.container.memory.limit_bytes", this, ContainerMemoryMetrics::limitBytes)
+        Gauge.builder("pulse.container.memory.limit", this, ContainerMemoryMetrics::limitBytes)
                 .description("Container memory hard limit (cgroup memory.max / limit_in_bytes)")
                 .baseUnit("bytes")
                 .register(registry);
@@ -66,12 +66,13 @@ public final class ContainerMemoryMetrics {
                 .description("1 - used/limit. Below 0.10 the kernel may OOM-kill.")
                 .register(registry);
 
-        Counter oomCounter = Counter.builder("pulse.container.memory.oom_kills_total")
+        Counter oomCounter = Counter.builder("pulse.container.memory.oom_kills")
                 .description("Number of OOM-kill events observed in this cgroup hierarchy")
                 .register(registry);
 
-        Gauge.builder("pulse.container.memory.refresh_age_seconds", this, m -> 0.0)
+        Gauge.builder("pulse.container.memory.refresh_age", this, m -> 0.0)
                 .description("Always 0 — gauges read live from cgroup on every scrape.")
+                .baseUnit("seconds")
                 .register(registry);
 
         // Bootstrap the OOM mirror to whatever the kernel reports right now so the first

@@ -34,7 +34,7 @@ class KafkaConsumerTimeLagMetricsTest {
 
         metrics.observe(record, "order-processor");
 
-        Gauge gauge = registry.get("pulse.kafka.consumer.time_lag_seconds")
+        Gauge gauge = registry.get("pulse.kafka.consumer.time_lag")
                 .tag("group", "order-processor")
                 .tag("topic", "orders")
                 .tag("partition", "3")
@@ -63,7 +63,7 @@ class KafkaConsumerTimeLagMetricsTest {
 
         metrics.observe(record, null);
 
-        assertThat(registry.find("pulse.kafka.consumer.time_lag_seconds")
+        assertThat(registry.find("pulse.kafka.consumer.time_lag")
                         .tag("group", "unknown")
                         .gauge())
                 .isNotNull();
@@ -89,7 +89,6 @@ class KafkaConsumerTimeLagMetricsTest {
 
         metrics.observe(record, "g");
 
-        assertThat(registry.find("pulse.kafka.consumer.time_lag_seconds").gauge())
-                .isNull();
+        assertThat(registry.find("pulse.kafka.consumer.time_lag").gauge()).isNull();
     }
 }

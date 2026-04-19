@@ -36,11 +36,6 @@
       "description": "Global @RestControllerAdvice that returns RFC 7807 ProblemDetail responses with traceId, requestId, and a stable errorFingerprint. The fingerprint also lands on the active span and an unhandled-error counter."
     },
     {
-      "name": "pulse.audit",
-      "type": "io.github.arun0009.pulse.autoconfigure.PulseProperties$Audit",
-      "description": "Routes the AuditLogger fluent API to a dedicated AUDIT logger so security-relevant events can be shipped to a separate appender."
-    },
-    {
       "name": "pulse.cardinality",
       "type": "io.github.arun0009.pulse.autoconfigure.PulseProperties$Cardinality",
       "description": "Caps distinct tag values per meter to prevent runaway tag explosions. Excess values bucket to overflow-value; pulse.cardinality.overflow counter records every clamp so dashboards and alerts can spot the offender."
@@ -151,7 +146,8 @@
     {
       "name": "pulse.timeout-budget.inbound-header",
       "values": [
-        { "value": "X-Timeout-Ms", "description": "Pulse default. Numeric milliseconds — interoperates with Envoy's x-envoy-upstream-rq-timeout-ms convention." },
+        { "value": "Pulse-Timeout-Ms", "description": "Pulse default (RFC 6648 — no X- prefix). Numeric milliseconds." },
+        { "value": "X-Timeout-Ms", "description": "Common edge convention — interoperates with Envoy's x-envoy-upstream-rq-timeout-ms." },
         { "value": "Grpc-Timeout", "description": "gRPC convention — requires a custom parser." }
       ]
     }

@@ -25,19 +25,17 @@ import java.util.concurrent.ConcurrentMap;
  * <p>Three observability surfaces are wired:
  *
  * <ul>
- *   <li>State transitions — {@code pulse.r4j.circuit_breaker.state_transitions{name, from, to}}
- *       counter + a span event named {@code pulse.r4j.cb.state_transition} with the same
- *       attributes. This is the headline signal: a transition from CLOSED to OPEN is the
- *       canonical "we just shed load" event in any production system.
- *   <li>Live state — {@code pulse.r4j.circuit_breaker.state{name}} gauge that maps the current
- *       state to a numeric value (0=CLOSED, 1=DISABLED, 2=METRICS_ONLY, 3=HALF_OPEN, 4=OPEN,
- *       5=FORCED_OPEN). Lets dashboards show "currently OPEN" without having to derive it from
- *       the transitions counter.
- *   <li>Error counter — {@code pulse.r4j.circuit_breaker.errors_total{name}} for non-ignored
- *       errors recorded by the circuit breaker. Useful as a numerator for an SLI burn-rate
- *       expression like
- *       {@code rate(pulse.r4j.circuit_breaker.errors_total[5m]) /
- *       rate(pulse.r4j.circuit_breaker.calls_total[5m])}.
+ *   <li>State transitions — {@code pulse.resilience.circuit_breaker.state_transitions{name, from,
+ *       to}} counter + a span event named {@code pulse.resilience.circuit_breaker.state_transition}
+ *       with the same attributes. This is the headline signal: a transition from CLOSED to OPEN
+ *       is the canonical "we just shed load" event in any production system.
+ *   <li>Live state — {@code pulse.resilience.circuit_breaker.state{name}} gauge that maps the
+ *       current state to a numeric value (0=CLOSED, 1=DISABLED, 2=METRICS_ONLY, 3=HALF_OPEN,
+ *       4=OPEN, 5=FORCED_OPEN). Lets dashboards show "currently OPEN" without having to derive
+ *       it from the transitions counter.
+ *   <li>Error counter — {@code pulse.resilience.circuit_breaker.errors{name}} for non-ignored
+ *       errors recorded by the circuit breaker. Counter; the Prometheus exposition adds
+ *       {@code _total}.
  * </ul>
  *
  * <p>The observer attaches via {@link CircuitBreakerRegistry#getEventPublisher()} which fires
@@ -51,7 +49,7 @@ import java.util.concurrent.ConcurrentMap;
  */
 public final class CircuitBreakerObservation implements SmartInitializingSingleton {
 
-    private static final Logger log = LoggerFactory.getLogger("pulse.r4j.circuit-breaker");
+    private static final Logger log = LoggerFactory.getLogger("pulse.resilience.circuit-breaker");
 
     private final CircuitBreakerRegistry registry;
     private final MeterRegistry meterRegistry;
@@ -84,7 +82,7 @@ public final class CircuitBreakerObservation implements SmartInitializingSinglet
     }
 
     private void registerStateGauge(CircuitBreaker breaker) {
-        Gauge.builder("pulse.r4j.circuit_breaker.state", breaker, b -> b.getState()
+        Gauge.builder("pulse.resilience.circuit_breaker.state", breaker, b -> b.getState()
                         .getOrder())
                 .description(
                         "Current circuit breaker state (0=CLOSED, 3=HALF_OPEN, 4=OPEN; see CircuitBreaker.State.getOrder)")
@@ -98,34 +96,33 @@ public final class CircuitBreakerObservation implements SmartInitializingSinglet
         String to = event.getStateTransition().getToState().name();
 
         meterRegistry
-                .counter("pulse.r4j.circuit_breaker.state_transitions", Tags.of("name", name, "from", from, "to", to))
+                .counter(
+                        "pulse.resilience.circuit_breaker.state_transitions",
+                        Tags.of("name", name, "from", from, "to", to))
                 .increment();
 
         Span span = Span.current();
         SpanContext spanContext = span.getSpanContext();
         if (spanContext.isValid()) {
-            span.addEvent("pulse.r4j.cb.state_transition");
-            span.setAttribute("pulse.r4j.cb.name", name);
-            span.setAttribute("pulse.r4j.cb.from", from);
-            span.setAttribute("pulse.r4j.cb.to", to);
+            span.addEvent("pulse.resilience.circuit_breaker.state_transition");
+            span.setAttribute("pulse.resilience.circuit_breaker.name", name);
+            span.setAttribute("pulse.resilience.circuit_breaker.from", from);
+            span.setAttribute("pulse.resilience.circuit_breaker.to", to);
         }
 
-        // Pulse's JSON layout adds traceId/service automatically — this single line is the
-        // entire "circuit just opened" forensic record an SRE needs.
         log.warn("circuit breaker {} transitioned {} -> {}", name, from, to);
     }
 
     private void onError(CircuitBreakerOnErrorEvent event) {
         meterRegistry
-                .counter("pulse.r4j.circuit_breaker.errors_total", Tags.of("name", event.getCircuitBreakerName()))
+                .counter("pulse.resilience.circuit_breaker.errors", Tags.of("name", event.getCircuitBreakerName()))
                 .increment();
     }
 
     private void onIgnoredError(CircuitBreakerOnIgnoredErrorEvent event) {
-        // Surface ignored errors on a separate counter so users can audit their ignore rules.
         meterRegistry
                 .counter(
-                        "pulse.r4j.circuit_breaker.ignored_errors_total",
+                        "pulse.resilience.circuit_breaker.ignored_errors",
                         Tags.of("name", event.getCircuitBreakerName()))
                 .increment();
     }

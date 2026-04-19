@@ -10,7 +10,8 @@ import java.util.Optional;
 /**
  * Represents the remaining time budget for an in-flight request.
  *
- * <p>Pulse extracts an inbound {@code X-Timeout-Ms} header, anchors a deadline to the request
+ * <p>Pulse extracts an inbound {@code Pulse-Timeout-Ms} header (or whatever
+ * {@code pulse.timeout-budget.inbound-header} resolves to), anchors a deadline to the request
  * start, and stores the deadline (as epoch-millis) on the OTel {@link Baggage} so it propagates
  * across every async hop and downstream call the OTel SDK touches. Application code reads the
  * remaining budget via {@link #current()} and downstream HTTP/gRPC interceptors translate that
@@ -25,7 +26,7 @@ import java.util.Optional;
 public final class TimeoutBudget {
 
     /** Baggage key used to carry the absolute deadline (epoch-millis, decimal string). */
-    public static final String BAGGAGE_KEY = "pulse.deadline.epoch.ms";
+    public static final String BAGGAGE_KEY = "pulse.timeout-budget.deadline.epoch.ms";
 
     private final Instant deadline;
 

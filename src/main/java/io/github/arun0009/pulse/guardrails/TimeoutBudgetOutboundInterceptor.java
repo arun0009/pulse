@@ -12,7 +12,7 @@ import java.io.IOException;
 
 /**
  * RestTemplate / RestClient interceptor that pushes the current request's remaining timeout budget
- * onto outbound calls as the configured header (default {@code X-Timeout-Ms}). Downstream
+ * onto outbound calls as the configured header (default {@code Pulse-Timeout-Ms}). Downstream
  * Pulse-equipped services pick this up via {@link TimeoutBudgetFilter} and use it as their own
  * budget.
  *

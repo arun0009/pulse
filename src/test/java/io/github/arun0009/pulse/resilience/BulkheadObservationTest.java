@@ -50,7 +50,7 @@ class BulkheadObservationTest {
             assertThatThrownBy(() -> tinyBulkhead.executeRunnable(() -> {})).isInstanceOf(BulkheadFullException.class);
 
             assertThat(meterRegistry
-                            .counter("pulse.r4j.bulkhead.rejected_total", Tags.of("name", "downstream"))
+                            .counter("pulse.resilience.bulkhead.rejected", Tags.of("name", "downstream"))
                             .count())
                     .isEqualTo(1.0);
         } finally {

@@ -46,6 +46,11 @@ class DependencyResolverTest {
     }
 
     private static DependencyResolver build(Map<String, String> map) {
-        return new DependencyResolver(new PulseProperties.Dependencies(true, map, "unknown", 20));
+        return new DependencyResolver(new PulseProperties.Dependencies(
+                true,
+                map,
+                "unknown",
+                20,
+                new PulseProperties.Dependencies.Health(true, java.util.List.of(), 0.05, false)));
     }
 }

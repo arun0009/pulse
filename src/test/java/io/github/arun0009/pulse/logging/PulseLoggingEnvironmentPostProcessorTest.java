@@ -1,5 +1,6 @@
 package io.github.arun0009.pulse.logging;
 
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
@@ -8,8 +9,10 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.core.env.StandardEnvironment;
 
 import java.io.InputStream;
+import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.Function;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -28,6 +31,15 @@ class PulseLoggingEnvironmentPostProcessorTest {
     void clearSystemProperties() {
         System.clearProperty(PulseLoggingEnvironmentPostProcessor.VERSION_SYS_PROP);
         System.clearProperty(PulseLoggingEnvironmentPostProcessor.COMMIT_SYS_PROP);
+        // Resource-attribute sys-props (host.name, container.id, k8s.*, cloud.*) leak across tests
+        // when the default-constructor path runs against the real machine, so we wipe them too.
+        for (String key : System.getProperties().stringPropertyNames()) {
+            if (key.startsWith(PulseLoggingEnvironmentPostProcessor.RESOURCE_ATTRIBUTE_SYS_PROP_PREFIX)
+                    && !key.equals(PulseLoggingEnvironmentPostProcessor.VERSION_SYS_PROP)
+                    && !key.equals(PulseLoggingEnvironmentPostProcessor.COMMIT_SYS_PROP)) {
+                System.clearProperty(key);
+            }
+        }
     }
 
     @Nested
@@ -75,7 +87,7 @@ class PulseLoggingEnvironmentPostProcessorTest {
                     "OTEL_RESOURCE_ATTRIBUTES",
                     "service.name=demo,service.version=2.7.4,deployment.commit=cafebabedeadbeef1234567890");
 
-            new PulseLoggingEnvironmentPostProcessor(env::get, emptyClassLoader())
+            new PulseLoggingEnvironmentPostProcessor(env::get, emptyClassLoader(), emptyResourceResolver())
                     .postProcessEnvironment(new StandardEnvironment(), new SpringApplication());
 
             assertThat(System.getProperty(PulseLoggingEnvironmentPostProcessor.VERSION_SYS_PROP))
@@ -113,7 +125,7 @@ class PulseLoggingEnvironmentPostProcessorTest {
                     "GITHUB_SHA", "fedcba9876543210abcdef0123456789",
                     "BUILD_VERSION", "1.4.2-rc.7");
 
-            new PulseLoggingEnvironmentPostProcessor(env::get, emptyClassLoader())
+            new PulseLoggingEnvironmentPostProcessor(env::get, emptyClassLoader(), emptyResourceResolver())
                     .postProcessEnvironment(new StandardEnvironment(), new SpringApplication());
 
             assertThat(System.getProperty(PulseLoggingEnvironmentPostProcessor.VERSION_SYS_PROP))
@@ -130,7 +142,7 @@ class PulseLoggingEnvironmentPostProcessorTest {
                     "GIT_COMMIT", "11111111aaaaaaaa",
                     "GITHUB_SHA", "22222222bbbbbbbb");
 
-            new PulseLoggingEnvironmentPostProcessor(env::get, emptyClassLoader())
+            new PulseLoggingEnvironmentPostProcessor(env::get, emptyClassLoader(), emptyResourceResolver())
                     .postProcessEnvironment(new StandardEnvironment(), new SpringApplication());
 
             assertThat(System.getProperty(PulseLoggingEnvironmentPostProcessor.COMMIT_SYS_PROP))
@@ -143,7 +155,7 @@ class PulseLoggingEnvironmentPostProcessorTest {
             env.put("GIT_COMMIT", "");
             env.put("CI_COMMIT_SHA", "deadbeef00112233");
 
-            new PulseLoggingEnvironmentPostProcessor(env::get, emptyClassLoader())
+            new PulseLoggingEnvironmentPostProcessor(env::get, emptyClassLoader(), emptyResourceResolver())
                     .postProcessEnvironment(new StandardEnvironment(), new SpringApplication());
 
             assertThat(System.getProperty(PulseLoggingEnvironmentPostProcessor.COMMIT_SYS_PROP))
@@ -159,7 +171,7 @@ class PulseLoggingEnvironmentPostProcessorTest {
             // The test classpath has build-info.properties=9.9.9-test; OTel attr should be ignored.
             Map<String, String> env = Map.of("OTEL_RESOURCE_ATTRIBUTES", "service.version=lower-priority");
 
-            new PulseLoggingEnvironmentPostProcessor(env::get, defaultTestClassLoader())
+            new PulseLoggingEnvironmentPostProcessor(env::get, defaultTestClassLoader(), emptyResourceResolver())
                     .postProcessEnvironment(new StandardEnvironment(), new SpringApplication());
 
             assertThat(System.getProperty(PulseLoggingEnvironmentPostProcessor.VERSION_SYS_PROP))
@@ -172,7 +184,7 @@ class PulseLoggingEnvironmentPostProcessorTest {
                     "OTEL_RESOURCE_ATTRIBUTES", "service.version=otel-wins",
                     "BUILD_VERSION", "env-loses");
 
-            new PulseLoggingEnvironmentPostProcessor(env::get, emptyClassLoader())
+            new PulseLoggingEnvironmentPostProcessor(env::get, emptyClassLoader(), emptyResourceResolver())
                     .postProcessEnvironment(new StandardEnvironment(), new SpringApplication());
 
             assertThat(System.getProperty(PulseLoggingEnvironmentPostProcessor.VERSION_SYS_PROP))
@@ -187,7 +199,7 @@ class PulseLoggingEnvironmentPostProcessorTest {
         void leaves_system_properties_unset_so_layout_can_substitute_unknown() {
             // Without a main-class manifest fallback (the test runner's main class would
             // otherwise leak surefire's version), every source is empty.
-            new PulseLoggingEnvironmentPostProcessor(name -> null, emptyClassLoader())
+            new PulseLoggingEnvironmentPostProcessor(name -> null, emptyClassLoader(), emptyResourceResolver())
                     .postProcessEnvironment(new StandardEnvironment(), springApplicationWithoutMainClass());
 
             assertThat(System.getProperty(PulseLoggingEnvironmentPostProcessor.VERSION_SYS_PROP))
@@ -209,7 +221,8 @@ class PulseLoggingEnvironmentPostProcessorTest {
             // whose JAR manifest is populated by spring-boot-maven-plugin with the pom
             // <version>. We assert only that *something* non-blank is returned, since the
             // exact value depends on which surefire JAR is on the classpath.
-            String version = new PulseLoggingEnvironmentPostProcessor(name -> null, emptyClassLoader())
+            String version = new PulseLoggingEnvironmentPostProcessor(
+                            name -> null, emptyClassLoader(), emptyResourceResolver())
                     .resolveVersion(new SpringApplication());
 
             assertThat(version)
@@ -255,5 +268,17 @@ class PulseLoggingEnvironmentPostProcessorTest {
     private static ClassLoader defaultTestClassLoader() {
         ClassLoader cl = Thread.currentThread().getContextClassLoader();
         return (cl != null) ? cl : PulseLoggingEnvironmentPostProcessorTest.class.getClassLoader();
+    }
+
+    /**
+     * A resolver wired to return nothing for every probe (env, sysprop, file, hostname). Used
+     * by tests that exercise the version/commit chain in isolation, so the resource-attribute
+     * detection can't accidentally read the real test machine's environment and assert against
+     * leaked values.
+     */
+    private static ResourceAttributeResolver emptyResourceResolver() {
+        Function<String, @Nullable String> nothingByName = name -> null;
+        Function<Path, @Nullable String> nothingByPath = path -> null;
+        return new ResourceAttributeResolver(nothingByName, nothingByName, nothingByPath, () -> null);
     }
 }

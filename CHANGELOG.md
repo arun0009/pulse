@@ -15,7 +15,7 @@ correlated to the same trace, with zero per-app glue code.
 ### Added
 - **OTel semantic-convention log alignment** — JSON layout now dual-emits
 	`service.name`/`service`, `service.version`/`app.version`,
-	`deployment.environment.name`/`env`, `vcs.ref.head.revision`/`build.commit`,
+	`deployment.environment`/`env`, `vcs.ref.head.revision`/`build.commit`,
 	`trace_id`/`traceId`, `span_id`/`spanId`, `http.request.id`/`requestId`, and
 	`user.id`/`userId`. Logs land correlated in Grafana / Loki / Tempo with no manual relabel.
 - **Logback support** — `PulseLogbackEncoder` + `logback-spring.xml` produce the same JSON
@@ -52,6 +52,17 @@ correlated to the same trace, with zero per-app glue code.
 	fully-qualified `pulse.profile.url` deep link to the flame graph for the trace's window.
 	`PyroscopeDetector` reports agent presence at startup and at `/actuator/pulse`. Pulse
 	never bundles a profiler — it observes the agent the operator already injected.
+- **Resource-attribute log fields** — every log line is stamped with the OTel resource
+	attributes that identify *where* the JVM is running: `host.name`, `container.id`,
+	`k8s.pod.name`, `k8s.namespace.name`, `k8s.node.name`, `cloud.provider`, `cloud.region`,
+	`cloud.availability_zone`. `ResourceAttributeResolver` reads `OTEL_RESOURCE_ATTRIBUTES`
+	first (operator override), then platform env vars (AWS_REGION, POD_NAME, NODE_NAME, …),
+	then OS-level introspection (`/proc/self/cgroup` for the container ID,
+	`InetAddress.getLocalHost()` for the host name, the K8s service-account namespace mount).
+	Resolved values are seeded as JVM system properties at startup so every thread's logs
+	carry them with zero per-request cost. Dashboards like *"5xx rate per AZ"* or *"slow
+	checkout requests on node-7 in us-east-1a"* are one LogQL filter away — no per-app glue
+	required.
 
 ### Notes
 - 0.2.0 is additive. No 0.1.0 configuration keys were renamed or removed; new subsystems

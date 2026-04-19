@@ -52,8 +52,22 @@ class PulseLogbackEncoderTest {
     void tearDown() {
         System.clearProperty("pulse.app.version");
         System.clearProperty("pulse.build.commit");
+        for (String key : RESOURCE_ATTRIBUTE_SYS_PROPS) {
+            System.clearProperty(key);
+        }
         context.stop();
     }
+
+    private static final String[] RESOURCE_ATTRIBUTE_SYS_PROPS = {
+        "pulse.host.name",
+        "pulse.container.id",
+        "pulse.k8s.pod.name",
+        "pulse.k8s.namespace.name",
+        "pulse.k8s.node.name",
+        "pulse.cloud.provider",
+        "pulse.cloud.region",
+        "pulse.cloud.availability_zone",
+    };
 
     private String encodeWith(Level level, String message, Map<String, String> mdc) {
         return encodeWith(level, message, mdc, null);
@@ -113,7 +127,7 @@ class PulseLogbackEncoderTest {
 
             assertThat(line).contains("\"service.name\":\"orders\"");
             assertThat(line).contains("\"service\":\"orders\"");
-            assertThat(line).contains("\"deployment.environment.name\":\"prod\"");
+            assertThat(line).contains("\"deployment.environment\":\"prod\"");
             assertThat(line).contains("\"env\":\"prod\"");
             assertThat(line).contains("\"service.version\":\"1.2.3\"");
             assertThat(line).contains("\"app.version\":\"1.2.3\"");
@@ -196,6 +210,46 @@ class PulseLogbackEncoderTest {
             assertThat(line).contains("\"exception\":");
             assertThat(line).contains("IllegalStateException");
             assertThat(line).contains("bad-state");
+        }
+    }
+
+    @Nested
+    class Resource_attribute_fields {
+
+        @Test
+        void emits_seeded_resource_attributes_under_otel_semconv_names() {
+            // Production seeding happens in PulseLoggingEnvironmentPostProcessor; here we set
+            // the same JVM system properties directly to assert the encoder reads them.
+            System.setProperty("pulse.host.name", "ip-10-0-1-23");
+            System.setProperty("pulse.container.id", "c0ffee");
+            System.setProperty("pulse.k8s.pod.name", "orders-7d4b9c");
+            System.setProperty("pulse.k8s.namespace.name", "checkout");
+            System.setProperty("pulse.k8s.node.name", "node-7");
+            System.setProperty("pulse.cloud.provider", "aws");
+            System.setProperty("pulse.cloud.region", "us-east-1");
+            System.setProperty("pulse.cloud.availability_zone", "us-east-1a");
+
+            String line = encodeWith(Level.INFO, "where am i", null);
+
+            assertThat(line).contains("\"host.name\":\"ip-10-0-1-23\"");
+            assertThat(line).contains("\"container.id\":\"c0ffee\"");
+            assertThat(line).contains("\"k8s.pod.name\":\"orders-7d4b9c\"");
+            assertThat(line).contains("\"k8s.namespace.name\":\"checkout\"");
+            assertThat(line).contains("\"k8s.node.name\":\"node-7\"");
+            assertThat(line).contains("\"cloud.provider\":\"aws\"");
+            assertThat(line).contains("\"cloud.region\":\"us-east-1\"");
+            assertThat(line).contains("\"cloud.availability_zone\":\"us-east-1a\"");
+        }
+
+        @Test
+        void unseeded_resource_attributes_default_to_unknown_so_field_is_always_present() {
+            // Running on a developer laptop with no K8s/cloud env should still emit the keys —
+            // operators searching for "host.name=unknown" can find unconfigured deployments.
+            String line = encodeWith(Level.INFO, "minimal", null);
+
+            assertThat(line).contains("\"host.name\":\"unknown\"");
+            assertThat(line).contains("\"k8s.pod.name\":\"unknown\"");
+            assertThat(line).contains("\"cloud.region\":\"unknown\"");
         }
     }
 }

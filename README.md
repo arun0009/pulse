@@ -253,7 +253,7 @@ fields, the Collector's `transform` processor) work without manual relabeling:
 |---|---|
 | `traceId` / `spanId` | `trace_id` / `span_id` (OTel logs data model) |
 | `service` | `service.name` |
-| `env` | `deployment.environment.name` |
+| `env` | `deployment.environment` |
 | `app.version` | `service.version` |
 | `build.commit` | `vcs.ref.head.revision` |
 | `requestId` | `http.request.id` |
@@ -262,6 +262,30 @@ fields, the Collector's `transform` processor) work without manual relabeling:
 Both names point at the same MDC key or system property — there's no double-resolution cost
 and no risk of skew. The flat names will be removed in `1.0.0` after a deprecation cycle; the
 OTel names are stable and will remain.
+
+**Resource attributes — *where* the JVM is running.** On top of the per-request fields above,
+every log line is stamped with the OTel resource attributes that identify the host, container,
+Kubernetes pod, and cloud region. Pulse resolves them once at startup and seeds JVM system
+properties so they appear on **every** thread's logs (including pre-Spring-boot startup
+chatter), with no per-request cost:
+
+| OTel attribute | Resolution sources, in priority order |
+|---|---|
+| `host.name` | `OTEL_RESOURCE_ATTRIBUTES`, `HOSTNAME`, `InetAddress.getLocalHost()` |
+| `container.id` | `OTEL_RESOURCE_ATTRIBUTES`, 64-hex match in `/proc/self/cgroup` |
+| `k8s.pod.name` | `OTEL_RESOURCE_ATTRIBUTES`, `POD_NAME` / `MY_POD_NAME`, `HOSTNAME` (only if `KUBERNETES_SERVICE_HOST` is set) |
+| `k8s.namespace.name` | `OTEL_RESOURCE_ATTRIBUTES`, `POD_NAMESPACE` / `MY_POD_NAMESPACE`, `/var/run/secrets/kubernetes.io/serviceaccount/namespace` |
+| `k8s.node.name` | `OTEL_RESOURCE_ATTRIBUTES`, `NODE_NAME` / `MY_NODE_NAME` |
+| `cloud.provider` | inferred from env: `aws` (AWS_REGION / AWS_EXECUTION_ENV), `gcp` (GOOGLE_CLOUD_PROJECT / *_REGION), `azure` (AZURE_REGION / WEBSITE_SITE_NAME) |
+| `cloud.region` | `AWS_REGION`, `GOOGLE_CLOUD_REGION`, `AZURE_REGION`, … |
+| `cloud.availability_zone` | `AWS_AVAILABILITY_ZONE` |
+
+This means dashboards like *"5xx rate per AZ"* or *"slow checkout requests on node-7 in
+us-east-1a"* are one Loki/LogQL filter away — **no per-app glue, no helm-chart MDC
+injection**. Undetected attributes default to `"unknown"` so the field is always present (a
+clean signal you can grep for to find unconfigured deployments). Operators can always override
+any value with `OTEL_RESOURCE_ATTRIBUTES=k8s.pod.name=foo,cloud.region=us-east-1`, which keeps
+Pulse consistent with the rest of the OTel ecosystem.
 
 **Logback users.** Pulse defaults to Log4j2 (transitive via `spring-boot-starter-log4j2`), but
 ships an equivalent `logback-spring.xml` + `PulseLogbackEncoder` that produce the *exact same*

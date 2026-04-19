@@ -1,0 +1,30 @@
+name: Feature request
+description: Propose something Pulse should do by default
+labels: ["enhancement", "needs-triage"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What production failure are you trying to prevent?
+      description: Pulse is opinionated. Features that don't prevent a real outage usually don't make the cut.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+      description: How should Pulse behave by default? What should be opt-out via config?
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Could this be solved with existing Spring Boot / Micrometer / OTel features in <10 lines?
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope check
+      options:
+        - label: This is something most Spring Boot services need (not just my use case)
+        - label: I've read CONTRIBUTING.md and confirmed this is in scope

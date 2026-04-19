@@ -1,0 +1,388 @@
+{
+  "title": "Pulse — Service Overview",
+  "uid": "pulse-overview",
+  "tags": ["pulse", "slo", "spring-boot"],
+  "schemaVersion": 39,
+  "version": 2,
+  "time": { "from": "now-6h", "to": "now" },
+  "refresh": "30s",
+  "annotations": {
+    "list": [
+      {
+        "name": "Deploys",
+        "datasource": "${DS_PROMETHEUS}",
+        "enable": true,
+        "expr": "changes(pulse_deploy_info{application=~\"$service\",env=~\"$env\"}[1m]) > 0",
+        "titleFormat": "Deploy",
+        "tagKeys": "version,commit",
+        "iconColor": "#6ed0e0",
+        "step": "60s"
+      }
+    ]
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "DS_PROMETHEUS",
+        "type": "datasource",
+        "query": "prometheus",
+        "current": { "selected": false, "text": "Prometheus", "value": "prometheus" }
+      },
+      {
+        "name": "service",
+        "type": "query",
+        "datasource": "${DS_PROMETHEUS}",
+        "query": "label_values(http_server_requests_seconds_count, application)",
+        "current": { "selected": false, "text": "All", "value": "$__all" },
+        "includeAll": true,
+        "multi": false,
+        "refresh": 2
+      },
+      {
+        "name": "env",
+        "type": "query",
+        "datasource": "${DS_PROMETHEUS}",
+        "query": "label_values(http_server_requests_seconds_count{application=~\"$service\"}, env)",
+        "includeAll": true,
+        "multi": false,
+        "refresh": 2
+      }
+    ]
+  },
+  "panels": [
+    {
+      "type": "row",
+      "title": "Golden Signals",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "collapsed": false
+    },
+    {
+      "type": "stat",
+      "title": "Availability (5m)",
+      "datasource": "${DS_PROMETHEUS}",
+      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 1 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "decimals": 3,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "#EAB839", "value": 0.99 },
+              { "color": "green", "value": 0.999 }
+            ]
+          }
+        }
+      },
+      "targets": [{
+        "expr": "1 - (\n  sum(rate(http_server_requests_seconds_count{application=~\"$service\",env=~\"$env\",status=~\"5..\"}[5m]))\n  /\n  sum(rate(http_server_requests_seconds_count{application=~\"$service\",env=~\"$env\"}[5m]))\n)",
+        "legendFormat": "availability"
+      }]
+    },
+    {
+      "type": "stat",
+      "title": "p50 / p95 / p99 (5m)",
+      "datasource": "${DS_PROMETHEUS}",
+      "gridPos": { "h": 4, "w": 6, "x": 4, "y": 1 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "decimals": 3,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "#EAB839", "value": 0.5 },
+              { "color": "red", "value": 1.0 }
+            ]
+          }
+        }
+      },
+      "targets": [
+        { "expr": "histogram_quantile(0.50, sum(rate(http_server_requests_seconds_bucket{application=~\"$service\",env=~\"$env\"}[5m])) by (le))", "legendFormat": "p50" },
+        { "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{application=~\"$service\",env=~\"$env\"}[5m])) by (le))", "legendFormat": "p95" },
+        { "expr": "histogram_quantile(0.99, sum(rate(http_server_requests_seconds_bucket{application=~\"$service\",env=~\"$env\"}[5m])) by (le))", "legendFormat": "p99" }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "RPS",
+      "datasource": "${DS_PROMETHEUS}",
+      "gridPos": { "h": 4, "w": 4, "x": 10, "y": 1 },
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "blue", "value": null }
+            ]
+          }
+        }
+      },
+      "targets": [{
+        "expr": "sum(rate(http_server_requests_seconds_count{application=~\"$service\",env=~\"$env\"}[5m]))",
+        "legendFormat": "rps"
+      }]
+    },
+    {
+      "type": "stat",
+      "title": "Error rate (5xx)",
+      "datasource": "${DS_PROMETHEUS}",
+      "gridPos": { "h": 4, "w": 4, "x": 14, "y": 1 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "decimals": 2,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "#EAB839", "value": 0.001 },
+              { "color": "red", "value": 0.01 }
+            ]
+          }
+        }
+      },
+      "targets": [{
+        "expr": "sum(rate(http_server_requests_seconds_count{application=~\"$service\",env=~\"$env\",status=~\"5..\"}[5m])) / sum(rate(http_server_requests_seconds_count{application=~\"$service\",env=~\"$env\"}[5m]))",
+        "legendFormat": "5xx rate"
+      }]
+    },
+    {
+      "type": "gauge",
+      "title": "SLO error budget remaining (30d)",
+      "description": "Estimated remaining error budget for a 99.9% SLO over a 30-day window. Below 0% means the budget is exhausted.",
+      "datasource": "${DS_PROMETHEUS}",
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 1 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": -0.5,
+          "max": 1,
+          "decimals": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "#EAB839", "value": 0.25 },
+              { "color": "green", "value": 0.5 }
+            ]
+          }
+        }
+      },
+      "targets": [{
+        "expr": "1 - (\n  (\n    sum(rate(http_server_requests_seconds_count{application=~\"$service\",env=~\"$env\",status=~\"5..\"}[30m]))\n    /\n    sum(rate(http_server_requests_seconds_count{application=~\"$service\",env=~\"$env\"}[30m]))\n  ) / 0.001\n)",
+        "legendFormat": "budget remaining"
+      }]
+    },
+    {
+      "type": "row",
+      "title": "RED — Rate / Errors / Duration",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 5 },
+      "collapsed": false
+    },
+    {
+      "type": "timeseries",
+      "title": "Request rate by status",
+      "datasource": "${DS_PROMETHEUS}",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 6 },
+      "fieldConfig": {
+        "defaults": { "unit": "reqps" },
+        "overrides": [
+          { "matcher": { "id": "byRegexp", "options": ".*5\\d\\d.*" }, "properties": [{ "id": "color", "value": { "fixedColor": "red", "mode": "fixed" } }] }
+        ]
+      },
+      "targets": [{
+        "expr": "sum by (status) (rate(http_server_requests_seconds_count{application=~\"$service\",env=~\"$env\"}[1m]))",
+        "legendFormat": "{{status}}"
+      }]
+    },
+    {
+      "type": "timeseries",
+      "title": "Latency percentiles",
+      "datasource": "${DS_PROMETHEUS}",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 6 },
+      "fieldConfig": { "defaults": { "unit": "s" } },
+      "targets": [
+        { "expr": "histogram_quantile(0.50, sum(rate(http_server_requests_seconds_bucket{application=~\"$service\",env=~\"$env\"}[5m])) by (le))", "legendFormat": "p50" },
+        { "expr": "histogram_quantile(0.90, sum(rate(http_server_requests_seconds_bucket{application=~\"$service\",env=~\"$env\"}[5m])) by (le))", "legendFormat": "p90" },
+        { "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{application=~\"$service\",env=~\"$env\"}[5m])) by (le))", "legendFormat": "p95" },
+        { "expr": "histogram_quantile(0.99, sum(rate(http_server_requests_seconds_bucket{application=~\"$service\",env=~\"$env\"}[5m])) by (le))", "legendFormat": "p99" }
+      ]
+    },
+    {
+      "type": "row",
+      "title": "Pulse Guardrails",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 14 },
+      "collapsed": false
+    },
+    {
+      "type": "stat",
+      "title": "Cardinality overflows",
+      "description": "Rate of tag values rewritten to OVERFLOW by the cardinality firewall. Anything > 0 means a runaway tag was detected and capped.",
+      "datasource": "${DS_PROMETHEUS}",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 15 },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "#EAB839", "value": 1 },
+              { "color": "red", "value": 5 }
+            ]
+          }
+        }
+      },
+      "targets": [{
+        "expr": "sum(rate(pulse_cardinality_overflow_total{application=~\"$service\",env=~\"$env\"}[5m]))",
+        "legendFormat": "overflow/s"
+      }]
+    },
+    {
+      "type": "stat",
+      "title": "Trace propagation health",
+      "description": "Ratio of inbound requests that arrived with valid trace context vs. total. Below 0.99 means an upstream is dropping context headers.",
+      "datasource": "${DS_PROMETHEUS}",
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 15 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "decimals": 2,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "#EAB839", "value": 0.95 },
+              { "color": "green", "value": 0.99 }
+            ]
+          }
+        }
+      },
+      "targets": [{
+        "expr": "sum(rate(pulse_trace_received_total{application=~\"$service\",env=~\"$env\"}[5m])) / (sum(rate(pulse_trace_received_total{application=~\"$service\",env=~\"$env\"}[5m])) + sum(rate(pulse_trace_missing_total{application=~\"$service\",env=~\"$env\"}[5m])))",
+        "legendFormat": "trace health"
+      }]
+    },
+    {
+      "type": "stat",
+      "title": "Timeout budget exhaustions",
+      "description": "Rate of outbound calls made with zero remaining timeout budget. High values indicate upstream budgets are unrealistic or this service is too slow.",
+      "datasource": "${DS_PROMETHEUS}",
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 15 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "decimals": 2,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "#EAB839", "value": 0.01 },
+              { "color": "red", "value": 0.1 }
+            ]
+          }
+        }
+      },
+      "targets": [{
+        "expr": "sum(rate(pulse_timeout_budget_exhausted_total{application=~\"$service\",env=~\"$env\"}[5m]))",
+        "legendFormat": "exhausted/s"
+      }]
+    },
+    {
+      "type": "stat",
+      "title": "OTel exporter health",
+      "description": "Successful vs failed OTLP exports in the last 5 minutes. Failures mean your trace/metrics pipeline is broken.",
+      "datasource": "${DS_PROMETHEUS}",
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 15 },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null }
+            ]
+          }
+        }
+      },
+      "targets": [
+        { "expr": "otelcol_exporter_sent_spans{job=\"otel-collector\"}", "legendFormat": "sent spans" },
+        { "expr": "otelcol_exporter_send_failed_spans{job=\"otel-collector\"}", "legendFormat": "failed spans" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Cardinality overflow by meter + tag",
+      "description": "Which (meter, tag_key) pairs are hitting the cardinality cap? These are your runaway-tag offenders.",
+      "datasource": "${DS_PROMETHEUS}",
+      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 19 },
+      "targets": [{
+        "expr": "sum by (meter, tag_key) (rate(pulse_cardinality_overflow_total{application=~\"$service\",env=~\"$env\"}[5m]))",
+        "legendFormat": "{{meter}} / {{tag_key}}"
+      }]
+    },
+    {
+      "type": "timeseries",
+      "title": "Timeout budget exhaustion by transport",
+      "description": "Breakdown of which outbound transport (RestTemplate, WebClient, OkHttp, Kafka) is exhausting timeout budgets.",
+      "datasource": "${DS_PROMETHEUS}",
+      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 19 },
+      "targets": [{
+        "expr": "sum by (transport) (rate(pulse_timeout_budget_exhausted_total{application=~\"$service\",env=~\"$env\"}[5m]))",
+        "legendFormat": "{{transport}}"
+      }]
+    },
+    {
+      "type": "row",
+      "title": "Business Events & Errors",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 26 },
+      "collapsed": false
+    },
+    {
+      "type": "timeseries",
+      "title": "Wide events (pulse.events)",
+      "description": "Bounded-cardinality counter. One series per business event name, regardless of attributes.",
+      "datasource": "${DS_PROMETHEUS}",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 27 },
+      "targets": [{
+        "expr": "sum by (event) (rate(pulse_events_total{application=~\"$service\",env=~\"$env\"}[5m]))",
+        "legendFormat": "{{event}}"
+      }]
+    },
+    {
+      "type": "timeseries",
+      "title": "Unhandled exceptions by fingerprint",
+      "description": "Clusters of the same bug across deploys and hosts. Each fingerprint is a stable hash of the exception class + message.",
+      "datasource": "${DS_PROMETHEUS}",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 27 },
+      "fieldConfig": {
+        "overrides": [
+          { "matcher": { "id": "byRegexp", "options": ".*" }, "properties": [{ "id": "color", "value": { "mode": "palette-classic" } }] }
+        ]
+      },
+      "targets": [{
+        "expr": "sum by (exception, fingerprint) (rate(pulse_errors_unhandled_total{application=~\"$service\",env=~\"$env\"}[5m]))",
+        "legendFormat": "{{exception}} ({{fingerprint}})"
+      }]
+    },
+    {
+      "type": "row",
+      "title": "Trace Propagation",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 35 },
+      "collapsed": false
+    },
+    {
+      "type": "timeseries",
+      "title": "Trace context — received vs missing by route",
+      "description": "Per-route breakdown of inbound requests with valid trace context vs. those missing it. Spikes in 'missing' indicate an upstream that dropped traceparent.",
+      "datasource": "${DS_PROMETHEUS}",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 36 },
+      "targets": [
+        { "expr": "sum by (route) (rate(pulse_trace_received_total{application=~\"$service\",env=~\"$env\"}[5m]))", "legendFormat": "received — {{route}}" },
+        { "expr": "sum by (route) (rate(pulse_trace_missing_total{application=~\"$service\",env=~\"$env\"}[5m]))", "legendFormat": "MISSING — {{route}}" }
+      ]
+    }
+  ]
+}

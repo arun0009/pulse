@@ -1,0 +1,35 @@
+spring:
+  application:
+    name: edge
+
+server:
+  port: 8080
+
+app:
+  env: demo
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics,pulse,prometheus
+  endpoint:
+    pulse:
+      access: unrestricted
+
+# Pulse defaults — every feature on. The pulse-off profile flips every one of these
+# to demonstrate what life looks like without the production-correctness layer.
+pulse:
+  sampling:
+    probability: 1.0
+  cardinality:
+    enabled: true
+    max-tag-values-per-meter: 10           # very small for an obvious overflow log line
+    overflow-value: OVERFLOW
+    meter-prefixes-to-protect:
+      - orders
+  timeout-budget:
+    enabled: true
+    default-budget: 2s
+  banner:
+    enabled: true

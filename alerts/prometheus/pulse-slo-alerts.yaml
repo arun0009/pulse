@@ -1,0 +1,192 @@
+# Pulse — Multi-window, multi-burn-rate SLO alerts + operational guardrail alerts.
+#
+# Pattern from the Google SRE workbook (https://sre.google/workbook/alerting-on-slos/).
+# Two alerts per SLO: a fast one that fires on a 1h window with a 14.4x burn rate
+# (page) and a slow one on a 6h window with a 3x burn rate (ticket). Both must
+# trip before paging — this catches a real incident burning the error budget
+# without paging on every 5xx blip.
+#
+# Default SLO: 99.9% availability (error-budget = 0.1%). Adjust `slo_target` and
+# burn rates in the recording rules below if yours differs.
+#
+# For per-service SLO rules generated from application.yml, use:
+#   curl -s http://<host>/actuator/pulse/slo | kubectl apply -f -
+
+groups:
+  - name: pulse-slo-recording
+    interval: 30s
+    rules:
+      # 5xx error rate over multiple windows.
+      - record: pulse:http_error_rate:1h
+        expr: |
+          sum by (application, env) (rate(http_server_requests_seconds_count{status=~"5.."}[1h]))
+          /
+          sum by (application, env) (rate(http_server_requests_seconds_count[1h]))
+      - record: pulse:http_error_rate:6h
+        expr: |
+          sum by (application, env) (rate(http_server_requests_seconds_count{status=~"5.."}[6h]))
+          /
+          sum by (application, env) (rate(http_server_requests_seconds_count[6h]))
+
+      # Latency: fraction of requests exceeding the 500ms SLO bucket.
+      - record: pulse:http_latency_good_ratio:1h
+        expr: |
+          sum by (application, env) (rate(http_server_requests_seconds_bucket{le="0.5"}[1h]))
+          /
+          sum by (application, env) (rate(http_server_requests_seconds_count[1h]))
+      - record: pulse:http_latency_good_ratio:6h
+        expr: |
+          sum by (application, env) (rate(http_server_requests_seconds_bucket{le="0.5"}[6h]))
+          /
+          sum by (application, env) (rate(http_server_requests_seconds_count[6h]))
+
+      # Trace propagation health ratio (received / total).
+      - record: pulse:trace_propagation_ratio:5m
+        expr: |
+          sum by (application, env) (rate(pulse_trace_received_total[5m]))
+          /
+          (
+            sum by (application, env) (rate(pulse_trace_received_total[5m]))
+            +
+            sum by (application, env) (rate(pulse_trace_missing_total[5m]))
+          )
+
+  - name: pulse-slo-alerts
+    rules:
+      # ── Availability SLO (burn-rate) ──────────────────────────────────
+      - alert: PulseHighErrorBudgetBurnFast
+        expr: |
+          pulse:http_error_rate:1h > (14.4 * 0.001)
+          and
+          pulse:http_error_rate:6h > (6 * 0.001)
+        for: 2m
+        labels:
+          severity: page
+          slo: availability
+        annotations:
+          summary: "{{ $labels.application }} ({{ $labels.env }}) is burning error budget fast"
+          description: |
+            5xx rate is {{ printf "%.2f%%" (mul (.Value) 100) }} over the last 1h —
+            14.4x the budgeted burn for a 99.9% SLO.
+            At this rate the monthly error budget will be exhausted in <2 days.
+          runbook_url: "https://github.com/arun0009/pulse/blob/main/docs/runbooks/error-budget-burn.md"
+
+      - alert: PulseHighErrorBudgetBurnSlow
+        expr: |
+          pulse:http_error_rate:6h > (3 * 0.001)
+        for: 15m
+        labels:
+          severity: ticket
+          slo: availability
+        annotations:
+          summary: "{{ $labels.application }} ({{ $labels.env }}) error budget burning steadily"
+          description: |
+            6h error rate is {{ printf "%.2f%%" (mul (.Value) 100) }} —
+            consistent enough to exhaust the monthly budget if not addressed this week.
+
+      # ── Latency SLO (burn-rate) ───────────────────────────────────────
+      - alert: PulseLatencyBudgetBurnFast
+        expr: |
+          (1 - pulse:http_latency_good_ratio:1h) > (14.4 * 0.05)
+          and
+          (1 - pulse:http_latency_good_ratio:6h) > (6 * 0.05)
+        for: 2m
+        labels:
+          severity: page
+          slo: latency
+        annotations:
+          summary: "{{ $labels.application }} ({{ $labels.env }}) latency SLO burning fast"
+          description: |
+            More than {{ printf "%.1f%%" (mul (.Value) 100) }} of requests exceeded 500ms
+            over the last 1h — 14.4x the sustainable burn for a 95% latency SLO.
+          runbook_url: "https://github.com/arun0009/pulse/blob/main/docs/runbooks/error-budget-burn.md"
+
+      - alert: PulseLatencyBudgetBurnSlow
+        expr: |
+          (1 - pulse:http_latency_good_ratio:6h) > (3 * 0.05)
+        for: 15m
+        labels:
+          severity: ticket
+          slo: latency
+        annotations:
+          summary: "{{ $labels.application }} ({{ $labels.env }}) latency SLO burning steadily"
+          description: |
+            6h fraction of requests exceeding 500ms is burning the latency budget
+            fast enough to exhaust it within weeks.
+
+      # ── Guardrail: cardinality firewall ───────────────────────────────
+      - alert: PulseCardinalityFirewallOverflow
+        expr: |
+          sum by (application, env) (rate(pulse_cardinality_overflow_total[10m])) > 0
+        for: 5m
+        labels:
+          severity: ticket
+          slo: cost
+        annotations:
+          summary: "{{ $labels.application }}: Pulse capped a runaway-cardinality tag"
+          description: |
+            Pulse rewrote at least one metric tag value to the overflow bucket in the
+            last 10m. This means an instrumentation point exceeded the configured
+            cardinality cap and should be investigated.
+          runbook_url: "https://github.com/arun0009/pulse/blob/main/docs/runbooks/cardinality-firewall-overflow.md"
+
+      # ── Guardrail: timeout budget ─────────────────────────────────────
+      - alert: PulseTimeoutBudgetExhaustion
+        expr: |
+          sum by (application, env) (rate(pulse_timeout_budget_exhausted_total[5m])) > 0.05
+        for: 10m
+        labels:
+          severity: ticket
+          slo: latency
+        annotations:
+          summary: "{{ $labels.application }}: requests arriving at downstreams with no budget left"
+          description: |
+            >5% of outbound attempts are being made with zero remaining timeout
+            budget. Either upstream budgets are unrealistic or this service is
+            spending too much of its budget before fan-out.
+          runbook_url: "https://github.com/arun0009/pulse/blob/main/docs/runbooks/timeout-budget-exhausted.md"
+
+      # ── Guardrail: trace propagation ──────────────────────────────────
+      - alert: PulseTraceContextMissing
+        expr: |
+          pulse:trace_propagation_ratio:5m < 0.99
+        for: 10m
+        labels:
+          severity: ticket
+          slo: observability
+        annotations:
+          summary: "{{ $labels.application }} ({{ $labels.env }}): >1% of requests missing trace context"
+          description: |
+            The trace propagation health ratio dropped below 99% for 10 minutes.
+            An upstream caller is not forwarding traceparent/b3 headers. Check
+            pulse.trace.missing per-route breakdown in the Pulse dashboard.
+          runbook_url: "https://github.com/arun0009/pulse/blob/main/docs/runbooks/trace-context-missing.md"
+
+      # ── Infrastructure: OTel exporter ─────────────────────────────────
+      - alert: PulseOtelExporterFailures
+        expr: |
+          sum by (job) (rate(otelcol_exporter_send_failed_spans[5m])) > 0
+        for: 5m
+        labels:
+          severity: ticket
+          slo: observability
+        annotations:
+          summary: "OTel Collector failing to export spans"
+          description: |
+            The OTel Collector has been dropping spans for 5 minutes.
+            Check the exporter configuration, network connectivity, and
+            backend (Jaeger/Tempo) availability.
+
+      # ── Latency: p99 absolute ─────────────────────────────────────────
+      - alert: PulseHighP99Latency
+        expr: |
+          histogram_quantile(0.99,
+            sum by (application, env, le) (rate(http_server_requests_seconds_bucket[10m]))
+          ) > 1.0
+        for: 10m
+        labels:
+          severity: ticket
+          slo: latency
+        annotations:
+          summary: "{{ $labels.application }}: p99 > 1s for 10m"
+          description: "p99 = {{ $value }}s"

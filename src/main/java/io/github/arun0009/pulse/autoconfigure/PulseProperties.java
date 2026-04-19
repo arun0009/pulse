@@ -526,11 +526,11 @@ public record PulseProperties(
      * {@code memory.usage_in_bytes}/{@code memory.limit_in_bytes} (cgroup v1) and exposes:
      *
      * <ul>
-     *   <li>{@code pulse.container.memory.used_bytes} — current RSS as the kernel sees it.
-     *   <li>{@code pulse.container.memory.limit_bytes} — the cgroup's hard memory limit.
+     *   <li>{@code pulse.container.memory.used} (base unit: bytes) — current RSS as the kernel sees it.
+     *   <li>{@code pulse.container.memory.limit} (base unit: bytes) — the cgroup's hard memory limit.
      *   <li>{@code pulse.container.memory.headroom_ratio} — {@code 1 - used/limit}, the value
      *       your runbook actually wants.
-     *   <li>{@code pulse.container.memory.oom_kills_total} — counter sourced from
+     *   <li>{@code pulse.container.memory.oom_kills} — counter sourced from
      *       {@code memory.events}/{@code memory.oom_control}; a non-zero rate means a sibling
      *       cgroup got killed under the same controller.
      * </ul>

@@ -1,6 +1,5 @@
 package io.github.arun0009.pulse.openfeature;
 
-import dev.openfeature.sdk.ClientMetadata;
 import dev.openfeature.sdk.FlagEvaluationDetails;
 import dev.openfeature.sdk.FlagValueType;
 import dev.openfeature.sdk.HookContext;
@@ -64,16 +63,18 @@ class PulseOpenFeatureMdcHookTest {
         }
     }
 
-    @SuppressWarnings(
-            "deprecation") // HookContext.builder() is the only public constructor for tests in OpenFeature 1.20+.
+    // OpenFeature SDK 1.20 deprecated both HookContext.from() and HookContext.builder() without
+    // providing a public replacement (SharedHookContext is package-private). Suppress until the
+    // SDK stabilises a public test-construction API.
+    @SuppressWarnings("deprecation")
     private HookContext<Object> sampleCtx(String key, Object defaultValue) {
-        return HookContext.builder()
+        return HookContext.<Object>builder()
                 .flagKey(key)
                 .type(FlagValueType.OBJECT)
-                .defaultValue(defaultValue)
-                .ctx(new MutableContext())
-                .clientMetadata((ClientMetadata) () -> "test-client")
+                .clientMetadata(() -> "test-client")
                 .providerMetadata(() -> "test-provider")
+                .ctx(new MutableContext())
+                .defaultValue(defaultValue)
                 .build();
     }
 }

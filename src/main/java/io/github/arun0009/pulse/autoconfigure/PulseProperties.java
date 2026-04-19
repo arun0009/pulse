@@ -1,5 +1,6 @@
 package io.github.arun0009.pulse.autoconfigure;
 
+import org.jspecify.annotations.Nullable;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.DefaultValue;
 
@@ -42,7 +43,8 @@ public record PulseProperties(
         @DefaultValue Shutdown shutdown,
         @DefaultValue Jobs jobs,
         @DefaultValue Db db,
-        @DefaultValue Resilience resilience) {
+        @DefaultValue Resilience resilience,
+        @DefaultValue Profiling profiling) {
 
     /** MDC enrichment from the inbound HTTP request. */
     public record Context(
@@ -284,4 +286,23 @@ public record PulseProperties(
      * circuit breakers does not pay for retry or bulkhead wiring.
      */
     public record Resilience(@DefaultValue("true") boolean enabled) {}
+
+    /**
+     * Continuous-profiling correlation. When enabled (default), Pulse stamps
+     * {@code profile.id} and {@code pyroscope.profile_id} attributes on every span using the
+     * trace id, so any APM that ingests the attributes can render a one-click "Open profile"
+     * link without per-vendor configuration.
+     *
+     * <p>Setting {@link #pyroscopeUrl()} to your Pyroscope (or compatible) host adds a
+     * root-span-only {@code pulse.profile.url} attribute pointing directly at the flame graph
+     * for the trace's time window — clickable in Tempo, Jaeger, Zipkin, and Grafana traces UI.
+     *
+     * <p>Pulse never bundles or starts a profiler. {@link io.github.arun0009.pulse.profiling.PyroscopeDetector}
+     * detects the {@code -javaagent:pyroscope.jar} the operator already injected into the JVM
+     * and surfaces the result in {@code /actuator/pulse}; the profile-link attributes work
+     * regardless of whether the agent is running, since they only describe how to find the
+     * profile if one exists.
+     */
+    public record Profiling(
+            @DefaultValue("true") boolean enabled, @Nullable String pyroscopeUrl) {}
 }

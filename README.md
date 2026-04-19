@@ -411,7 +411,33 @@ number, eliminating the silent-retry blind spot.
 Cardinality is bounded by the number of breakers/retries you declare (single-digit per
 service in practice).
 
-### 11. Observability for observability
+### 11. Continuous-profiling correlation (Pyroscope-aware, vendor-neutral)
+
+Pulse stamps every span with attributes that turn any APM into a one-click flame-graph link:
+
+```
+profile.id=<traceId>            # Grafana convention; lit up by Tempo + Grafana traces UI
+pyroscope.profile_id=<traceId>  # parity with the Pyroscope agent's auto-instrumentation
+pulse.profile.url=<deep link>   # root-only; populated when pulse.profiling.pyroscope-url is set
+```
+
+```yaml
+pulse:
+  profiling:
+	pyroscope-url: https://pyroscope.example.com   # optional; enables the deep-link attribute
+```
+
+Pulse never bundles or starts a profiler. If you've already injected the Pyroscope agent
+(`-javaagent:pyroscope.jar`), Pulse detects it on startup, logs a single confirmation line, and
+surfaces the detection result at `/actuator/pulse` — so an operator can confirm the
+profile↔trace bridge is wired without spelunking through logs. The attributes are stamped
+regardless of whether the agent is actually running, since the work in trace UIs to render the
+link template is the same either way.
+
+The "click a slow span, jump to the CPU flame graph for that exact window" workflow Datadog
+charges $30+/host/month for is one config line away.
+
+### 12. Observability for observability
 
 `/actuator/pulse` lists every subsystem and its effective config. `/actuator/pulse/runtime`
 reports cardinality top-offenders, SLO compliance, and (via the bundled

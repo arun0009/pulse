@@ -96,6 +96,7 @@ public final class PulseDiagnostics {
         pulse.put("jobs", properties.jobs());
         pulse.put("db", properties.db());
         pulse.put("resilience", properties.resilience());
+        pulse.put("profiling", properties.profiling());
         return Map.of("pulse", pulse);
     }
 
@@ -236,6 +237,23 @@ public final class PulseDiagnostics {
                                 "slowQueryThreshold",
                                         properties.db().slowQueryThreshold().toString())));
         map.put("resilience", entry(properties.resilience().enabled(), Map.of()));
+        Map<String, Object> profilingDetails = new LinkedHashMap<>();
+        profilingDetails.put(
+                "pyroscopeUrl",
+                properties.profiling().pyroscopeUrl() == null
+                        ? ""
+                        : properties.profiling().pyroscopeUrl());
+        io.github.arun0009.pulse.profiling.PyroscopeDetector.Detection detection =
+                io.github.arun0009.pulse.profiling.PyroscopeDetector.detect();
+        profilingDetails.put("pyroscopeAgentDetected", detection.present());
+        if (detection.present()) {
+            profilingDetails.put(
+                    "pyroscopeAgentApplication",
+                    detection.applicationName() == null ? "" : detection.applicationName());
+            profilingDetails.put(
+                    "pyroscopeAgentServer", detection.serverAddress() == null ? "" : detection.serverAddress());
+        }
+        map.put("profiling", entry(properties.profiling().enabled(), profilingDetails));
         return map;
     }
 

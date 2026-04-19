@@ -16,6 +16,7 @@ import io.github.arun0009.pulse.metrics.BusinessMetrics;
 import io.github.arun0009.pulse.metrics.CommonTagsConfiguration;
 import io.github.arun0009.pulse.metrics.DeployInfoMetrics;
 import io.github.arun0009.pulse.metrics.HistogramMeterFilter;
+import io.github.arun0009.pulse.profiling.PulseProfilingConfiguration;
 import io.github.arun0009.pulse.propagation.KafkaPropagationConfiguration;
 import io.github.arun0009.pulse.propagation.OkHttpPropagationConfiguration;
 import io.github.arun0009.pulse.propagation.RestClientPropagationConfiguration;
@@ -87,6 +88,7 @@ import org.springframework.core.env.Environment;
     KafkaPropagationConfiguration.class,
     PulseDbConfiguration.class,
     PulseResilience4jConfiguration.class,
+    PulseProfilingConfiguration.class,
 })
 public class PulseAutoConfiguration {
 

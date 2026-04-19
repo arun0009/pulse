@@ -230,6 +230,24 @@ The bundled `log4j2-spring.xml` ships a JSON layout that emits `traceId`, `spanI
 on **every** line — including pre-Spring-boot lines from background threads. "Which deploy
 logged this?" is never a question again.
 
+**OTel semantic-convention aliases.** Every Pulse log line also carries the OTel-canonical
+field names alongside the flat ones, so OTel-native sinks (Datadog, Honeycomb, Grafana derived
+fields, the Collector's `transform` processor) work without manual relabeling:
+
+| Pulse flat name | OTel semconv alias |
+|---|---|
+| `traceId` / `spanId` | `trace_id` / `span_id` (OTel logs data model) |
+| `service` | `service.name` |
+| `env` | `deployment.environment.name` |
+| `app.version` | `service.version` |
+| `build.commit` | `vcs.ref.head.revision` |
+| `requestId` | `http.request.id` |
+| `userId` (from `X-User-ID`) | `user.id` |
+
+Both names point at the same MDC key or system property — there's no double-resolution cost
+and no risk of skew. The flat names will be removed in `1.0.0` after a deprecation cycle; the
+OTel names are stable and will remain.
+
 #### How `app.version` and `build.commit` get resolved
 
 Pulse cannot put values *into* your JAR or environment — Maven plugins aren't transitive, and a

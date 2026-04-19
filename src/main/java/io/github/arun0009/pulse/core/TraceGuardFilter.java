@@ -19,8 +19,11 @@ import java.io.IOException;
 import java.util.List;
 
 /**
- * Detects inbound requests that arrived without a valid OpenTelemetry trace context — a signal
- * that an upstream caller is dropping or stripping {@code traceparent} headers. Also exposes the
+ * Detects inbound requests that arrived without an OpenTelemetry trace context — a signal that
+ * an upstream caller is dropping or stripping {@code traceparent} headers. Presence (not full
+ * W3C-syntax validity) is what we check: if the OTel context is missing and the raw header is
+ * absent, the request counts as "missing". Format validation is left to OTel's own propagator.
+ * Also exposes the
  * positive-case counter ({@code pulse.trace.received}) so that "trace propagation health" can be
  * computed as a single PromQL ratio.
  *

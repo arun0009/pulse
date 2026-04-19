@@ -26,7 +26,9 @@ import org.springframework.aot.hint.RuntimeHintsRegistrar;
  *       hinted.
  * </ul>
  *
- * <p>Wired via {@code META-INF/spring/aot.factories} so it runs once at AOT processing time.
+ * <p>Wired via {@code @ImportRuntimeHints(PulseRuntimeHints.class)} on
+ * {@code PulseAutoConfiguration} so it runs once during Spring's AOT processing phase whenever
+ * Pulse is on the classpath.
  *
  * <p>This class is purely additive: it has no effect on JAR-on-OpenJDK deployments. It is only
  * invoked during {@code mvn -Pnative} / Spring's AOT phase.
@@ -53,7 +55,6 @@ public class PulseRuntimeHints implements RuntimeHintsRegistrar {
 
         // Resources Pulse ships and reads at runtime.
         hints.resources().registerPattern("pulse-json-layout.json");
-        hints.resources().registerPattern("observability-json-layout.json");
         hints.resources().registerPattern("log4j2-spring.xml");
 
         // Log4j2's own plugin descriptor cache (generated at build time by log4j-core's annotation

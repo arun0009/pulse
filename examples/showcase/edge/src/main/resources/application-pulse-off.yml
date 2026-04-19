@@ -21,7 +21,6 @@ pulse:
     enabled: false
   async:
     propagation-enabled: false
-    auto-configure-executor: false
   exception-handler:
     enabled: false
   audit:

@@ -19,8 +19,8 @@ import java.util.List;
  *
  * <p>{@code PreferErrorSampler} provides a third option: at span start, defer to the base sampler.
  * If a strong hint of error is already present on the start attributes (e.g. a non-success
- * {@code http.response.status_code}, an {@code exception.type} attribute, or a span kind that's
- * known to be error-only), upgrade the decision to {@code RECORD_AND_SAMPLE}.
+ * {@code http.response.status_code}, an {@code exception.type}, an {@code error.type}, or a
+ * non-OK {@code rpc.grpc.status_code}), upgrade the decision to {@code RECORD_AND_SAMPLE}.
  *
  * <p><strong>Honest limits</strong>: this is an in-process best-effort heuristic, not true tail
  * sampling. It cannot upgrade a span whose error only manifests after start, and it cannot

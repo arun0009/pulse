@@ -56,7 +56,7 @@ public class RestTemplatePropagationConfiguration {
         public RestTemplateCustomizer pulseTimeoutBudgetRestTemplateCustomizer(
                 PulseProperties properties, MeterRegistry registry) {
             TimeoutBudgetOutboundInterceptor interceptor =
-                    new TimeoutBudgetOutboundInterceptor(properties.timeoutBudget(), registry);
+                    new TimeoutBudgetOutboundInterceptor(properties.timeoutBudget(), registry, "resttemplate");
             return restTemplate -> restTemplate.getInterceptors().add(interceptor);
         }
     }

@@ -21,7 +21,9 @@ import java.io.IOException;
  * TimeoutBudget#current()} directly and configure its client per-call.
  *
  * <p>When the remaining budget is zero (the upstream caller's deadline has already passed) the
- * {@code pulse.timeout.budget.exhausted} counter is incremented (tagged {@code transport=resttemplate}).
+ * {@code pulse.timeout.budget.exhausted} counter is incremented, tagged with the {@code transport}
+ * label supplied at construction time so dashboards can distinguish {@code transport=resttemplate}
+ * from {@code transport=restclient}.
  */
 public final class TimeoutBudgetOutboundInterceptor implements ClientHttpRequestInterceptor {
 
@@ -29,18 +31,22 @@ public final class TimeoutBudgetOutboundInterceptor implements ClientHttpRequest
 
     private final io.github.arun0009.pulse.autoconfigure.PulseProperties.TimeoutBudget config;
     private final TimeoutBudgetOutbound budgetHelper;
+    private final String transport;
 
     public TimeoutBudgetOutboundInterceptor(
-            io.github.arun0009.pulse.autoconfigure.PulseProperties.TimeoutBudget config, MeterRegistry registry) {
+            io.github.arun0009.pulse.autoconfigure.PulseProperties.TimeoutBudget config,
+            MeterRegistry registry,
+            String transport) {
         this.config = config;
         this.budgetHelper = new TimeoutBudgetOutbound(registry);
+        this.transport = transport;
     }
 
     @Override
     public ClientHttpResponse intercept(HttpRequest request, byte[] body, ClientHttpRequestExecution execution)
             throws IOException {
         if (request.getHeaders().getFirst(config.outboundHeader()) == null) {
-            budgetHelper.resolveRemaining("resttemplate").ifPresent(remaining -> {
+            budgetHelper.resolveRemaining(transport).ifPresent(remaining -> {
                 if (remaining.isZero()) {
                     log.debug(
                             "Pulse timeout-budget exhausted before outbound call to {}; "

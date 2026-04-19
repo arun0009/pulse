@@ -29,7 +29,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * <ul>
  *   <li>OTel logs data model — {@code trace_id}, {@code span_id}
  *   <li>OTel resource semconv 1.27+ — {@code service.name}, {@code service.version},
- *       {@code deployment.environment.name}
+ *       {@code deployment.environment}
  *   <li>OTel general semconv — {@code user.id}, {@code http.request.id}
  *   <li>OTel VCS semconv (experimental) — {@code vcs.ref.head.revision}
  * </ul>
@@ -48,7 +48,7 @@ class PulseJsonLayoutTemplateTest {
                 "span_id",
                 "service.name",
                 "service.version",
-                "deployment.environment.name",
+                "deployment.environment",
                 "vcs.ref.head.revision",
                 "user.id",
                 "http.request.id")) {
@@ -75,7 +75,7 @@ class PulseJsonLayoutTemplateTest {
         assertSameMdcKey(json, "trace_id", "traceId");
         assertSameMdcKey(json, "span_id", "spanId");
         assertSameMdcKey(json, "service.name", "service");
-        assertSameMdcKey(json, "deployment.environment.name", "env");
+        assertSameMdcKey(json, "deployment.environment", "env");
         assertSameMdcKey(json, "user.id", "userId");
         assertSameMdcKey(json, "http.request.id", "requestId");
 
@@ -90,6 +90,30 @@ class PulseJsonLayoutTemplateTest {
             assertThat(hasTopLevelKey(json, key))
                     .as("Top-level log record field '%s' must remain", key)
                     .isTrue();
+        }
+    }
+
+    @Test
+    void emits_otel_resource_attributes_seeded_from_pulse_system_properties() throws Exception {
+        String json = loadTemplate();
+
+        // Each attribute is the OTel semconv name and resolves a ${sys:pulse.<name>:-unknown}
+        // pattern that PulseLoggingEnvironmentPostProcessor seeds at startup.
+        for (String attribute : List.of(
+                "host.name",
+                "container.id",
+                "k8s.pod.name",
+                "k8s.namespace.name",
+                "k8s.node.name",
+                "cloud.provider",
+                "cloud.region",
+                "cloud.availability_zone")) {
+            assertThat(hasTopLevelKey(json, attribute))
+                    .as("OTel resource attribute '%s' must be present in pulse-json-layout.json", attribute)
+                    .isTrue();
+            assertThat(patternFor(json, attribute))
+                    .as("'%s' must read from the matching pulse.%s system property", attribute, attribute)
+                    .isEqualTo("${sys:pulse." + attribute + ":-unknown}");
         }
     }
 

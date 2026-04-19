@@ -56,7 +56,7 @@
         "$resolver": "pattern",
         "pattern": "${sys:pulse.app.version:-unknown}"
     },
-    "deployment.environment.name": {
+    "deployment.environment": {
         "$resolver": "mdc",
         "key": "env"
     },
@@ -88,6 +88,39 @@
     "requestId": {
         "$resolver": "mdc",
         "key": "requestId"
+    },
+
+    "host.name": {
+        "$resolver": "pattern",
+        "pattern": "${sys:pulse.host.name:-unknown}"
+    },
+    "container.id": {
+        "$resolver": "pattern",
+        "pattern": "${sys:pulse.container.id:-unknown}"
+    },
+    "k8s.pod.name": {
+        "$resolver": "pattern",
+        "pattern": "${sys:pulse.k8s.pod.name:-unknown}"
+    },
+    "k8s.namespace.name": {
+        "$resolver": "pattern",
+        "pattern": "${sys:pulse.k8s.namespace.name:-unknown}"
+    },
+    "k8s.node.name": {
+        "$resolver": "pattern",
+        "pattern": "${sys:pulse.k8s.node.name:-unknown}"
+    },
+    "cloud.provider": {
+        "$resolver": "pattern",
+        "pattern": "${sys:pulse.cloud.provider:-unknown}"
+    },
+    "cloud.region": {
+        "$resolver": "pattern",
+        "pattern": "${sys:pulse.cloud.region:-unknown}"
+    },
+    "cloud.availability_zone": {
+        "$resolver": "pattern",
+        "pattern": "${sys:pulse.cloud.availability_zone:-unknown}"
     },
 
     "context": {

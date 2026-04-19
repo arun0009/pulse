@@ -23,11 +23,15 @@ import java.util.Map;
  *   <li>Top-level log record fields — {@code time}, {@code level}, {@code logger}, {@code thread},
  *       {@code message}, {@code exception}.
  *   <li>OpenTelemetry semantic-convention aliases — {@code trace_id}, {@code span_id},
- *       {@code service.name}, {@code service.version}, {@code deployment.environment.name},
+ *       {@code service.name}, {@code service.version}, {@code deployment.environment},
  *       {@code vcs.ref.head.revision}, {@code user.id}, {@code http.request.id}.
  *   <li>Pulse flat-name fields kept for back-compat with existing dashboards — {@code traceId},
  *       {@code spanId}, {@code service}, {@code env}, {@code app.version}, {@code build.commit},
  *       {@code userId}, {@code requestId}.
+ *   <li>OTel resource attributes resolved at startup — {@code host.name}, {@code container.id},
+ *       {@code k8s.pod.name}, {@code k8s.namespace.name}, {@code k8s.node.name},
+ *       {@code cloud.provider}, {@code cloud.region}, {@code cloud.availability_zone}. Each
+ *       defaults to {@code "unknown"} when not detected on the current host.
  *   <li>{@code context} — the full MDC map, with PII-bearing values masked.
  * </ul>
  *
@@ -49,6 +53,24 @@ public class PulseLogbackEncoder extends EncoderBase<ILoggingEvent> {
     private static final String VERSION_SYS_PROP = "pulse.app.version";
     private static final String COMMIT_SYS_PROP = "pulse.build.commit";
     private static final String UNKNOWN = "unknown";
+
+    /**
+     * Resource-attribute system properties seeded at startup by
+     * {@link PulseLoggingEnvironmentPostProcessor}. Each entry is {@code (json-key, sysprop-key)}
+     * — the JSON key is the OTel semantic-convention name, the sysprop key is what
+     * {@link ResourceAttributeResolver} writes. Encoded in this order on every line so the output
+     * is stable across runs.
+     */
+    private static final String[][] RESOURCE_ATTRIBUTE_KEYS = {
+        {"host.name", "pulse.host.name"},
+        {"container.id", "pulse.container.id"},
+        {"k8s.pod.name", "pulse.k8s.pod.name"},
+        {"k8s.namespace.name", "pulse.k8s.namespace.name"},
+        {"k8s.node.name", "pulse.k8s.node.name"},
+        {"cloud.provider", "pulse.cloud.provider"},
+        {"cloud.region", "pulse.cloud.region"},
+        {"cloud.availability_zone", "pulse.cloud.availability_zone"},
+    };
 
     @Override
     public byte[] headerBytes() {
@@ -85,7 +107,7 @@ public class PulseLogbackEncoder extends EncoderBase<ILoggingEvent> {
         appendMdc(sb, "service", mdc, "service");
         appendString(sb, "service.version", System.getProperty(VERSION_SYS_PROP, UNKNOWN));
         appendString(sb, "app.version", System.getProperty(VERSION_SYS_PROP, UNKNOWN));
-        appendMdc(sb, "deployment.environment.name", mdc, "env");
+        appendMdc(sb, "deployment.environment", mdc, "env");
         appendMdc(sb, "env", mdc, "env");
         appendString(sb, "vcs.ref.head.revision", System.getProperty(COMMIT_SYS_PROP, UNKNOWN));
         appendString(sb, "build.commit", System.getProperty(COMMIT_SYS_PROP, UNKNOWN));
@@ -94,6 +116,10 @@ public class PulseLogbackEncoder extends EncoderBase<ILoggingEvent> {
         appendMdc(sb, "userId", mdc, "userId");
         appendMdc(sb, "http.request.id", mdc, "requestId");
         appendMdc(sb, "requestId", mdc, "requestId");
+
+        for (String[] attribute : RESOURCE_ATTRIBUTE_KEYS) {
+            appendString(sb, attribute[0], System.getProperty(attribute[1], UNKNOWN));
+        }
 
         appendContext(sb, mdc);
 

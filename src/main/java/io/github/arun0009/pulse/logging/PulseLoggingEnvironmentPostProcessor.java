@@ -11,6 +11,7 @@ import java.io.InputStream;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.function.Function;
 
@@ -66,6 +67,13 @@ public final class PulseLoggingEnvironmentPostProcessor implements EnvironmentPo
     static final String VERSION_SYS_PROP = "pulse.app.version";
     static final String COMMIT_SYS_PROP = "pulse.build.commit";
 
+    /**
+     * System-property prefix Pulse uses for resource attributes. The Log4j2 JSON layout and the
+     * Logback encoder both substitute these via {@code ${sys:pulse.host.name:-unknown}} and
+     * friends, so the keys are the OTel semantic-convention name with this prefix.
+     */
+    static final String RESOURCE_ATTRIBUTE_SYS_PROP_PREFIX = "pulse.";
+
     static final String BUILD_INFO_RESOURCE = "META-INF/build-info.properties";
     static final String GIT_PROPERTIES_RESOURCE = "git.properties";
     static final String OTEL_RESOURCE_ATTRIBUTES_ENV = "OTEL_RESOURCE_ATTRIBUTES";
@@ -84,15 +92,20 @@ public final class PulseLoggingEnvironmentPostProcessor implements EnvironmentPo
 
     private final Function<String, @Nullable String> envLookup;
     private final ClassLoader classLoader;
+    private final ResourceAttributeResolver resourceAttributeResolver;
 
     public PulseLoggingEnvironmentPostProcessor() {
-        this(System::getenv, defaultClassLoader());
+        this(System::getenv, defaultClassLoader(), new ResourceAttributeResolver());
     }
 
     // Package-private for tests.
-    PulseLoggingEnvironmentPostProcessor(Function<String, @Nullable String> envLookup, ClassLoader classLoader) {
+    PulseLoggingEnvironmentPostProcessor(
+            Function<String, @Nullable String> envLookup,
+            ClassLoader classLoader,
+            ResourceAttributeResolver resourceAttributeResolver) {
         this.envLookup = envLookup;
         this.classLoader = classLoader;
+        this.resourceAttributeResolver = resourceAttributeResolver;
     }
 
     @Override
@@ -106,6 +119,21 @@ public final class PulseLoggingEnvironmentPostProcessor implements EnvironmentPo
     public void postProcessEnvironment(ConfigurableEnvironment environment, SpringApplication application) {
         seedIfAbsent(VERSION_SYS_PROP, () -> resolveVersion(application));
         seedIfAbsent(COMMIT_SYS_PROP, this::resolveCommit);
+        seedResourceAttributes();
+    }
+
+    /**
+     * Resolves OTel resource attributes (host, container, k8s, cloud) once at startup and seeds
+     * each detected value as {@code pulse.<otel.attribute.name>} so the JSON layouts can stamp
+     * them on every log line. Undetected attributes are left unset so the layout substitutes its
+     * configured default ({@code "unknown"}) — we never want to falsely label, say, a developer's
+     * laptop as {@code k8s.pod.name=arun-mbp}.
+     */
+    private void seedResourceAttributes() {
+        for (Map.Entry<String, String> entry :
+                resourceAttributeResolver.resolveAll().entrySet()) {
+            seedIfAbsent(RESOURCE_ATTRIBUTE_SYS_PROP_PREFIX + entry.getKey(), entry::getValue);
+        }
     }
 
     private static void seedIfAbsent(String systemProperty, java.util.function.Supplier<@Nullable String> resolver) {

@@ -5,6 +5,9 @@ import io.github.resilience4j.bulkhead.BulkheadRegistry;
 import io.github.resilience4j.bulkhead.event.BulkheadOnCallRejectedEvent;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Tags;
+import io.opentelemetry.api.common.AttributeKey;
+import io.opentelemetry.api.common.Attributes;
+import io.opentelemetry.api.trace.Span;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.SmartInitializingSingleton;
@@ -50,6 +53,14 @@ public final class BulkheadObservation implements SmartInitializingSingleton {
         meterRegistry
                 .counter("pulse.r4j.bulkhead.rejected_total", Tags.of("name", event.getBulkheadName()))
                 .increment();
+
+        Span span = Span.current();
+        if (span.getSpanContext().isValid()) {
+            span.addEvent(
+                    "pulse.r4j.bulkhead.rejected",
+                    Attributes.of(AttributeKey.stringKey("pulse.r4j.bulkhead.name"), event.getBulkheadName()));
+        }
+
         log.warn("bulkhead {} rejected a call (capacity exhausted)", event.getBulkheadName());
     }
 

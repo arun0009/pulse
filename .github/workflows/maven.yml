@@ -39,7 +39,7 @@ jobs:
 
       - name: Upload JaCoCo merged report
         if: always() && matrix.java-version == '21'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: jacoco-merged-report
           path: target/site/jacoco-merged/
@@ -47,7 +47,7 @@ jobs:
 
       - name: Upload SBOM
         if: matrix.java-version == '21'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: sbom
           path: |
@@ -76,7 +76,7 @@ jobs:
           ./mvnw -B -ntp -Pbench -DskipTests test-compile exec:exec \
             -Dexec.args="-classpath %classpath org.openjdk.jmh.Main -wi 1 -i 1 -f 1 -r 1s -w 1s -rf json -rff target/jmh-result.json"
         continue-on-error: true
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: jmh-result

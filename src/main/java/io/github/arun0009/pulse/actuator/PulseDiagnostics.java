@@ -94,6 +94,7 @@ public final class PulseDiagnostics {
         pulse.put("health", properties.health());
         pulse.put("shutdown", properties.shutdown());
         pulse.put("jobs", properties.jobs());
+        pulse.put("db", properties.db());
         return Map.of("pulse", pulse);
     }
 
@@ -225,6 +226,14 @@ public final class PulseDiagnostics {
                                 "healthIndicatorEnabled", properties.jobs().healthIndicatorEnabled(),
                                 "failureGracePeriod",
                                         properties.jobs().failureGracePeriod().toString())));
+        map.put(
+                "db",
+                entry(
+                        properties.db().enabled(),
+                        Map.of(
+                                "nPlusOneThreshold", properties.db().nPlusOneThreshold(),
+                                "slowQueryThreshold",
+                                        properties.db().slowQueryThreshold().toString())));
         return map;
     }
 

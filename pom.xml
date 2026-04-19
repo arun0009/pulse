@@ -185,6 +185,23 @@
             <artifactId>logback-classic</artifactId>
             <optional>true</optional>
         </dependency>
+        <!-- Hibernate ORM + Spring Boot JPA — optional, compile-only. Lets Pulse compile
+             against org.hibernate.resource.jdbc.spi.StatementInspector and
+             org.springframework.boot.jpa.autoconfigure.HibernatePropertiesCustomizer for the
+             database-observability subsystem (N+1 detection, statements-per-request histogram,
+             slow-query threshold). Consumers who use Spring Data JPA already have both
+             transitively; for non-JPA apps the whole subsystem is short-circuited via
+             @ConditionalOnClass. -->
+        <dependency>
+            <groupId>org.hibernate.orm</groupId>
+            <artifactId>hibernate-core</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-hibernate</artifactId>
+            <optional>true</optional>
+        </dependency>
         <!--
           jakarta.servlet types are reached transitively via spring-boot-starter-web →
           tomcat-embed-core (provided scope). Declaring jakarta.servlet-api directly created

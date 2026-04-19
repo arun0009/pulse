@@ -40,7 +40,8 @@ public record PulseProperties(
         @DefaultValue Slo slo,
         @DefaultValue Health health,
         @DefaultValue Shutdown shutdown,
-        @DefaultValue Jobs jobs) {
+        @DefaultValue Jobs jobs,
+        @DefaultValue Db db) {
 
     /** MDC enrichment from the inbound HTTP request. */
     public record Context(
@@ -238,4 +239,35 @@ public record PulseProperties(
             @DefaultValue("true") boolean enabled,
             @DefaultValue("true") boolean healthIndicatorEnabled,
             @DefaultValue("1h") Duration failureGracePeriod) {}
+
+    /**
+     * Database observability — wires a Hibernate {@code StatementInspector} that counts every
+     * prepared SQL statement against a per-request scope and emits:
+     *
+     * <ul>
+     *   <li>{@code pulse.db.statements_per_request{endpoint}} — distribution summary so an
+     *       operator can see p50/p95/max statements per endpoint.
+     *   <li>{@code pulse.db.n_plus_one.suspect{endpoint}} — counter that fires when a single
+     *       request prepares more than {@link #nPlusOneThreshold()} statements, plus a span
+     *       event and a structured WARN log line carrying {@code traceId}.
+     * </ul>
+     *
+     * <p>Slow queries are routed through Hibernate's built-in {@code org.hibernate.SQL_SLOW}
+     * logger; Pulse seeds the {@code hibernate.session.events.log.LOG_QUERIES_SLOWER_THAN_MS}
+     * property to {@link #slowQueryThreshold()}. Because the Pulse JSON layout already adds
+     * {@code traceId}/{@code requestId}/{@code service} to every line, the slow-query log is
+     * automatically correlated with the trace that issued the query — no extra plumbing
+     * required.
+     *
+     * <p>The default {@link #nPlusOneThreshold()} of {@code 50} is empirically gentle: it catches
+     * the classic "loop fetching detail rows" anti-pattern without firing for legitimately
+     * statement-heavy endpoints (batch jobs, schema migrations, complex reports). Tighten in
+     * production where 20-30 statements should already be a red flag, or relax for analytical
+     * services. Setting {@code enabled=false} removes the inspector and the filter altogether
+     * (zero overhead for apps that opt out).
+     */
+    public record Db(
+            @DefaultValue("true") boolean enabled,
+            @DefaultValue("50") int nPlusOneThreshold,
+            @DefaultValue("500ms") Duration slowQueryThreshold) {}
 }

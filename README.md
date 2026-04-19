@@ -359,7 +359,35 @@ Attributes go on the span and log (rich, high-cardinality is fine). The counter 
 event name (bounded), so you can SLO against business events without accidentally exploding
 metrics cardinality.
 
-### 9. Observability for observability
+### 9. Database observability — N+1 detection, free
+
+When Hibernate ORM is on the classpath, Pulse automatically wires a `StatementInspector` and a
+servlet filter that count prepared SQL statements per request:
+
+```
+pulse.db.statements_per_request{endpoint="GET /orders/{id}"}    # distribution: p50/p95/max
+pulse.db.n_plus_one.suspect{endpoint="GET /orders/{id}/items"}  # counter, fires above threshold
+```
+
+When a single request prepares more than `pulse.db.n-plus-one-threshold` statements (default
+`50`), Pulse:
+
+1. Increments the suspect counter, tagged by route template (no per-id explosion).
+2. Adds a `pulse.db.n_plus_one.suspect` event to the active span with the statement count and
+   endpoint as attributes — clickable from your tracing UI.
+3. Logs a single structured WARN to the `pulse.db.n-plus-one` channel with the per-verb
+   breakdown (e.g. `{SELECT=247, UPDATE=1}`) and the existing `traceId` / `requestId` MDC.
+
+Slow queries are routed through Hibernate's built-in `org.hibernate.SQL_SLOW` logger; Pulse
+seeds `hibernate.session.events.log.LOG_QUERIES_SLOWER_THAN_MS` to
+`pulse.db.slow-query-threshold` (default `500ms`). Because Pulse's JSON layout already adds
+`traceId` / `service` to every log line, the slow-query message is automatically correlated
+with the trace that issued the query — zero extra plumbing.
+
+The whole subsystem is gated by `@ConditionalOnClass(StatementInspector.class)` — non-JPA apps
+(MongoDB, plain JDBC, REST-only) pay nothing.
+
+### 10. Observability for observability
 
 `/actuator/pulse` lists every subsystem and its effective config. `/actuator/pulse/runtime`
 reports cardinality top-offenders, SLO compliance, and (via the bundled

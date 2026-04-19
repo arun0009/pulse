@@ -38,6 +38,14 @@
         "$resolver": "mdc",
         "key": "env"
     },
+    "app.version": {
+        "$resolver": "pattern",
+        "pattern": "${sys:pulse.app.version:-unknown}"
+    },
+    "build.commit": {
+        "$resolver": "pattern",
+        "pattern": "${sys:pulse.build.commit:-unknown}"
+    },
     "requestId": {
         "$resolver": "mdc",
         "key": "requestId"

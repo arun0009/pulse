@@ -53,6 +53,54 @@
                 </plugin>
             </plugins>
         </pluginManagement>
+
+        <plugins>
+            <!--
+              Spring Boot's build-info goal generates META-INF/build-info.properties at compile time.
+              Pulse's PulseLoggingEnvironmentPostProcessor reads it and seeds pulse.app.version as
+              a JVM system property so the JSON layout can stamp every log line with build.version.
+            -->
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>build-info</id>
+                        <goals>
+                            <goal>build-info</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!--
+              Generates target/classes/git.properties at compile time with the SHA, branch, build
+              host, and dirty flag of the working tree. Pulse's PulseLoggingEnvironmentPostProcessor
+              reads git.commit.id.abbrev and seeds pulse.build.commit so every log line carries it.
+              See https://github.com/git-commit-id/git-commit-id-maven-plugin
+            -->
+            <plugin>
+                <groupId>io.github.git-commit-id</groupId>
+                <artifactId>git-commit-id-maven-plugin</artifactId>
+                <version>9.2.0</version>
+                <executions>
+                    <execution>
+                        <id>get-git-info</id>
+                        <goals>
+                            <goal>revision</goal>
+                        </goals>
+                        <phase>initialize</phase>
+                    </execution>
+                </executions>
+                <configuration>
+                    <generateGitPropertiesFile>true</generateGitPropertiesFile>
+                    <generateGitPropertiesFilename>${project.build.outputDirectory}/git.properties</generateGitPropertiesFilename>
+                    <commitIdGenerationMode>full</commitIdGenerationMode>
+                    <failOnNoGitDirectory>false</failOnNoGitDirectory>
+                    <failOnUnableToExtractRepoInfo>false</failOnUnableToExtractRepoInfo>
+                </configuration>
+            </plugin>
+        </plugins>
     </build>
 
 </project>

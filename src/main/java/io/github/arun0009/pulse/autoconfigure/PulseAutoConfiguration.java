@@ -56,8 +56,8 @@ import org.springframework.core.env.Environment;
  *
  * <p>{@link AutoConfigureAfter} pins Pulse after Boot's metrics + OpenTelemetry auto-configs so
  * we observe the {@code MeterRegistry} and {@code OpenTelemetrySdk} they create. The web tier
- * is pinned {@link AutoConfigureBefore} Spring MVC's exception-handling auto-config so
- * {@link PulseExceptionHandler} is registered as the lowest-precedence default.
+ * is pinned {@code @AutoConfigureBefore} Spring MVC's exception-handling auto-config so {@code
+ * PulseExceptionHandler} is registered as the lowest-precedence default.
  */
 @AutoConfiguration
 @AutoConfigureAfter(

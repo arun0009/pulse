@@ -1,0 +1,159 @@
+{
+  "groups": [
+    {
+      "name": "pulse",
+      "type": "io.github.arun0009.pulse.autoconfigure.PulseProperties",
+      "description": "Pulse — production-correctness layer for Spring Boot. All subsystems are opt-out via these properties; defaults are tuned for production."
+    },
+    {
+      "name": "pulse.context",
+      "type": "io.github.arun0009.pulse.autoconfigure.PulseProperties$Context",
+      "description": "Maps inbound HTTP headers to MDC keys so every log line and span carries request/correlation/user/tenant identity. Customize header names per your edge convention."
+    },
+    {
+      "name": "pulse.trace-guard",
+      "type": "io.github.arun0009.pulse.autoconfigure.PulseProperties$TraceGuard",
+      "description": "Detects inbound requests that arrive without W3C traceparent or B3 headers and emits the pulse.trace.missing counter. Set fail-on-missing=true at the edge of your network to bounce uninstrumented callers with HTTP 400."
+    },
+    {
+      "name": "pulse.sampling",
+      "type": "io.github.arun0009.pulse.autoconfigure.PulseProperties$Sampling",
+      "description": "OpenTelemetry trace sampler. Default ParentBased(TraceIdRatioBased) keeps parent decisions and applies a head-based ratio for root spans. prefer-sampling-on-error layers a best-effort error sampler so spans flagged ERROR are always kept."
+    },
+    {
+      "name": "pulse.async",
+      "type": "io.github.arun0009.pulse.autoconfigure.PulseProperties$Async",
+      "description": "Propagates MDC + OTel context across @Async, @Scheduled, and TaskExecutor hops. Pulse exposes a TaskDecorator bean by default so Spring Boot's auto-configured executor inherits propagation without override; flip dedicated-executor=true if you want an isolated pulseDedicatedExecutor."
+    },
+    {
+      "name": "pulse.kafka",
+      "type": "io.github.arun0009.pulse.autoconfigure.PulseProperties$Kafka",
+      "description": "Wires Pulse's producer + consumer interceptors into Spring Kafka so MDC and timeout-budget travel with every record. Auto-activated when spring-kafka is on the classpath."
+    },
+    {
+      "name": "pulse.exception-handler",
+      "type": "io.github.arun0009.pulse.autoconfigure.PulseProperties$ExceptionHandler",
+      "description": "Global @RestControllerAdvice that returns RFC 7807 ProblemDetail responses with traceId, requestId, and a stable errorFingerprint. The fingerprint also lands on the active span and an unhandled-error counter."
+    },
+    {
+      "name": "pulse.audit",
+      "type": "io.github.arun0009.pulse.autoconfigure.PulseProperties$Audit",
+      "description": "Routes the AuditLogger fluent API to a dedicated AUDIT logger so security-relevant events can be shipped to a separate appender."
+    },
+    {
+      "name": "pulse.cardinality",
+      "type": "io.github.arun0009.pulse.autoconfigure.PulseProperties$Cardinality",
+      "description": "Caps distinct tag values per meter to prevent runaway tag explosions. Excess values bucket to overflow-value; pulse.cardinality.overflow counter records every clamp so dashboards and alerts can spot the offender."
+    },
+    {
+      "name": "pulse.timeout-budget",
+      "type": "io.github.arun0009.pulse.autoconfigure.PulseProperties$TimeoutBudget",
+      "description": "End-to-end deadline propagation. Inbound header is clamped to maximum-budget; the remaining budget at egress is propagated as outbound-header, minus safety-margin to give downstream a chance to respond before the parent times out."
+    },
+    {
+      "name": "pulse.wide-events",
+      "type": "io.github.arun0009.pulse.autoconfigure.PulseProperties$WideEvents",
+      "description": "SpanEvents API — one call writes a span event, a structured log line, and (optionally) a bounded counter. The counter is tagged only by event name to keep cardinality predictable while the span and log carry the rich attributes."
+    },
+    {
+      "name": "pulse.logging",
+      "type": "io.github.arun0009.pulse.autoconfigure.PulseProperties$Logging",
+      "description": "Pulse logging integration. The bundled JSON layout always emits traceId, spanId, app.version, and build.commit; pii-masking-enabled toggles automatic redaction of emails, SSNs, credit cards, Bearer tokens, and JSON secret fields."
+    },
+    {
+      "name": "pulse.banner",
+      "type": "io.github.arun0009.pulse.autoconfigure.PulseProperties$Banner",
+      "description": "Startup banner that prints the active Pulse subsystems, their effective settings, and the actuator endpoint location. Set to false if you ship logs to a system that doesn't tolerate multi-line entries."
+    },
+    {
+      "name": "pulse.histograms",
+      "type": "io.github.arun0009.pulse.autoconfigure.PulseProperties$Histograms",
+      "description": "Enables percentile histograms on Spring Boot's standard meters with SLO-aligned bucket boundaries. The default buckets cover the typical web request range; tune slo-buckets to your service's latency profile."
+    },
+    {
+      "name": "pulse.slo",
+      "type": "io.github.arun0009.pulse.autoconfigure.PulseProperties$Slo",
+      "description": "SLO-as-code. Declare objectives once and Pulse renders a Kubernetes PrometheusRule (recording rules + multi-window burn-rate alerts) at /actuator/pulse/slo, ready to kubectl apply -f -."
+    },
+    {
+      "name": "pulse.health",
+      "type": "io.github.arun0009.pulse.autoconfigure.PulseProperties$Health",
+      "description": "Pulse-supplied Spring Boot HealthIndicators. The OTel exporter indicator reports a degraded state when no span has been successfully exported within otel-exporter-stale-after — useful for catching collector outages that would otherwise be silent."
+    },
+    {
+      "name": "pulse.shutdown",
+      "type": "io.github.arun0009.pulse.autoconfigure.PulseProperties$Shutdown",
+      "description": "JVM shutdown lifecycle. otel-flush-enabled blocks shutdown for up to otel-flush-timeout so the BatchSpanProcessor can drain queued spans — without this the last few hundred spans before a rolling deploy are lost."
+    }
+  ],
+  "properties": [
+    {
+      "name": "pulse.sampling.probability",
+      "description": "Head-based sampling ratio for root spans (parent decisions are always honoured). 1.0 = sample all (default), 0.1 = 10%, 0.0 = sample none. Set to 0.05–0.1 in high-traffic production services."
+    },
+    {
+      "name": "pulse.cardinality.max-tag-values-per-meter",
+      "description": "Maximum distinct values allowed per (meter, tag-key). Beyond this the value is replaced with overflow-value and the meter continues to record samples. Conservative default of 1000 fits most services; raise only when you've identified a high-cardinality dimension that's actually meaningful."
+    },
+    {
+      "name": "pulse.cardinality.overflow-value",
+      "description": "String substituted in place of values that exceed max-tag-values-per-meter. Defaults to OVERFLOW so it stands out in dashboards."
+    },
+    {
+      "name": "pulse.cardinality.meter-prefixes-to-protect",
+      "description": "Optional explicit allow-list of meter name prefixes to apply the firewall to. Empty = protect every meter (recommended)."
+    },
+    {
+      "name": "pulse.cardinality.exempt-meter-prefixes",
+      "description": "Meter name prefixes to exempt from the firewall. Pulse's own pulse.* meters are always exempt regardless of this list."
+    },
+    {
+      "name": "pulse.timeout-budget.default-budget",
+      "description": "Budget assigned to inbound requests that do not present a timeout-budget header. Acts as a safety net so missing headers don't translate to unbounded execution."
+    },
+    {
+      "name": "pulse.timeout-budget.maximum-budget",
+      "description": "Hard ceiling on the inbound budget header. Edge requests proposing larger budgets are clamped, preventing an external caller from setting a 5-minute timeout on a service that should never run that long."
+    },
+    {
+      "name": "pulse.timeout-budget.safety-margin",
+      "description": "Subtracted from the propagated budget on every outbound hop so the downstream service has time to respond before the parent's clock expires. 50ms is a sensible default for in-region calls; raise for cross-region paths."
+    },
+    {
+      "name": "pulse.timeout-budget.minimum-budget",
+      "description": "Floor for the propagated budget. If the remaining budget falls below this value, Pulse increments pulse.timeout.budget.exhausted{transport=…} and propagates the floor anyway so the downstream call still gets a sane deadline."
+    },
+    {
+      "name": "pulse.histograms.slo-buckets",
+      "description": "Histogram bucket boundaries used for percentile + SLO calculations. Defaults align with typical web-request latency targets; tune to span your SLO threshold and one bucket above it."
+    },
+    {
+      "name": "pulse.health.otel-exporter-stale-after",
+      "description": "After this duration without a successful span export, the OTel exporter HealthIndicator reports DOWN. Tune to your service's traffic pattern — a 5m default catches collector outages while tolerating brief idle periods."
+    }
+  ],
+  "hints": [
+    {
+      "name": "pulse.cardinality.overflow-value",
+      "values": [
+        { "value": "OVERFLOW", "description": "Default sentinel — stands out in Grafana label pickers." },
+        { "value": "_OTHER", "description": "Common Prometheus convention." },
+        { "value": "OTHER", "description": "Concise alternative." }
+      ]
+    },
+    {
+      "name": "pulse.slo.objectives[].sli",
+      "values": [
+        { "value": "availability", "description": "Fraction of non-5xx responses on http_server_requests_seconds_count. Pair with target=0.999." },
+        { "value": "latency", "description": "Fraction of requests under threshold on http_server_requests_seconds_bucket. Pair with target=0.95 and threshold=500ms." }
+      ]
+    },
+    {
+      "name": "pulse.timeout-budget.inbound-header",
+      "values": [
+        { "value": "X-Timeout-Ms", "description": "Pulse default. Numeric milliseconds — interoperates with Envoy's x-envoy-upstream-rq-timeout-ms convention." },
+        { "value": "Grpc-Timeout", "description": "gRPC convention — requires a custom parser." }
+      ]
+    }
+  ]
+}

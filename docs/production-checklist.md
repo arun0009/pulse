@@ -67,8 +67,9 @@ Each item is one of:
 - **MUST** If you call `AuditLogger`, configure a dedicated sink for the `AUDIT` logger in your
   log config. The default appender colocates audit lines with application logs — fine for dev,
   not for compliance.
-- **SHOULD** Migrate any `auditLogger.log(...)` positional calls to the fluent
-  `auditLogger.event(...).emit()` API; the positional API is removed in Pulse 2.0.
+- **SHOULD** Use the `auditLogger.event(action).actor(...).resource(...).outcome(...).emit()`
+  fluent builder for every audit call; named attributes are far easier to evolve than positional
+  arguments.
 
 ## SLO & alerts
 

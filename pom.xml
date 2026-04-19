@@ -591,11 +591,13 @@
                         </goals>
                         <phase>verify</phase>
                         <configuration>
-                            <!-- Gate on merged unit + integration coverage. Thresholds are
-                                 deliberately modest: most uncovered lines are Spring boilerplate
-                                 (auto-config @Bean wiring, no-arg ctors). Behavioural code paths
-                                 — the firewall, budget, span-events — are tested directly. We'd
-                                 rather have high-value tests than chase a vanity number. -->
+                            <!-- Gate on merged unit + integration coverage. Thresholds sit just
+                                 below the actual measured coverage so the gate ratchets quality
+                                 forward instead of permitting silent regressions, while leaving
+                                 enough headroom that small refactors don't trip the build. The
+                                 excludes below remove auto-config wiring and the test-slice
+                                 ship-along (covered by integration, not by unit, because the
+                                 wiring graph IS the contract). -->
                             <dataFile>${project.build.directory}/jacoco-merged.exec</dataFile>
                             <rules>
                                 <rule>
@@ -604,12 +606,12 @@
                                         <limit>
                                             <counter>LINE</counter>
                                             <value>COVEREDRATIO</value>
-                                            <minimum>0.40</minimum>
+                                            <minimum>0.70</minimum>
                                         </limit>
                                         <limit>
                                             <counter>BRANCH</counter>
                                             <value>COVEREDRATIO</value>
-                                            <minimum>0.30</minimum>
+                                            <minimum>0.50</minimum>
                                         </limit>
                                     </limits>
                                 </rule>

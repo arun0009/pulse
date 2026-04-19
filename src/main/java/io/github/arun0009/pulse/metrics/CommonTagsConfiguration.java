@@ -19,12 +19,12 @@ import java.util.List;
  * service name, environment, application version, and (when available) the source-control commit
  * the build came from.
  *
- * <p>Pulse emits <em>both</em> the legacy Micrometer-style tags ({@code application}, {@code env})
- * <em>and</em> the OpenTelemetry semantic-convention equivalents ({@code service.name},
- * {@code deployment.environment}). Boot's OTel starter already adds the OTel ones to traces; this
- * makes them available on metrics too without breaking dashboards keyed on the legacy names. The
- * legacy tags are deprecated and will be removed in Pulse 2.0 — see the migration note in the
- * release notes.
+ * <p>Pulse tags every meter with <em>both</em> the Micrometer-native names ({@code application},
+ * {@code env}) <em>and</em> the OpenTelemetry semantic-convention equivalents ({@code service.name},
+ * {@code deployment.environment}). The bundled Grafana dashboards and Prometheus alert rules query
+ * the Micrometer-native names; OTel queries (or anyone using {@code service.name}-based tooling like
+ * Tempo / Jaeger) can use the conventions ones. Both are populated from the same source so the
+ * dual emission is a one-line cost at startup, not a per-sample overhead.
  *
  * <p>If {@link BuildProperties} or {@link GitProperties} beans are present (Spring Boot adds them
  * when {@code spring-boot-maven-plugin}'s {@code build-info} goal runs and when {@code git.properties}
@@ -45,11 +45,10 @@ public class CommonTagsConfiguration {
         GitProperties gitProperties = gitPropertiesProvider.getIfAvailable();
 
         List<Tag> tags = new ArrayList<>();
-        // Legacy Micrometer tags — kept for backward compatibility with dashboards written
-        // against earlier Pulse versions. Deprecated; will be removed in Pulse 2.0.
+        // Micrometer-native — what Pulse's bundled dashboards + alerts query.
         tags.add(Tag.of("application", serviceName));
         tags.add(Tag.of("env", environment));
-        // OpenTelemetry semantic conventions — the forward-compatible names.
+        // OpenTelemetry semantic conventions — what OTel-native tooling expects.
         tags.add(Tag.of("service.name", serviceName));
         tags.add(Tag.of("deployment.environment", environment));
 

@@ -5,11 +5,6 @@ All notable changes to Pulse are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 and follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format.
 
-## [Unreleased]
-
-### Added
-- _(Nothing yet — see [`1.0.0`](#100--2026-04-19) below.)_
-
 ## [1.0.0] — 2026-04-19
 
 First public Maven Central release. Pulse 1.0 establishes the public API surface for
@@ -32,7 +27,7 @@ endpoints, and `io.github.arun0009.pulse.*` package classes through the 1.x line
 - **Audit logger** dedicated channel.
 - **Grafana dashboard** (`dashboards/grafana/pulse-overview.json`) and **Prometheus burn-rate SLO alerts** (`alerts/prometheus/pulse-slo-alerts.yaml`) shipped as artifacts.
 - **CycloneDX SBOM** generated on every build.
-- **JaCoCo** coverage gate (≥40% line, ≥30% branch).
+- **JaCoCo** coverage gate (≥70% line, ≥50% branch on merged unit + integration runs).
 - **Spotless + Google Java Format** enforced at `verify`.
 - **JMH benchmark** profile (`mvn -Pbench package exec:java`) for the cardinality firewall and `SpanEvents.emit`.
 - **`@PulseTest` Spring Boot test slice** + `PulseTestHarness` fluent assertions for in-memory observability testing.
@@ -76,5 +71,4 @@ endpoints, and `io.github.arun0009.pulse.*` package classes through the 1.x line
 Reproduce with `make bench`. Numbers are not absolute (your hardware will
 differ); they exist so the perf claim is falsifiable, not a vibe.
 
-[Unreleased]: https://github.com/arun0009/pulse/compare/v1.0.0...HEAD
 [1.0.0]: https://github.com/arun0009/pulse/releases/tag/v1.0.0

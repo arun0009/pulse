@@ -1,6 +1,7 @@
 package io.github.arun0009.pulse.dependencies;
 
 import io.github.arun0009.pulse.autoconfigure.PulseProperties;
+import io.github.arun0009.pulse.core.LogSanitizer;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.DistributionSummary;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -83,8 +84,8 @@ public final class RequestFanoutFilter extends OncePerRequestFilter {
                             "Pulse fan-out width {} exceeded threshold {} for {} {}",
                             snap.totalCalls(),
                             fanOutWarnThreshold,
-                            request.getMethod(),
-                            request.getRequestURI());
+                            LogSanitizer.safe(request.getMethod()),
+                            LogSanitizer.safe(request.getRequestURI()));
                 }
                 Span current = Span.current();
                 if (current.getSpanContext().isValid()) {

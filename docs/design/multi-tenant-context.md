@@ -45,7 +45,7 @@ Pulse ships three built-in implementations, each opt-in via `@ConditionalOnPrope
 
 | Bean | Property to enable | Default order |
 |---|---|---|
-| `HeaderTenantExtractor` (`X-Tenant-ID`) | `pulse.tenant.header.enabled=true` (default) | 100 |
+| `HeaderTenantExtractor` (`Pulse-Tenant-Id`) | `pulse.tenant.header.enabled=true` (default) | 100 |
 | `JwtClaimTenantExtractor` (`tenant_id` claim) | `pulse.tenant.jwt.enabled=true` | 200 |
 | `SubdomainTenantExtractor` | `pulse.tenant.subdomain.enabled=false` | 300 |
 
@@ -83,7 +83,7 @@ Default posture: **tenant goes everywhere except metrics.**
 |---|---|---|
 | MDC (every log line) | always | no |
 | OTel baggage (cross-service) | always | no |
-| Outbound HTTP headers (`X-Tenant-ID`) | always | no |
+| Outbound HTTP headers (`Pulse-Tenant-Id`) | always | no |
 | Kafka producer headers | always | no |
 | Tag on `pulse.events` (wide-events counter) | always | no |
 | Tag on `http.server.requests`, `pulse.dependency.*`, etc. | **off** | `pulse.tenant.tag-meters` (list) |

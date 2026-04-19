@@ -30,7 +30,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  *
  * <p>Topology: WireMock stub for the downstream &amp; client → Spring Boot test app that holds the
  * request open for ~200ms then calls WireMock with a {@link RestTemplate}. Asserts the {@code
- * X-Timeout-Ms} the downstream actually received.
+ * Pulse-Timeout-Ms} the downstream actually received.
  */
 @SpringBootTest(
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
@@ -70,7 +70,7 @@ class TimeoutBudgetEndToEndIT {
         TestApp.downstreamPort = downstream.port();
 
         org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
-        headers.add("X-Timeout-Ms", "2000");
+        headers.add("Pulse-Timeout-Ms", "2000");
         org.springframework.http.HttpEntity<Void> req = new org.springframework.http.HttpEntity<>(headers);
 
         org.springframework.http.ResponseEntity<String> response = restTemplate.exchange(
@@ -82,9 +82,9 @@ class TimeoutBudgetEndToEndIT {
         var captured = downstream.findAll(leafCalls);
         assertThat(captured).hasSize(1);
 
-        String observed = captured.get(0).getHeader("X-Timeout-Ms");
+        String observed = captured.get(0).getHeader("Pulse-Timeout-Ms");
         assertThat(observed)
-                .as("downstream must receive the X-Timeout-Ms header")
+                .as("downstream must receive the Pulse-Timeout-Ms header")
                 .isNotNull();
         long observedMs = Long.parseLong(observed);
         assertThat(observedMs)
@@ -102,10 +102,10 @@ class TimeoutBudgetEndToEndIT {
 
         var captured = downstream.findAll(getRequestedFor(urlEqualTo("/leaf")));
         assertThat(captured).hasSize(1);
-        assertThat(captured.get(0).getHeader("X-Timeout-Ms"))
+        assertThat(captured.get(0).getHeader("Pulse-Timeout-Ms"))
                 .as("a default budget must still propagate when caller did not set one")
                 .isNotNull();
-        long observedMs = Long.parseLong(captured.get(0).getHeader("X-Timeout-Ms"));
+        long observedMs = Long.parseLong(captured.get(0).getHeader("Pulse-Timeout-Ms"));
         assertThat(observedMs).isPositive();
     }
 

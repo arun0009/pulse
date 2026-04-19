@@ -322,7 +322,7 @@ groups:
 
       # ── Retry amplification (cross-service cascade detector) ─────────
       # Pulse propagates a per-request retry-depth counter through the call
-      # chain (X-Pulse-Retry-Depth header). When inbound depth crosses
+      # chain (Pulse-Retry-Depth header). When inbound depth crosses
       # pulse.retry.amplification-threshold (default 3), Pulse increments
       # pulse.retry.amplification_total. A single hit is an early-warning
       # sign of a forming cascade; >5% of traffic is the cascade itself.

@@ -48,7 +48,7 @@ If GitHub's advisory flow is unavailable, email the maintainer listed in
 - Pulse does not cap the size of attribute values. Hostile upstream callers
 	could inflate span/event payloads. Sample aggressively if your trust
 	boundary requires it.
-- The `X-Timeout-Ms` header can be user-controlled at your edge. Clamp inbound
+- The `Pulse-Timeout-Ms` header can be user-controlled at your edge. Clamp inbound
 	values with `pulse.timeout-budget.maximum-budget` to prevent unrealistic
 	deadlines from propagating through your call graph.
 

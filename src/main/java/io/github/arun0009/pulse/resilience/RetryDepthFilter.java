@@ -2,6 +2,7 @@ package io.github.arun0009.pulse.resilience;
 
 import io.github.arun0009.pulse.autoconfigure.PulseProperties;
 import io.github.arun0009.pulse.core.ContextKeys;
+import io.github.arun0009.pulse.core.LogSanitizer;
 import io.github.arun0009.pulse.core.PulseRequestContextFilter;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -101,7 +102,7 @@ public final class RetryDepthFilter extends OncePerRequestFilter implements Orde
         log.warn(
                 "Pulse retry-amplification detected: depth={} endpoint={} threshold={}",
                 depth,
-                endpoint,
+                LogSanitizer.safe(endpoint),
                 amplificationThreshold);
     }
 

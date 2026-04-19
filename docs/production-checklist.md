@@ -43,7 +43,7 @@ Each item is one of:
 - **MUST** Set `pulse.timeout-budget.default-budget` to your service's caller-side timeout minus
   ~50ms. Otherwise outbound calls have no notion of "we're already late."
 - **SHOULD** Set `pulse.timeout-budget.maximum-budget` at the edge to prevent a malicious or
-  buggy caller from sending `X-Timeout-Ms: 86400000` and pinning a thread.
+  buggy caller from sending `Pulse-Timeout-Ms: 86400000` and pinning a thread.
 - **MUST** Subscribe to the `PulseTimeoutBudgetExhausted` alert and route to your on-call.
 
 ## Trace propagation guard

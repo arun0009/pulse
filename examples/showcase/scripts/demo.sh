@@ -30,13 +30,13 @@ require_up "$WITHOUT_PULSE"
 
 # ─────────────────────────────────────────────────────────────────────────────
 bold "[1/3] Custom MDC propagation across @Async"
-echo "Send a request with X-Tenant-ID, X-Request-ID, X-User-ID. The edge logs"
+echo "Send a request with Pulse-Tenant-Id, X-Request-ID, X-User-ID. The edge logs"
 echo "those values both at request entry and inside an @Async worker thread."
 echo
 echo "Pulse: extracts the headers into MDC and propagates them across @Async."
 echo "Stock Spring Boot 4: traceId propagates natively, but custom MDC keys do not."
 sep
-HDRS=(-H "X-Tenant-ID: acme-corp" -H "X-Request-ID: req-001" -H "X-User-ID: alice")
+HDRS=(-H "Pulse-Tenant-Id: acme-corp" -H "X-Request-ID: req-001" -H "X-User-ID: alice")
 curl -sf "${HDRS[@]}" "$WITH_PULSE/trace/async" >/dev/null
 curl -sf "${HDRS[@]}" "$WITHOUT_PULSE/trace/async" >/dev/null
 sleep 1
@@ -68,24 +68,24 @@ echo "Without Pulse, every userId becomes a permanent time series → cost bomb.
 # ─────────────────────────────────────────────────────────────────────────────
 bold "[3/3] Timeout-budget cascade"
 echo "Edge calls a downstream that simulates 5s of work. The caller sets a 500ms"
-echo "deadline via X-Timeout-Ms. Pulse propagates it. Without Pulse, the header"
+echo "deadline via Pulse-Timeout-Ms. Pulse propagates it. Without Pulse, the header"
 echo "is dropped and downstream sleeps the full 5 seconds."
 sep
 echo "with-pulse (expect ~500ms):"
 START=$(perl -MTime::HiRes=time -e 'printf "%.0f\n", time*1000')
-curl -sf --max-time 8 -H "X-Timeout-Ms: 500" "$WITH_PULSE/trace/timeout" || true
+curl -sf --max-time 8 -H "Pulse-Timeout-Ms: 500" "$WITH_PULSE/trace/timeout" || true
 END=$(perl -MTime::HiRes=time -e 'printf "%.0f\n", time*1000')
 echo " (caller-perceived: $((END-START))ms)"
 echo
 echo "without-pulse (expect ~5000ms):"
 START=$(perl -MTime::HiRes=time -e 'printf "%.0f\n", time*1000')
-curl -sf --max-time 10 -H "X-Timeout-Ms: 500" "$WITHOUT_PULSE/trace/timeout" || true
+curl -sf --max-time 10 -H "Pulse-Timeout-Ms: 500" "$WITHOUT_PULSE/trace/timeout" || true
 END=$(perl -MTime::HiRes=time -e 'printf "%.0f\n", time*1000')
 echo " (caller-perceived: $((END-START))ms)"
 sep
 
 bold "Inspect the full picture:"
-echo "  docker compose logs --tail=40 downstream         # see 'no X-Timeout-Ms' vs 'honored'"
+echo "  docker compose logs --tail=40 downstream         # see 'no Pulse-Timeout-Ms' vs 'honored'"
 echo "  curl -s $WITH_PULSE/actuator/pulse | jq          # Pulse self-diagnostics"
 echo "  curl -s $WITH_PULSE/actuator/metrics/orders.placed | jq '.availableTags'  # OVERFLOW tag"
 ok "Done."

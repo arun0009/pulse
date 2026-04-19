@@ -32,7 +32,7 @@ class PulseKafkaProducerInterceptorTest {
                 Map.of(
                         "X-Request-ID", ContextKeys.REQUEST_ID,
                         "X-User-ID", ContextKeys.USER_ID),
-                "X-Timeout-Ms");
+                "Pulse-Timeout-Ms");
     }
 
     @AfterEach
@@ -77,7 +77,7 @@ class PulseKafkaProducerInterceptorTest {
             ProducerRecord<Object, Object> record = new ProducerRecord<>("orders", "payload");
             interceptor.onSend(record);
 
-            String budgetHeader = headerValue(record, "X-Timeout-Ms");
+            String budgetHeader = headerValue(record, "Pulse-Timeout-Ms");
             long remainingMs = Long.parseLong(budgetHeader);
             assertThat(remainingMs).isBetween(1500L, 2000L);
         }
@@ -88,7 +88,7 @@ class PulseKafkaProducerInterceptorTest {
         ProducerRecord<Object, Object> record = new ProducerRecord<>("orders", "payload");
         interceptor.onSend(record);
 
-        assertThat(record.headers().lastHeader("X-Timeout-Ms")).isNull();
+        assertThat(record.headers().lastHeader("Pulse-Timeout-Ms")).isNull();
     }
 
     @Test

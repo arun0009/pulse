@@ -7,7 +7,7 @@ real systems — with and without Pulse on the edge service.
 |---|-----------------------|-----------------------------------------------|-----------------------------------------------------|
 | 1 | Custom MDC across `@Async` | `tenantId=null` on the `@Async` worker line   | `tenantId=acme-corp` preserved across the thread hop |
 | 2 | Cardinality explosion | 13 raw `userId` tag values → 13 time series   | Capped at 10; the rest bucket to a synthetic `OVERFLOW` tag |
-| 3 | Timeout cascade       | Caller-perceived **~5,000 ms** (full downstream sleep) | Caller-perceived **~500 ms** — propagated `X-Timeout-Ms` honored |
+| 3 | Timeout cascade       | Caller-perceived **~5,000 ms** (full downstream sleep) | Caller-perceived **~500 ms** — propagated `Pulse-Timeout-Ms` honored |
 
 > Spring Boot 4 propagates the OTel `traceId` across `@Async` natively, so that
 > alone is no longer a Pulse differentiator. What Pulse uniquely propagates is
@@ -44,7 +44,7 @@ without-pulse final: {"distinctSeries":13, ...}   ← unbounded growth
 
 [3/3] Timeout-budget cascade (caller deadline = 500 ms)
 with-pulse    caller-perceived: 550 ms  (downstream: "honored caller's deadline; gave up after 356ms")
-without-pulse caller-perceived: 5,101 ms (downstream: "no X-Timeout-Ms from caller — falling back to full 5000ms work")
+without-pulse caller-perceived: 5,101 ms (downstream: "no Pulse-Timeout-Ms from caller — falling back to full 5000ms work")
 ```
 
 ## Inspect
@@ -64,7 +64,7 @@ After `make all`, browse the live dashboard:
 curl -s http://localhost:8080/actuator/metrics/orders.placed | jq '.availableTags'
 
 # Counter that increments every time a downstream call hits exhausted budget
-curl -s http://localhost:8080/actuator/metrics/pulse.timeout.budget.exhausted | jq .
+curl -s http://localhost:8080/actuator/metrics/pulse.timeout-budget.exhausted | jq .
 ```
 
 ## What's running
@@ -80,8 +80,8 @@ curl -s http://localhost:8080/actuator/metrics/pulse.timeout.budget.exhausted | 
 │   enabled)      │  │   disabled via     │  │              │     │
 │                 │  │   profile)         │  │              │     │
 └──────┬──────────┘  └────────────────────┘  └──────────────┘     │
-       │   propagates X-Timeout-Ms,                               │
-       │   X-Tenant-ID, X-Request-ID, X-User-ID                   ▼
+       │   propagates Pulse-Timeout-Ms,                           │
+       │   Pulse-Tenant-Id, X-Request-ID, X-User-ID               ▼
        ▼                                                  ┌──────────────────┐
    downstream call                                        │  otel-collector  │
                                                           │   :4317 (gRPC)   │

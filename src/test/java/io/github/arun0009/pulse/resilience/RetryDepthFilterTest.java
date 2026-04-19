@@ -16,7 +16,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class RetryDepthFilterTest {
 
     private final MeterRegistry registry = new SimpleMeterRegistry();
-    private final PulseProperties.Retry config = new PulseProperties.Retry(true, "X-Pulse-Retry-Depth", 3);
+    private final PulseProperties.Retry config = new PulseProperties.Retry(true, "Pulse-Retry-Depth", 3);
     private final RetryDepthFilter filter = new RetryDepthFilter(config, registry);
 
     @AfterEach
@@ -29,7 +29,7 @@ class RetryDepthFilterTest {
     void seedsContextAndMdcFromInboundHeader() throws Exception {
         MockHttpServletRequest req = new MockHttpServletRequest();
         req.setRequestURI("/orders");
-        req.addHeader("X-Pulse-Retry-Depth", "2");
+        req.addHeader("Pulse-Retry-Depth", "2");
         FilterChain chain = (request, response) -> {
             assertThat(MDC.get(ContextKeys.RETRY_DEPTH)).isEqualTo("2");
             assertThat(RetryDepthContext.current()).isEqualTo(2);
@@ -45,7 +45,7 @@ class RetryDepthFilterTest {
     void emitsAmplificationCounterWhenThresholdCrossed() throws Exception {
         MockHttpServletRequest req = new MockHttpServletRequest();
         req.setRequestURI("/orders");
-        req.addHeader("X-Pulse-Retry-Depth", "5");
+        req.addHeader("Pulse-Retry-Depth", "5");
 
         filter.doFilter(req, new MockHttpServletResponse(), (r, s) -> {});
 
@@ -60,7 +60,7 @@ class RetryDepthFilterTest {
     void doesNotEmitBelowThreshold() throws Exception {
         MockHttpServletRequest req = new MockHttpServletRequest();
         req.setRequestURI("/orders");
-        req.addHeader("X-Pulse-Retry-Depth", "2");
+        req.addHeader("Pulse-Retry-Depth", "2");
 
         filter.doFilter(req, new MockHttpServletResponse(), (r, s) -> {});
 
@@ -85,7 +85,7 @@ class RetryDepthFilterTest {
         RetryDepthContext.set(9);
         MockHttpServletRequest req = new MockHttpServletRequest();
         req.setRequestURI("/orders");
-        req.addHeader("X-Pulse-Retry-Depth", "2");
+        req.addHeader("Pulse-Retry-Depth", "2");
 
         filter.doFilter(req, new MockHttpServletResponse(), (r, s) -> {});
 

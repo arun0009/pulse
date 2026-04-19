@@ -53,7 +53,7 @@ class TenantTagCardinalityFilterTest {
     private TenantTagCardinalityFilter filter(int max) {
         return new TenantTagCardinalityFilter(new PulseProperties.Tenant(
                 true,
-                new PulseProperties.Tenant.Header(true, "X-Tenant-ID"),
+                new PulseProperties.Tenant.Header(true, "Pulse-Tenant-Id"),
                 new PulseProperties.Tenant.Jwt(false, "tenant_id"),
                 new PulseProperties.Tenant.Subdomain(false, 0),
                 max,

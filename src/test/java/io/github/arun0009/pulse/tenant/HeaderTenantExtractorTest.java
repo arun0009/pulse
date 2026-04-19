@@ -7,12 +7,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class HeaderTenantExtractorTest {
 
-    private final HeaderTenantExtractor extractor = new HeaderTenantExtractor("X-Tenant-ID");
+    private final HeaderTenantExtractor extractor = new HeaderTenantExtractor("Pulse-Tenant-Id");
 
     @Test
     void returnsHeaderValue() {
         MockHttpServletRequest req = new MockHttpServletRequest();
-        req.addHeader("X-Tenant-ID", "acme");
+        req.addHeader("Pulse-Tenant-Id", "acme");
         assertThat(extractor.extract(req)).contains("acme");
     }
 
@@ -24,7 +24,7 @@ class HeaderTenantExtractorTest {
     @Test
     void returnsEmptyForBlankHeader() {
         MockHttpServletRequest req = new MockHttpServletRequest();
-        req.addHeader("X-Tenant-ID", "   ");
+        req.addHeader("Pulse-Tenant-Id", "   ");
         assertThat(extractor.extract(req)).isEmpty();
     }
 }

@@ -21,8 +21,8 @@ class TimeoutBudgetFilterTest {
 
     private static final PulseProperties.TimeoutBudget CONFIG = new PulseProperties.TimeoutBudget(
             true,
-            "X-Timeout-Ms",
-            "X-Timeout-Ms",
+            "Pulse-Timeout-Ms",
+            "Pulse-Timeout-Ms",
             Duration.ofSeconds(2),
             Duration.ofSeconds(30),
             Duration.ofMillis(50),
@@ -33,7 +33,7 @@ class TimeoutBudgetFilterTest {
     @Test
     void inbound_header_is_honored_minus_safety_margin() throws Exception {
         MockHttpServletRequest request = new MockHttpServletRequest("GET", "/orders");
-        request.addHeader("X-Timeout-Ms", "1000");
+        request.addHeader("Pulse-Timeout-Ms", "1000");
         AtomicReference<Duration> observed = new AtomicReference<>();
 
         FilterChain chain = (req, resp) ->
@@ -60,7 +60,7 @@ class TimeoutBudgetFilterTest {
     @Test
     void tiny_inbound_budget_is_floored_at_minimum() throws Exception {
         MockHttpServletRequest request = new MockHttpServletRequest("GET", "/orders");
-        request.addHeader("X-Timeout-Ms", "10");
+        request.addHeader("Pulse-Timeout-Ms", "10");
         AtomicReference<Duration> observed = new AtomicReference<>();
 
         FilterChain chain = (req, resp) ->
@@ -74,7 +74,7 @@ class TimeoutBudgetFilterTest {
     @Test
     void inbound_budget_above_maximum_is_clamped() throws Exception {
         MockHttpServletRequest request = new MockHttpServletRequest("GET", "/orders");
-        request.addHeader("X-Timeout-Ms", "120000");
+        request.addHeader("Pulse-Timeout-Ms", "120000");
         AtomicReference<Duration> observed = new AtomicReference<>();
 
         FilterChain chain = (req, resp) ->
@@ -92,8 +92,8 @@ class TimeoutBudgetFilterTest {
         // — i.e., no fabricated deadline. This is the contract the showcase relies on.
         TimeoutBudgetFilter optOut = new TimeoutBudgetFilter(new PulseProperties.TimeoutBudget(
                 true,
-                "X-Timeout-Ms",
-                "X-Timeout-Ms",
+                "Pulse-Timeout-Ms",
+                "Pulse-Timeout-Ms",
                 Duration.ZERO,
                 Duration.ofSeconds(30),
                 Duration.ofMillis(50),
@@ -115,15 +115,15 @@ class TimeoutBudgetFilterTest {
         // must still propagate.
         TimeoutBudgetFilter optOut = new TimeoutBudgetFilter(new PulseProperties.TimeoutBudget(
                 true,
-                "X-Timeout-Ms",
-                "X-Timeout-Ms",
+                "Pulse-Timeout-Ms",
+                "Pulse-Timeout-Ms",
                 Duration.ZERO,
                 Duration.ofSeconds(30),
                 Duration.ofMillis(50),
                 Duration.ofMillis(100)));
 
         MockHttpServletRequest request = new MockHttpServletRequest("GET", "/orders");
-        request.addHeader("X-Timeout-Ms", "1500");
+        request.addHeader("Pulse-Timeout-Ms", "1500");
         AtomicReference<Duration> observed = new AtomicReference<>();
 
         FilterChain chain = (req, resp) ->

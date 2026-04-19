@@ -1,6 +1,7 @@
 package io.github.arun0009.pulse.propagation;
 
 import io.github.arun0009.pulse.autoconfigure.PulseProperties;
+import io.github.arun0009.pulse.core.LogSanitizer;
 import io.github.arun0009.pulse.guardrails.TimeoutBudget;
 import io.opentelemetry.api.baggage.Baggage;
 import io.opentelemetry.context.Scope;
@@ -123,7 +124,7 @@ public class PulseKafkaRecordInterceptor implements RecordInterceptor<Object, Ob
                     .makeCurrent();
             BAGGAGE_SCOPE.set(scope);
         } catch (NumberFormatException e) {
-            log.debug("Pulse Kafka: malformed timeout-budget header value '{}'", headerValue);
+            log.debug("Pulse Kafka: malformed timeout-budget header value '{}'", LogSanitizer.safe(headerValue));
         }
     }
 }

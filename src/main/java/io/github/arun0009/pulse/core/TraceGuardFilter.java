@@ -106,7 +106,7 @@ public class TraceGuardFilter extends OncePerRequestFilter implements Ordered {
                     + "). Configure your upstream caller to propagate context, or set "
                     + "pulse.trace-guard.fail-on-missing=false.");
         }
-        log.warn("Pulse TraceGuard: missing trace context for {}", request.getRequestURI());
+        log.warn("Pulse TraceGuard: missing trace context for {}", LogSanitizer.safe(request.getRequestURI()));
         chain.doFilter(request, response);
     }
 

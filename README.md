@@ -96,7 +96,7 @@ actually works at 3 AM:
 | One typo (`tag("userId", id)`) blows up your metrics bill 100x | nothing — silently 10x cost | **Cardinality firewall** caps per-meter tag values, buckets the rest into `OVERFLOW`, alerts you to the source |
 | `@Async`, `@Scheduled`, executor hops drop `traceId` / MDC | DIY decorator | **Auto-applied `TaskDecorator`** + `SchedulingConfigurer` — every hop carries context |
 | Kafka producer/consumer breaks the trace chain | manual interceptor wiring | **Native producer + Spring `RecordInterceptor`** auto-registered, composes with yours |
-| Slow upstream causes a retry storm; no service knows it's already late | no signal | **Timeout-budget propagation** via OTel baggage + `X-Timeout-Ms` header, exhausted-call counter per transport |
+| Slow upstream causes a retry storm; no service knows it's already late | no signal | **Timeout-budget propagation** via OTel baggage + `Pulse-Timeout-Ms` header, exhausted-call counter per transport |
 | A service in the chain drops `traceparent` and you can't tell which | nothing | **TraceGuardFilter** counts `pulse.trace.received` vs `pulse.trace.missing` per route |
 | Errors at low sample rate vanish from traces | crank up sampling, pay more | **Prefer-sampling-on-error** upgrades errors at span start |
 | The same bug looks like 50 different errors because the message varies | manual grouping | **Stable error fingerprint** on every `ProblemDetail` and span |
@@ -106,9 +106,9 @@ actually works at 3 AM:
 | Logs leak emails, tokens, secrets, credit cards | DIY | **PII masking converter** built into the JSON layout |
 | `/actuator/info` doesn't tell you what observability is even on | guess | **`/actuator/pulse`** + **`/actuator/pulseui`** show every subsystem's effective config and live state |
 | Latency spike in a 50-service mesh — which downstream is at fault? | open every dashboard, correlate timestamps | **Dependency health map** — caller-side per-target RED + fan-out width, one panel |
-| 1 user request becomes 27 calls to a struggling backend | invisible until it cascades | **Retry amplification** — `X-Pulse-Retry-Depth` propagates through every hop, alerts before the cascade lands |
+| 1 user request becomes 27 calls to a struggling backend | invisible until it cascades | **Retry amplification** — `Pulse-Retry-Depth` propagates through every hop, alerts before the cascade lands |
 | OOMKilled in Kubernetes — JVM had 4 GB free | JVM has no idea the cgroup limit was 2 GB | **Container memory** — cgroup v1/v2 used / limit / headroom + OOM-kill counter + health |
-| Kafka consumer is "50 k messages behind" — is that bad? | depends on rate (no idea) | **Time-based lag** — `pulse.kafka.consumer.time_lag_seconds`, the actual SLO |
+| Kafka consumer is "50 k messages behind" — is that bad? | depends on rate (no idea) | **Time-based lag** — `pulse.kafka.consumer.time_lag` (seconds), the actual SLO |
 | Pod 17 silently runs with stale ConfigMap; p99 tail starts misbehaving | no signal until something fails | **Fleet config-drift** — `pulse.config.hash` gauge, alert on more than one hash per service |
 | Rolling deploy drops in-flight requests mid-shutdown | no visibility | **Graceful-shutdown** inflight gauge + drain timer + dropped counter |
 | Feature flag flipped — was *that* what broke prod? | flag and trace are in different tools | **OpenFeature** hook stamps every evaluation on MDC + span events with semconv keys |
@@ -145,13 +145,13 @@ See [`docs/runbooks/cardinality-firewall-overflow.md`](docs/runbooks/cardinality
 
 ### 2. Timeout-budget propagation
 
-Caller sends `X-Timeout-Ms: 2000`. Pulse parses it, places the deadline on OTel baggage, and your
+Caller sends `Pulse-Timeout-Ms: 2000`. Pulse parses it, places the deadline on OTel baggage, and your
 `RestTemplate` / `RestClient` / `WebClient` / `OkHttp` / Kafka producer all forward the
 **remaining** budget on outbound calls — your downstream sees the real deadline, not the platform
 default.
 
 When the budget is exhausted *before* the outbound call fires, Pulse increments
-`pulse.timeout.budget.exhausted{transport}` so you can see retry-storm precursors before they
+`pulse.timeout-budget.exhausted{transport}` so you can see retry-storm precursors before they
 become incidents. See
 [`docs/runbooks/timeout-budget-exhausted.md`](docs/runbooks/timeout-budget-exhausted.md).
 
@@ -429,18 +429,18 @@ Pulse attaches event consumers automatically — no annotations on your `@Circui
 `@Retry` methods, no manual subscribers:
 
 ```
-pulse.r4j.circuit_breaker.state_transitions{name, from, to}   # CLOSED→OPEN counter
-pulse.r4j.circuit_breaker.state{name}                          # live state gauge
-pulse.r4j.circuit_breaker.errors_total{name}                   # numerator for burn-rate
-pulse.r4j.retry.attempts_total{name}                           # silent retries surfaced
-pulse.r4j.retry.exhausted_total{name}                          # gave up after max attempts
-pulse.r4j.bulkhead.rejected_total{name}                        # load shed at the boundary
+pulse.resilience.circuit_breaker.state_transitions{name, from, to}   # CLOSED→OPEN counter
+pulse.resilience.circuit_breaker.state{name}                         # live state gauge
+pulse.resilience.circuit_breaker.errors{name}                        # numerator for burn-rate
+pulse.resilience.retry.attempts{name}                                # silent retries surfaced
+pulse.resilience.retry.exhausted{name}                               # gave up after max attempts
+pulse.resilience.bulkhead.rejected{name}                             # load shed at the boundary
 ```
 
-Every state transition also lands as a span event (`pulse.r4j.cb.state_transition`) on the
-active span — so a slow-trace investigation immediately tells you "this trace took 4s because
+Every state transition also lands as a span event (`pulse.resilience.circuit_breaker.state_transition`)
+on the active span — so a slow-trace investigation immediately tells you "this trace took 4s because
 the circuit went HALF_OPEN at attempt 3 of the retry," not just "this trace was slow." Each
-retry attempt likewise stamps `pulse.r4j.retry.attempt` on the parent span with the attempt
+retry attempt likewise stamps `pulse.resilience.retry.attempt` on the parent span with the attempt
 number, eliminating the silent-retry blind spot.
 
 Cardinality is bounded by the number of breakers/retries you declare (single-digit per
@@ -498,9 +498,9 @@ and OkHttp with zero code changes; the alert rule `PulseDependencyDegraded` ship
 
 ### 14. Retry amplification detection
 
-Pulse propagates `X-Pulse-Retry-Depth` on every outbound HTTP and Kafka call and reads it on
+Pulse propagates `Pulse-Retry-Depth` on every outbound HTTP and Kafka call and reads it on
 every inbound. When the depth exceeds the threshold (default 3) the request is counted in
-`pulse.retry.amplification_total{endpoint}`, stamped as a span event, and logged WARN with the
+`pulse.retry.amplification{endpoint}`, stamped as a span event, and logged WARN with the
 depth in MDC. Combined with timeout-budget propagation, you get the two leading indicators of a
 cascade-in-progress before it lands as an outage.
 

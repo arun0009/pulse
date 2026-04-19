@@ -17,7 +17,7 @@ class TenantContextFilterTest {
 
     private static final PulseProperties.Tenant CONFIG = new PulseProperties.Tenant(
             true,
-            new PulseProperties.Tenant.Header(true, "X-Tenant-ID"),
+            new PulseProperties.Tenant.Header(true, "Pulse-Tenant-Id"),
             new PulseProperties.Tenant.Jwt(false, "tenant_id"),
             new PulseProperties.Tenant.Subdomain(false, 0),
             100,
@@ -34,9 +34,9 @@ class TenantContextFilterTest {
 
     @Test
     void writesResolvedTenantToMdcAndContext() throws Exception {
-        TenantContextFilter filter = filter(new HeaderTenantExtractor("X-Tenant-ID"));
+        TenantContextFilter filter = filter(new HeaderTenantExtractor("Pulse-Tenant-Id"));
         MockHttpServletRequest req = new MockHttpServletRequest();
-        req.addHeader("X-Tenant-ID", "acme");
+        req.addHeader("Pulse-Tenant-Id", "acme");
         FilterChain chain = (request, response) -> {
             assertThat(MDC.get(ContextKeys.TENANT_ID)).isEqualTo("acme");
             assertThat(TenantContext.current()).contains("acme");
@@ -50,7 +50,7 @@ class TenantContextFilterTest {
 
     @Test
     void writesUnknownWhenNoExtractorMatches() throws Exception {
-        TenantContextFilter filter = filter(new HeaderTenantExtractor("X-Tenant-ID"));
+        TenantContextFilter filter = filter(new HeaderTenantExtractor("Pulse-Tenant-Id"));
         FilterChain chain = (request, response) -> {
             assertThat(MDC.get(ContextKeys.TENANT_ID)).isEqualTo("unknown");
             assertThat(TenantContext.current()).contains("unknown");
@@ -62,9 +62,9 @@ class TenantContextFilterTest {
     @Test
     void systemPropertyOverridesAllExtractors() throws Exception {
         System.setProperty("pulse.tenant.id", "system-tenant");
-        TenantContextFilter filter = filter(new HeaderTenantExtractor("X-Tenant-ID"));
+        TenantContextFilter filter = filter(new HeaderTenantExtractor("Pulse-Tenant-Id"));
         MockHttpServletRequest req = new MockHttpServletRequest();
-        req.addHeader("X-Tenant-ID", "header-tenant");
+        req.addHeader("Pulse-Tenant-Id", "header-tenant");
         FilterChain chain = (request, response) ->
                 assertThat(MDC.get(ContextKeys.TENANT_ID)).isEqualTo("system-tenant");
 
@@ -74,12 +74,12 @@ class TenantContextFilterTest {
     @Test
     void firstExtractorWins() throws Exception {
         TenantExtractor jwtAlwaysAcme = req -> java.util.Optional.of("acme-jwt");
-        TenantExtractor headerExtractor = new HeaderTenantExtractor("X-Tenant-ID");
+        TenantExtractor headerExtractor = new HeaderTenantExtractor("Pulse-Tenant-Id");
         // headerExtractor.getOrder() == 100, jwtAlwaysAcme has no Ordered so it sorts last in real
         // wiring; here we pass them ordered explicitly to assert "first non-empty wins" semantics.
         TenantContextFilter filter = new TenantContextFilter(List.of(headerExtractor, jwtAlwaysAcme), CONFIG);
         MockHttpServletRequest req = new MockHttpServletRequest();
-        req.addHeader("X-Tenant-ID", "header-acme");
+        req.addHeader("Pulse-Tenant-Id", "header-acme");
         FilterChain chain = (request, response) ->
                 assertThat(MDC.get(ContextKeys.TENANT_ID)).isEqualTo("header-acme");
 
@@ -90,9 +90,9 @@ class TenantContextFilterTest {
     void restoresPreviousMdcAndContextOnExit() throws Exception {
         MDC.put(ContextKeys.TENANT_ID, "outer");
         TenantContext.set("outer");
-        TenantContextFilter filter = filter(new HeaderTenantExtractor("X-Tenant-ID"));
+        TenantContextFilter filter = filter(new HeaderTenantExtractor("Pulse-Tenant-Id"));
         MockHttpServletRequest req = new MockHttpServletRequest();
-        req.addHeader("X-Tenant-ID", "inner");
+        req.addHeader("Pulse-Tenant-Id", "inner");
 
         filter.doFilter(req, new MockHttpServletResponse(), (r, s) -> {});
 

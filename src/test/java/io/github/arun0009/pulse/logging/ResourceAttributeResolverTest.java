@@ -296,8 +296,12 @@ class ResourceAttributeResolverTest {
 
     /** Build a stub env from {@code (key, value, key, value, …)} pairs, returning null for misses. */
     private static Function<String, @Nullable String> envOf(String... keyValuePairs) {
+        if ((keyValuePairs.length & 1) != 0) {
+            throw new IllegalArgumentException(
+                    "envOf requires an even number of arguments (key, value, key, value, …)");
+        }
         Map<String, String> backing = new HashMap<>();
-        for (int i = 0; i < keyValuePairs.length; i += 2) {
+        for (int i = 0; i + 1 < keyValuePairs.length; i += 2) {
             backing.put(keyValuePairs[i], keyValuePairs[i + 1]);
         }
         return backing::get;

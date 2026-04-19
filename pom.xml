@@ -520,11 +520,28 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.2.5</version>
+                <configuration>
+                    <!-- Pulse ships both the Log4j2 starter (default) and an optional
+                         logback-classic dep so PulseLogbackEncoder can compile and be
+                         unit-tested. Both bindings end up on the test classpath, so
+                         Spring Boot's LoggingSystem auto-detection picks Logback first
+                         and fails when SLF4J is already bound to Log4j2. Pin it. -->
+                    <systemPropertyVariables>
+                        <org.springframework.boot.logging.LoggingSystem>org.springframework.boot.logging.log4j2.Log4J2LoggingSystem</org.springframework.boot.logging.LoggingSystem>
+                    </systemPropertyVariables>
+                </configuration>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-failsafe-plugin</artifactId>
                 <version>3.2.5</version>
+                <configuration>
+                    <!-- Same reason as surefire above: pin Log4j2 so SpringBootTest
+                         contexts don't try to initialize Logback. -->
+                    <systemPropertyVariables>
+                        <org.springframework.boot.logging.LoggingSystem>org.springframework.boot.logging.log4j2.Log4J2LoggingSystem</org.springframework.boot.logging.LoggingSystem>
+                    </systemPropertyVariables>
+                </configuration>
                 <executions>
                     <execution>
                         <goals>

@@ -8,7 +8,6 @@ import org.springframework.scheduling.Trigger;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Date;
 import java.util.concurrent.ScheduledFuture;
 
 /**
@@ -88,28 +87,7 @@ public final class InstrumentedTaskScheduler implements TaskScheduler {
         return delegate.scheduleWithFixedDelay(wrap(task), delay);
     }
 
-    @Override
-    public ScheduledFuture<?> schedule(@NonNull Runnable task, @NonNull Date startTime) {
-        return delegate.schedule(wrap(task), startTime);
-    }
-
-    @Override
-    public ScheduledFuture<?> scheduleAtFixedRate(@NonNull Runnable task, @NonNull Date startTime, long period) {
-        return delegate.scheduleAtFixedRate(wrap(task), startTime, period);
-    }
-
-    @Override
-    public ScheduledFuture<?> scheduleAtFixedRate(@NonNull Runnable task, long period) {
-        return delegate.scheduleAtFixedRate(wrap(task), period);
-    }
-
-    @Override
-    public ScheduledFuture<?> scheduleWithFixedDelay(@NonNull Runnable task, @NonNull Date startTime, long delay) {
-        return delegate.scheduleWithFixedDelay(wrap(task), startTime, delay);
-    }
-
-    @Override
-    public ScheduledFuture<?> scheduleWithFixedDelay(@NonNull Runnable task, long delay) {
-        return delegate.scheduleWithFixedDelay(wrap(task), delay);
-    }
+    // The Date / primitive-long overloads (schedule(Runnable, Date), scheduleAtFixedRate(Runnable, long), …)
+    // are deprecated on TaskScheduler and ship as default methods that delegate to the Instant / Duration
+    // versions above — so wrapping happens transparently without us re-implementing the deprecated API.
 }

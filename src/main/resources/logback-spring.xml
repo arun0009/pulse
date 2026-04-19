@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Pulse Logback configuration.
+
+    Spring Boot's LoggingSystem auto-loads this file when Logback is the chosen
+    logging system (consumers exclude `spring-boot-starter-log4j2` from Pulse and
+    add `spring-boot-starter-logging`). The Log4j2 path remains the default; this
+    file is only consulted when Log4j2 is *not* on the classpath.
+
+    The PulseLogbackEncoder produces the same JSON shape as the Log4j2
+    pulse-json-layout.json so dashboards built on either logging stack work
+    identically — including OTel semantic-convention aliases (trace_id,
+    service.name, etc.) and PII masking.
+-->
+<configuration>
+
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="io.github.arun0009.pulse.logging.PulseLogbackEncoder"/>
+    </appender>
+
+    <!-- AUDIT channel — additivity=false so audit lines do NOT also flow to root.
+         Consumers point this at their audit sink in their own logback-spring.xml
+         override; the default lands them on the same console encoder. -->
+    <logger name="AUDIT" level="INFO" additivity="false">
+        <appender-ref ref="CONSOLE"/>
+    </logger>
+
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+    </root>
+
+</configuration>

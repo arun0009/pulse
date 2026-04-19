@@ -1,6 +1,7 @@
 package io.github.arun0009.pulse.autoconfigure;
 
 import io.github.arun0009.pulse.logging.PiiMaskingConverter;
+import io.github.arun0009.pulse.logging.PulseLogbackEncoder;
 import io.github.arun0009.pulse.propagation.PulseKafkaProducerInterceptor;
 import org.jspecify.annotations.Nullable;
 import org.springframework.aot.hint.MemberCategory;
@@ -53,9 +54,18 @@ public class PulseRuntimeHints implements RuntimeHintsRegistrar {
                         MemberCategory.INVOKE_PUBLIC_METHODS,
                         MemberCategory.INVOKE_DECLARED_METHODS);
 
+        // Logback encoder — instantiated by Logback's JoranConfigurator from a class name in
+        // logback-spring.xml; native image needs the public constructor and methods reachable.
+        hints.reflection()
+                .registerType(
+                        PulseLogbackEncoder.class,
+                        MemberCategory.INVOKE_DECLARED_CONSTRUCTORS,
+                        MemberCategory.INVOKE_PUBLIC_METHODS);
+
         // Resources Pulse ships and reads at runtime.
         hints.resources().registerPattern("pulse-json-layout.json");
         hints.resources().registerPattern("log4j2-spring.xml");
+        hints.resources().registerPattern("logback-spring.xml");
 
         // Log4j2's own plugin descriptor cache (generated at build time by log4j-core's annotation
         // processor) — required for native image to find any plugin including ours.

@@ -163,9 +163,11 @@
             <optional>true</optional>
         </dependency>
         <!-- Log4j2 — transitive so that Pulse's JSON layout, PII masking, and
-             trace/span MDC enrichment work out of the box. Consumers using
-             logback should exclude `spring-boot-starter-logging` from their
-             web/actuator starter and let Pulse provide log4j2. -->
+             trace/span MDC enrichment work out of the box. Consumers who prefer
+             Logback (Spring Boot's default) should exclude
+             `spring-boot-starter-log4j2` here and add `spring-boot-starter-logging`;
+             Pulse ships an equivalent `logback-spring.xml` + custom encoder that
+             Spring Boot's LoggingSystem auto-loads in that case. -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-log4j2</artifactId>
@@ -173,6 +175,15 @@
         <dependency>
             <groupId>org.apache.logging.log4j</groupId>
             <artifactId>log4j-layout-template-json</artifactId>
+        </dependency>
+        <!-- Logback — optional, compile-only. Lets PulseLogbackEncoder reference
+             ch.qos.logback types without forcing Logback onto consumers who use
+             the default Log4j2 path. Consumers who exclude spring-boot-starter-log4j2
+             will already have logback-classic transitively via spring-boot-starter-logging. -->
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <optional>true</optional>
         </dependency>
         <!--
           jakarta.servlet types are reached transitively via spring-boot-starter-web →

@@ -248,6 +248,31 @@ Both names point at the same MDC key or system property — there's no double-re
 and no risk of skew. The flat names will be removed in `1.0.0` after a deprecation cycle; the
 OTel names are stable and will remain.
 
+**Logback users.** Pulse defaults to Log4j2 (transitive via `spring-boot-starter-log4j2`), but
+ships an equivalent `logback-spring.xml` + `PulseLogbackEncoder` that produce the *exact same*
+JSON shape — same OTel semconv aliases, same PII masking, same field set. To opt in:
+
+```xml
+<dependency>
+	<groupId>io.github.arun0009</groupId>
+	<artifactId>pulse-spring-boot-starter</artifactId>
+	<exclusions>
+		<exclusion>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-log4j2</artifactId>
+		</exclusion>
+	</exclusions>
+</dependency>
+<dependency>
+	<groupId>org.springframework.boot</groupId>
+	<artifactId>spring-boot-starter-logging</artifactId>
+</dependency>
+```
+
+Spring Boot's `LoggingSystem` auto-detects Logback on the classpath and loads
+`logback-spring.xml` from Pulse's classpath. No further configuration required — dashboards
+built on the Log4j2 path work unchanged.
+
 #### How `app.version` and `build.commit` get resolved
 
 Pulse cannot put values *into* your JAR or environment — Maven plugins aren't transitive, and a
@@ -499,7 +524,7 @@ Pulse holds itself to the same bar it sets for your observability:
 
 - Java 21+
 - Spring Boot 4.0+
-- Log4j2 runtime (the starter ships a Log4j2 layout; SLF4J/Logback users can swap in their own)
+- Log4j2 runtime by default — Logback supported via opt-in (see [Logback users](#7-structured-json-logs-with-pii-masking) above)
 
 ## Status
 

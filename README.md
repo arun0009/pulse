@@ -165,6 +165,21 @@ public void reconcile() {
 Same story for Kafka — Pulse composes its `RecordInterceptor` with any of yours so MDC + the
 remaining timeout budget arrive on the listener thread.
 
+**Background-job observability is built into the same wrapper.** Every `@Scheduled` method
+also gets:
+
+- `pulse.jobs.executions{job, outcome=success|failure}` — execution counter
+- `pulse.jobs.duration{job, outcome}` — per-run timer (with the SLO histogram buckets)
+- `pulse.jobs.in_flight{job}` — overrun detector (sustained `>1` means the job runs longer than its interval and Spring is queuing executions)
+- A `jobs` health indicator that flips DOWN when any observed job hasn't succeeded within
+	`pulse.jobs.failure-grace-period` (default `1h`)
+- A live job table at `/actuator/pulse` showing last-success timestamp, last-failure cause,
+	success/failure counts per job
+
+No annotations, no per-job boilerplate — the same wrapping that propagates context observes
+the run. ShedLock-managed jobs are observed automatically too, since they decorate the
+`Runnable` *before* it reaches the scheduler.
+
 ### 4. SLO-as-code
 
 ```yaml

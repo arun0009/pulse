@@ -50,7 +50,7 @@
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
         <nullaway.version>0.13.3</nullaway.version>
-        <opentelemetry.semconv.version>1.34.0</opentelemetry.semconv.version>
+        <opentelemetry.semconv.version>1.40.0</opentelemetry.semconv.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <spotless.version>3.4.0</spotless.version>

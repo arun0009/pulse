@@ -60,7 +60,7 @@ public final class ExceptionFingerprint {
     }
 
     private static String shortHash(String input) {
-        byte[] digest = sha1(input);
+        byte[] digest = sha256(input);
         StringBuilder hex = new StringBuilder(FINGERPRINT_HEX_LENGTH);
         for (int i = 0; i < FINGERPRINT_HEX_LENGTH / 2 && i < digest.length; i++) {
             hex.append(String.format("%02x", digest[i] & 0xff));
@@ -68,12 +68,12 @@ public final class ExceptionFingerprint {
         return hex.toString();
     }
 
-    private static byte[] sha1(String input) {
+    private static byte[] sha256(String input) {
         try {
-            MessageDigest md = MessageDigest.getInstance("SHA-1");
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
             return md.digest(input.getBytes(java.nio.charset.StandardCharsets.UTF_8));
         } catch (NoSuchAlgorithmException e) {
-            // SHA-1 is mandatory on every JDK; this branch is unreachable.
+            // SHA-256 is mandatory on every JDK; this branch is unreachable.
             return fallbackHash(input);
         }
     }

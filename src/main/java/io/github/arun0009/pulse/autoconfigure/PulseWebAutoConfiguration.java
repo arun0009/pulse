@@ -29,7 +29,7 @@ import java.util.List;
  *
  * <p>Split out from {@link PulseAutoConfiguration} so that non-web (worker, batch, CLI)
  * applications can still benefit from Pulse's cardinality firewall, MDC propagation across
- * async hops, audit logger, and Kafka propagation, without dragging in servlet API
+ * async hops, and Kafka propagation, without dragging in servlet API
  * dependencies. {@link ConditionalOnWebApplication} gates the entire class on the servlet
  * stack being present.
  *
@@ -88,15 +88,15 @@ public class PulseWebAutoConfiguration {
     @ConditionalOnClass(name = "org.springframework.boot.actuate.endpoint.annotation.Endpoint")
     @ConditionalOnAvailableEndpoint
     @ConditionalOnMissingBean
-    public PulseEndpoint pulseEndpoint(PulseDiagnostics diagnostics, SloRuleGenerator sloRules) {
-        return new PulseEndpoint(diagnostics, sloRules);
+    public PulseEndpoint pulseEndpoint(PulseDiagnostics diagnostics, ObjectProvider<SloRuleGenerator> sloRules) {
+        return new PulseEndpoint(diagnostics, sloRules.getIfAvailable());
     }
 
     @Bean
     @ConditionalOnClass(name = "org.springframework.boot.actuate.endpoint.web.annotation.WebEndpoint")
     @ConditionalOnAvailableEndpoint
     @ConditionalOnMissingBean
-    public PulseUiEndpoint pulseUiEndpoint(PulseDiagnostics diagnostics, SloRuleGenerator sloRules) {
-        return new PulseUiEndpoint(diagnostics, sloRules);
+    public PulseUiEndpoint pulseUiEndpoint(PulseDiagnostics diagnostics, ObjectProvider<SloRuleGenerator> sloRules) {
+        return new PulseUiEndpoint(diagnostics, sloRules.getIfAvailable());
     }
 }

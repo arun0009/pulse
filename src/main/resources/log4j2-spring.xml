@@ -7,11 +7,6 @@
     </Appenders>
 
     <Loggers>
-        <!-- Dedicated AUDIT appender placeholder — point to your audit sink in your service -->
-        <Logger name="AUDIT" level="INFO" additivity="false">
-            <AppenderRef ref="Console"/>
-        </Logger>
-
         <Root level="info">
             <AppenderRef ref="Console"/>
         </Root>

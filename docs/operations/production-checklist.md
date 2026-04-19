@@ -43,7 +43,7 @@ Each item is one of:
 - **MUST** Set `pulse.timeout-budget.default-budget` to your service's caller-side timeout minus
   ~50ms. Otherwise outbound calls have no notion of "we're already late."
 - **SHOULD** Set `pulse.timeout-budget.maximum-budget` at the edge to prevent a malicious or
-  buggy caller from sending `X-Timeout-Ms: 86400000` and pinning a thread.
+  buggy caller from sending `Pulse-Timeout-Ms: 86400000` and pinning a thread.
 - **MUST** Subscribe to the `PulseTimeoutBudgetExhausted` alert and route to your on-call.
 
 ## Trace propagation guard
@@ -61,15 +61,6 @@ Each item is one of:
   without this, a sampled trace has no log context.
 - **SHOULD** Verify the PII masking converter is active by injecting a known-bad payload in a
   staging test (see `PiiMaskingConverterTest`).
-
-## Audit
-
-- **MUST** If you call `AuditLogger`, configure a dedicated sink for the `AUDIT` logger in your
-  log config. The default appender colocates audit lines with application logs — fine for dev,
-  not for compliance.
-- **SHOULD** Use the `auditLogger.event(action).actor(...).resource(...).outcome(...).emit()`
-  fluent builder for every audit call; named attributes are far easier to evolve than positional
-  arguments.
 
 ## SLO & alerts
 

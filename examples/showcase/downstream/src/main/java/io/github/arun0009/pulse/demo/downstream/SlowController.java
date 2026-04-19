@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Deliberately-slow downstream. If Pulse propagated the caller's deadline as {@code X-Timeout-Ms},
+ * Deliberately-slow downstream. If Pulse propagated the caller's deadline as {@code Pulse-Timeout-Ms},
  * we honor it and short-circuit. Otherwise, we sleep the full simulated 5 seconds — exactly the
  * cascade Pulse exists to prevent.
  */
@@ -28,7 +28,7 @@ public class SlowController {
         if (budget.isPresent()) {
             Duration remaining = budget.get().remaining();
             log.info(
-                    "[downstream] received call from caller with X-Timeout-Ms — remaining budget: {}ms",
+                    "[downstream] received call from caller with Pulse-Timeout-Ms — remaining budget: {}ms",
                     remaining.toMillis());
 
             if (remaining.compareTo(WORK_DURATION) < 0) {
@@ -40,7 +40,7 @@ public class SlowController {
                         .body("deadline-honored after " + sleepMs + "ms (caller's budget exhausted)");
             }
         } else {
-            log.info("[downstream] no X-Timeout-Ms from caller — falling back to full {}ms work",
+            log.info("[downstream] no Pulse-Timeout-Ms from caller — falling back to full {}ms work",
                     WORK_DURATION.toMillis());
         }
 

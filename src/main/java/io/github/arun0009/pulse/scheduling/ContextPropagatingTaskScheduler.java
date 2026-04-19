@@ -19,6 +19,9 @@ import java.util.concurrent.ScheduledFuture;
  * {@code TaskScheduler} contract does not expose a {@code TaskDecorator} hook the way
  * {@code TaskExecutor} does.
  */
+// Spring's TaskScheduler interface still defines the Date-based overloads; we must implement
+// them as long as the interface declares them, even though Spring marks them @Deprecated.
+@SuppressWarnings("deprecation")
 public final class ContextPropagatingTaskScheduler implements TaskScheduler {
 
     private final TaskScheduler delegate;

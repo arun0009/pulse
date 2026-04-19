@@ -2,9 +2,13 @@ package io.github.arun0009.pulse.autoconfigure;
 
 import io.github.arun0009.pulse.actuator.PulseDiagnostics;
 import io.github.arun0009.pulse.async.ExecutorConfiguration;
-import io.github.arun0009.pulse.audit.AuditLogger;
+import io.github.arun0009.pulse.cache.PulseCaffeineConfiguration;
+import io.github.arun0009.pulse.container.PulseContainerMemoryConfiguration;
 import io.github.arun0009.pulse.db.PulseDbConfiguration;
+import io.github.arun0009.pulse.dependencies.PulseDependenciesConfiguration;
 import io.github.arun0009.pulse.events.SpanEvents;
+import io.github.arun0009.pulse.fleet.ConfigHashGauge;
+import io.github.arun0009.pulse.fleet.ConfigHasher;
 import io.github.arun0009.pulse.guardrails.CardinalityFirewall;
 import io.github.arun0009.pulse.guardrails.SamplingConfiguration;
 import io.github.arun0009.pulse.health.OtelExporterHealthIndicator;
@@ -16,6 +20,8 @@ import io.github.arun0009.pulse.metrics.BusinessMetrics;
 import io.github.arun0009.pulse.metrics.CommonTagsConfiguration;
 import io.github.arun0009.pulse.metrics.DeployInfoMetrics;
 import io.github.arun0009.pulse.metrics.HistogramMeterFilter;
+import io.github.arun0009.pulse.openfeature.PulseOpenFeatureConfiguration;
+import io.github.arun0009.pulse.priority.PulsePriorityConfiguration;
 import io.github.arun0009.pulse.profiling.PulseProfilingConfiguration;
 import io.github.arun0009.pulse.propagation.KafkaPropagationConfiguration;
 import io.github.arun0009.pulse.propagation.OkHttpPropagationConfiguration;
@@ -23,12 +29,16 @@ import io.github.arun0009.pulse.propagation.RestClientPropagationConfiguration;
 import io.github.arun0009.pulse.propagation.RestTemplatePropagationConfiguration;
 import io.github.arun0009.pulse.propagation.WebClientPropagationConfiguration;
 import io.github.arun0009.pulse.resilience.PulseResilience4jConfiguration;
+import io.github.arun0009.pulse.resilience.PulseRetryAmplificationConfiguration;
 import io.github.arun0009.pulse.scheduling.ContextPropagatingTaskScheduler;
 import io.github.arun0009.pulse.scheduling.PulseSchedulingConfigurer;
+import io.github.arun0009.pulse.shutdown.InflightRequestCounter;
+import io.github.arun0009.pulse.shutdown.PulseDrainObservabilityLifecycle;
 import io.github.arun0009.pulse.shutdown.PulseOtelShutdownLifecycle;
 import io.github.arun0009.pulse.slo.SloProjector;
 import io.github.arun0009.pulse.slo.SloRuleGenerator;
 import io.github.arun0009.pulse.startup.PulseStartupBanner;
+import io.github.arun0009.pulse.tenant.PulseTenantConfiguration;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.config.MeterFilter;
 import io.opentelemetry.sdk.OpenTelemetrySdk;
@@ -58,7 +68,7 @@ import org.springframework.core.env.Environment;
  *
  * <p>Web-specific beans (servlet filters, controller advices, actuator endpoints) live in
  * {@link PulseWebAutoConfiguration} so non-web worker apps still benefit from Pulse's
- * cardinality firewall, MDC propagation across {@code @Async}/{@code @Scheduled}, audit logger,
+ * cardinality firewall, MDC propagation across {@code @Async}/{@code @Scheduled},
  * and Kafka propagation.
  *
  * <p>{@link AutoConfigureAfter} pins Pulse after Boot's metrics + OpenTelemetry auto-configs so
@@ -88,7 +98,14 @@ import org.springframework.core.env.Environment;
     KafkaPropagationConfiguration.class,
     PulseDbConfiguration.class,
     PulseResilience4jConfiguration.class,
+    PulseRetryAmplificationConfiguration.class,
     PulseProfilingConfiguration.class,
+    PulseDependenciesConfiguration.class,
+    PulseTenantConfiguration.class,
+    PulsePriorityConfiguration.class,
+    PulseContainerMemoryConfiguration.class,
+    PulseOpenFeatureConfiguration.class,
+    PulseCaffeineConfiguration.class,
 })
 public class PulseAutoConfiguration {
 
@@ -125,13 +142,6 @@ public class PulseAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    @ConditionalOnProperty(prefix = "pulse.audit", name = "enabled", havingValue = "true", matchIfMissing = true)
-    public AuditLogger pulseAuditLogger() {
-        return new AuditLogger();
-    }
-
-    @Bean
-    @ConditionalOnMissingBean
     public DeployInfoMetrics pulseDeployInfoMetrics(
             MeterRegistry registry,
             ObjectProvider<BuildProperties> buildProperties,
@@ -141,6 +151,7 @@ public class PulseAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
+    @ConditionalOnProperty(prefix = "pulse.slo", name = "enabled", havingValue = "true", matchIfMissing = true)
     public SloRuleGenerator pulseSloRuleGenerator(
             PulseProperties properties, @Value("${spring.application.name:unknown-service}") String serviceName) {
         return new SloRuleGenerator(properties.slo(), serviceName);
@@ -148,6 +159,7 @@ public class PulseAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
+    @ConditionalOnProperty(prefix = "pulse.slo", name = "enabled", havingValue = "true", matchIfMissing = true)
     public SloProjector pulseSloProjector(PulseProperties properties, MeterRegistry registry) {
         return new SloProjector(properties.slo(), registry);
     }
@@ -170,6 +182,14 @@ public class PulseAutoConfiguration {
                 cardinalityFirewall.getIfAvailable(),
                 sloProjector.getIfAvailable(),
                 jobRegistry.getIfAvailable());
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public ConfigHashGauge pulseConfigHashGauge(PulseDiagnostics diagnostics, MeterRegistry registry) {
+        ConfigHashGauge gauge = new ConfigHashGauge(registry, ConfigHasher.hash(diagnostics.effectiveConfig()));
+        gauge.register();
+        return gauge;
     }
 
     @Bean
@@ -274,6 +294,50 @@ public class PulseAutoConfiguration {
     public PulseOtelShutdownLifecycle pulseOtelShutdownLifecycle(
             ObjectProvider<OpenTelemetrySdk> sdk, PulseProperties properties) {
         return new PulseOtelShutdownLifecycle(sdk.getIfAvailable(), properties.shutdown());
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnClass(jakarta.servlet.Filter.class)
+    @ConditionalOnProperty(
+            prefix = "pulse.shutdown.drain",
+            name = "enabled",
+            havingValue = "true",
+            matchIfMissing = true)
+    public InflightRequestCounter pulseInflightRequestCounter(MeterRegistry registry) {
+        return new InflightRequestCounter(registry);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnClass(jakarta.servlet.Filter.class)
+    @ConditionalOnProperty(
+            prefix = "pulse.shutdown.drain",
+            name = "enabled",
+            havingValue = "true",
+            matchIfMissing = true)
+    public org.springframework.boot.web.servlet.FilterRegistrationBean<InflightRequestCounter>
+            pulseInflightRequestCounterRegistration(InflightRequestCounter filter) {
+        var reg = new org.springframework.boot.web.servlet.FilterRegistrationBean<>(filter);
+        reg.setOrder(org.springframework.core.Ordered.HIGHEST_PRECEDENCE);
+        reg.addUrlPatterns("/*");
+        return reg;
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnProperty(
+            prefix = "pulse.shutdown.drain",
+            name = "enabled",
+            havingValue = "true",
+            matchIfMissing = true)
+    public PulseDrainObservabilityLifecycle pulseDrainObservabilityLifecycle(
+            ObjectProvider<InflightRequestCounter> counter, PulseProperties properties, MeterRegistry registry) {
+        InflightRequestCounter c = counter.getIfAvailable();
+        if (c == null) {
+            c = new InflightRequestCounter(registry);
+        }
+        return new PulseDrainObservabilityLifecycle(c, properties.shutdown().drain(), registry);
     }
 
     @Bean

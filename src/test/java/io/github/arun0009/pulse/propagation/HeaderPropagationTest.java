@@ -17,7 +17,7 @@ class HeaderPropagationTest {
         // a fan-out create silent duplicate side effects on the downstream — exactly the failure
         // mode pulse claims to prevent.
         PulseProperties.Context defaults = new PulseProperties.Context(
-                true, "X-Request-ID", "X-Correlation-ID", "X-User-ID", "X-Tenant-ID", "Idempotency-Key", List.of());
+                true, "X-Request-ID", "X-Correlation-ID", "X-User-ID", "Pulse-Tenant-Id", "Idempotency-Key", List.of());
 
         Map<String, String> map = HeaderPropagation.headerToMdcKey(defaults);
 
@@ -25,7 +25,7 @@ class HeaderPropagationTest {
                 .containsEntry("X-Request-ID", ContextKeys.REQUEST_ID)
                 .containsEntry("X-Correlation-ID", ContextKeys.CORRELATION_ID)
                 .containsEntry("X-User-ID", ContextKeys.USER_ID)
-                .containsEntry("X-Tenant-ID", ContextKeys.TENANT_ID)
+                .containsEntry("Pulse-Tenant-Id", ContextKeys.TENANT_ID)
                 .containsEntry("Idempotency-Key", ContextKeys.IDEMPOTENCY_KEY);
     }
 
@@ -35,12 +35,40 @@ class HeaderPropagationTest {
         // "X-Idempotency-Key") can override the name once and have RestTemplate, WebClient,
         // OkHttp, and Kafka all agree.
         PulseProperties.Context custom = new PulseProperties.Context(
-                true, "X-Request-ID", "X-Correlation-ID", "X-User-ID", "X-Tenant-ID", "X-Idempotency-Key", List.of());
+                true,
+                "X-Request-ID",
+                "X-Correlation-ID",
+                "X-User-ID",
+                "Pulse-Tenant-Id",
+                "X-Idempotency-Key",
+                List.of());
 
         Map<String, String> map = HeaderPropagation.headerToMdcKey(custom);
 
         assertThat(map)
                 .doesNotContainKey("Idempotency-Key")
                 .containsEntry("X-Idempotency-Key", ContextKeys.IDEMPOTENCY_KEY);
+    }
+
+    @Test
+    void retry_overload_adds_amplification_header_when_enabled() {
+        PulseProperties.Context context = new PulseProperties.Context(
+                true, "X-Request-ID", "X-Correlation-ID", "X-User-ID", "Pulse-Tenant-Id", "Idempotency-Key", List.of());
+        PulseProperties.Retry retry = new PulseProperties.Retry(true, "Pulse-Retry-Depth", 3);
+
+        Map<String, String> map = HeaderPropagation.headerToMdcKey(context, retry);
+
+        assertThat(map).containsEntry("Pulse-Retry-Depth", ContextKeys.RETRY_DEPTH);
+    }
+
+    @Test
+    void retry_overload_omits_amplification_header_when_disabled() {
+        PulseProperties.Context context = new PulseProperties.Context(
+                true, "X-Request-ID", "X-Correlation-ID", "X-User-ID", "Pulse-Tenant-Id", "Idempotency-Key", List.of());
+        PulseProperties.Retry retry = new PulseProperties.Retry(false, "Pulse-Retry-Depth", 3);
+
+        Map<String, String> map = HeaderPropagation.headerToMdcKey(context, retry);
+
+        assertThat(map).doesNotContainKey("Pulse-Retry-Depth");
     }
 }

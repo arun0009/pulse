@@ -31,7 +31,8 @@ public class RestClientPropagationConfiguration {
 
         @Bean
         public RestClientCustomizer pulseRestClientCustomizer(PulseProperties properties) {
-            Map<String, String> headerMap = HeaderPropagation.headerToMdcKey(properties.context());
+            Map<String, String> headerMap =
+                    HeaderPropagation.headerToMdcKey(properties.context(), properties.retry(), properties.priority());
             return builder -> builder.requestInterceptor((request, body, execution) -> {
                 Map<String, String> mdc = MDC.getCopyOfContextMap();
                 if (mdc != null) {

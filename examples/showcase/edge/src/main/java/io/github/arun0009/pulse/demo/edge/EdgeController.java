@@ -44,7 +44,7 @@ public class EdgeController {
 
     @GetMapping("/trace/async")
     public Map<String, String> async() {
-        // Pulse's RequestContextFilter has already pulled X-Tenant-ID / X-Request-ID / X-User-ID
+        // Pulse's RequestContextFilter has already pulled Pulse-Tenant-Id / X-Request-ID / X-User-ID
         // into MDC. The question is: does that MDC survive @Async? Spring Boot propagates traceId
         // natively, but custom MDC keys (which is where your *business* correlation lives) are
         // dropped unless something hydrates them on the worker thread.

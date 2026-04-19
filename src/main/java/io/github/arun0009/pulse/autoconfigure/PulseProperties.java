@@ -6,6 +6,7 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Centralized configuration for Pulse.
@@ -31,7 +32,6 @@ public record PulseProperties(
         @DefaultValue Async async,
         @DefaultValue Kafka kafka,
         @DefaultValue ExceptionHandler exceptionHandler,
-        @DefaultValue Audit audit,
         @DefaultValue Cardinality cardinality,
         @DefaultValue TimeoutBudget timeoutBudget,
         @DefaultValue WideEvents wideEvents,
@@ -44,7 +44,14 @@ public record PulseProperties(
         @DefaultValue Jobs jobs,
         @DefaultValue Db db,
         @DefaultValue Resilience resilience,
-        @DefaultValue Profiling profiling) {
+        @DefaultValue Profiling profiling,
+        @DefaultValue Dependencies dependencies,
+        @DefaultValue Tenant tenant,
+        @DefaultValue Retry retry,
+        @DefaultValue Priority priority,
+        @DefaultValue ContainerMemory containerMemory,
+        @DefaultValue OpenFeature openFeature,
+        @DefaultValue Cache cache) {
 
     /** MDC enrichment from the inbound HTTP request. */
     public record Context(
@@ -52,7 +59,7 @@ public record PulseProperties(
             @DefaultValue("X-Request-ID") String requestIdHeader,
             @DefaultValue("X-Correlation-ID") String correlationIdHeader,
             @DefaultValue("X-User-ID") String userIdHeader,
-            @DefaultValue("X-Tenant-ID") String tenantIdHeader,
+            @DefaultValue("Pulse-Tenant-Id") String tenantIdHeader,
             @DefaultValue("Idempotency-Key") String idempotencyKeyHeader,
             @DefaultValue({}) List<String> additionalHeaders) {}
 
@@ -101,14 +108,31 @@ public record PulseProperties(
             @DefaultValue("pulse-") String threadNamePrefix,
             @DefaultValue("true") boolean scheduledPropagationEnabled) {}
 
-    /** Kafka producer/consumer interceptor registration. */
-    public record Kafka(@DefaultValue("true") boolean propagationEnabled) {}
+    /**
+     * Kafka producer/consumer integration.
+     *
+     * <p>{@link #propagationEnabled()} controls registration of Pulse's producer/consumer record
+     * interceptors that mirror MDC + timeout-budget + retry-depth onto record headers (and back
+     * out on the consumer side).
+     *
+     * <p>{@link #consumerTimeLagEnabled()} turns on the time-based consumer-lag gauge. Kafka's
+     * native lag metric is reported in <em>messages</em>, which is meaningless without knowing
+     * the production rate ("you're 50,000 messages behind" is fine for a high-volume topic and
+     * a disaster for a low-volume one). Pulse measures
+     * {@code now() - record.timestamp()} for every record processed and exposes it as the
+     * {@code pulse.kafka.consumer.time_lag{topic, partition, group}} gauge (with
+     * {@code .baseUnit("seconds")} so Prometheus exposition is {@code _seconds}). This is the
+     * SLO operators actually want: "the oldest unprocessed message is 47 seconds old".
+     *
+     * <p>Cardinality is bounded by the {@code (topic, partition, group)} fan-out of <em>this
+     * consumer</em>, which is intrinsically capped by Kafka's partition assignment.
+     */
+    public record Kafka(
+            @DefaultValue("true") boolean propagationEnabled,
+            @DefaultValue("true") boolean consumerTimeLagEnabled) {}
 
     /** RFC 7807 ProblemDetail responses with traceId + requestId surfaced. */
     public record ExceptionHandler(@DefaultValue("true") boolean enabled) {}
-
-    /** Dedicated AUDIT logger routing to a separate appender. */
-    public record Audit(@DefaultValue("true") boolean enabled) {}
 
     /**
      * Cardinality firewall — caps the number of distinct tag values per meter to prevent
@@ -123,16 +147,17 @@ public record PulseProperties(
             @DefaultValue({}) List<String> exemptMeterPrefixes) {}
 
     /**
-     * Timeout-budget propagation — extracts {@code X-Timeout-Ms} on inbound requests, places
-     * remaining-budget on OTel baggage, and exposes it via {@code TimeoutBudget#current}.
-     * Downstream calls subtract elapsed time so a 2s inbound budget with 800ms spent in business
-     * logic gives the next downstream call exactly 1.2s — not the platform default. Inbound
-     * headers are clamped to {@link #maximumBudget()} for edge safety.
+     * Timeout-budget propagation — extracts the configured inbound header (default
+     * {@code Pulse-Timeout-Ms}, RFC 6648 — no {@code X-} prefix), places remaining-budget on
+     * OTel baggage, and exposes it via {@code TimeoutBudget#current}. Downstream calls subtract
+     * elapsed time so a 2s inbound budget with 800ms spent in business logic gives the next
+     * downstream call exactly 1.2s — not the platform default. Inbound headers are clamped to
+     * {@link #maximumBudget()} for edge safety.
      */
     public record TimeoutBudget(
             @DefaultValue("true") boolean enabled,
-            @DefaultValue("X-Timeout-Ms") String inboundHeader,
-            @DefaultValue("X-Timeout-Ms") String outboundHeader,
+            @DefaultValue("Pulse-Timeout-Ms") String inboundHeader,
+            @DefaultValue("Pulse-Timeout-Ms") String outboundHeader,
             @DefaultValue("2s") Duration defaultBudget,
             @DefaultValue("30s") Duration maximumBudget,
             @DefaultValue("50ms") Duration safetyMargin,
@@ -221,7 +246,25 @@ public record PulseProperties(
      */
     public record Shutdown(
             @DefaultValue("true") boolean otelFlushEnabled,
-            @DefaultValue("10s") Duration otelFlushTimeout) {}
+            @DefaultValue("10s") Duration otelFlushTimeout,
+            @DefaultValue Drain drain) {
+
+        /**
+         * Drain observability — counts inflight HTTP requests at the moment Spring's
+         * {@code SmartLifecycle.stop()} fires, polls until they finish or the deadline
+         * elapses, and emits structured before/after metrics so an operator can answer
+         * "how long did the rolling deploy take to drain, and did anything get
+         * dropped?" without parsing logs by hand.
+         *
+         * <p>Cooperates with {@code server.shutdown=graceful} — Pulse's filter only
+         * <em>observes</em> the in-flight count; the actual draining is Spring Boot's
+         * job. Setting {@code enabled=false} removes both the filter and the lifecycle
+         * bean.
+         */
+        public record Drain(
+                @DefaultValue("true") boolean enabled,
+                @DefaultValue("30s") Duration timeout) {}
+    }
 
     /**
      * Background-job observability — wraps every {@code @Scheduled} method (and any other
@@ -305,4 +348,232 @@ public record PulseProperties(
      */
     public record Profiling(
             @DefaultValue("true") boolean enabled, @Nullable String pyroscopeUrl) {}
+
+    /**
+     * Dependency health map — turns every outbound HTTP/Kafka call into a per-dependency RED
+     * (rate / errors / duration) signal so an operator can answer "which downstream is hurting
+     * me?" without opening N dashboards.
+     *
+     * <p>Each outbound call is tagged with a logical {@code pulse.dependency} derived from the
+     * {@link #map() host&nbsp;→&nbsp;name} table (or, when the host is unknown, the value of
+     * {@link #defaultName()}). Pulse emits:
+     *
+     * <ul>
+     *   <li>{@code pulse.dependency.requests{dep, method, status, outcome}} — counter
+     *   <li>{@code pulse.dependency.latency{dep, method, outcome}} — timer with the standard SLO
+     *       buckets so p50/p95/p99 are computable in Prometheus
+     *   <li>{@code pulse.request.fan_out} — distribution of outbound calls per inbound request
+     *   <li>{@code pulse.request.distinct_dependencies} — distribution of distinct downstreams
+     *       per inbound request (helps spot fan-out width regressions before they cascade)
+     * </ul>
+     *
+     * <p>Cardinality is bounded by your dependency count: if you call {@code payment-service} from
+     * 50 endpoints, the {@code dep} tag still has only one value. The defaults survive
+     * 10k-pod deployments without operator intervention.
+     *
+     * <p>{@link #fanOutWarnThreshold()} controls when {@code pulse.request.fan_out_high} fires —
+     * the per-request guardrail that lets you alert "endpoint X went from 5 calls to 50". A
+     * threshold of {@code 20} catches the classic loop-fetching anti-pattern at the call layer
+     * without firing for legitimate aggregations.
+     */
+    public record Dependencies(
+            @DefaultValue("true") boolean enabled,
+            @DefaultValue Map<String, String> map,
+            @DefaultValue("unknown") String defaultName,
+            @DefaultValue("20") int fanOutWarnThreshold,
+            @DefaultValue Health health) {
+
+        /**
+         * Topology-aware health configuration. {@link DependencyHealthIndicator} reads the
+         * existing dependency RED metrics ({@code pulse.dependency.requests},
+         * {@code pulse.dependency.latency}) and reports {@code DEGRADED} when a dependency
+         * named in {@link #critical()} crosses {@link #errorRateThreshold()} over the trailing
+         * window, or when its {@code SERVER_ERROR} count is non-zero in the same window.
+         *
+         * <p>This is inference, not certainty — the indicator never calls the downstream's
+         * health endpoint, so it costs zero extra requests and cannot create circular
+         * dependencies between services. The trade-off is that brand-new processes report
+         * {@code UP} for critical dependencies they haven't called yet; that is intentional.
+         *
+         * <p>{@link #down()} controls whether a degraded critical dependency reports
+         * {@code OUT_OF_SERVICE} (the standard Kubernetes-friendly readiness signal) or stays
+         * at {@code DEGRADED}. Default is {@code false} (DEGRADED only) so installing Pulse
+         * never flips an existing service's readiness contract.
+         */
+        public record Health(
+                @DefaultValue("true") boolean enabled,
+                @DefaultValue({}) List<String> critical,
+                @DefaultValue("0.05") double errorRateThreshold,
+                @DefaultValue("false") boolean down) {}
+    }
+
+    /**
+     * Multi-tenant context — extracts the tenant id from the inbound request, propagates it on
+     * MDC + outbound HTTP/Kafka headers, and (optionally) tags Micrometer meters with it.
+     *
+     * <p>Three built-in extractors ship with Pulse, each opt-in via its own {@code enabled}
+     * flag. The header extractor is on by default. Applications add their own by declaring a
+     * {@code @Bean TenantExtractor} — Spring's {@code @Order} controls the resolution order.
+     *
+     * <p>Resolution priority (first non-empty wins):
+     *
+     * <ol>
+     *   <li>{@code pulse.tenant.id} system property — for {@code @SpringBootTest} and dev.
+     *   <li>The highest-priority extractor whose {@code extract()} returns non-empty.
+     *   <li>{@link #unknownValue()} — written to MDC and used as the metric tag.
+     * </ol>
+     *
+     * <p>Cardinality is the killer concern with tenant tags. {@link #maxTagCardinality()} sits on
+     * top of the global {@link Cardinality#maxTagValuesPerMeter()} ceiling so a multi-tenant SaaS
+     * can keep the global cap at 1000 (for paths, methods, statuses) while keeping the tenant
+     * tag at a much tighter 100. Excess tenants are bucketed to {@link #overflowValue()}.
+     *
+     * <p>Propagation defaults: tenant id always flows on MDC, OTel baggage (key
+     * {@code pulse.tenant.id}, mirrored by {@link io.github.arun0009.pulse.tenant.TenantContextFilter}),
+     * outbound HTTP/Kafka headers (via {@link io.github.arun0009.pulse.propagation.HeaderPropagation}),
+     * and the {@code pulse.events} wide-event counter. Metric tagging on {@code http.server.requests}, {@code
+     * pulse.dependency.*}, etc. is opt-in via {@link #tagMeters()} — operators add the meter
+     * names they want tenant attribution on, and the cardinality cap protects them.
+     */
+    public record Tenant(
+            @DefaultValue("true") boolean enabled,
+            @DefaultValue Header header,
+            @DefaultValue Jwt jwt,
+            @DefaultValue Subdomain subdomain,
+            @DefaultValue("100") int maxTagCardinality,
+            @DefaultValue("__overflow__") String overflowValue,
+            @DefaultValue("unknown") String unknownValue,
+            @DefaultValue({}) List<String> tagMeters) {
+
+        /**
+         * Header-based extraction. Default: read {@code Pulse-Tenant-Id} (RFC 6648 — no
+         * {@code X-} prefix).
+         */
+        public record Header(
+                @DefaultValue("true") boolean enabled,
+                @DefaultValue("Pulse-Tenant-Id") String name) {}
+
+        /**
+         * JWT-claim extraction. Reads the {@code Authorization: Bearer ...} header, parses the
+         * payload as JSON without verifying the signature, and reads {@link #claim()}. Pulse does
+         * not perform signature verification — that's Spring Security's job. The claim is treated
+         * as advisory metadata once Security has authenticated the request.
+         */
+        public record Jwt(
+                @DefaultValue("false") boolean enabled,
+                @DefaultValue("tenant_id") String claim) {}
+
+        /**
+         * Subdomain extraction. Splits {@code Host} on dots and returns the segment at
+         * {@link #index()} (default {@code 0} — the leftmost label). For
+         * {@code acme.app.example.com} with index 0, the tenant resolves to {@code acme}.
+         */
+        public record Subdomain(
+                @DefaultValue("false") boolean enabled,
+                @DefaultValue("0") int index) {}
+    }
+
+    /**
+     * Retry amplification detection — propagates a hop counter through the call chain so
+     * Pulse can detect "service A retries 3x → B retries 3x → C gets 9x its normal traffic"
+     * cascades <em>before</em> they become an outage.
+     *
+     * <p>The depth is carried over the wire as the {@link #headerName()} header (default
+     * {@code Pulse-Retry-Depth}, RFC 6648 — no {@code X-} prefix) and on MDC under the
+     * {@code retryDepth} key, so every log line participating in an amplified chain is tagged.
+     * Each Resilience4j retry attempt observed by Pulse increments the local depth by 1;
+     * outbound HTTP/Kafka propagation re-emits the current depth so the next hop inherits it.
+     *
+     * <p>When the inbound depth exceeds {@link #amplificationThreshold()} (default {@code 3}),
+     * Pulse increments {@code pulse.retry.amplification{endpoint}} (counter; Prometheus exposition
+     * adds {@code _total}), adds a span event {@code pulse.retry.amplification}, and logs at
+     * WARN. The combination of timeout-budget propagation + retry depth gives operators the two
+     * leading indicators of cascading failure in one starter.
+     */
+    public record Retry(
+            @DefaultValue("true") boolean enabled,
+            @DefaultValue("Pulse-Retry-Depth") String headerName,
+            @DefaultValue("3") int amplificationThreshold) {}
+
+    /**
+     * Request criticality propagation. Pulse extracts the priority from the configured inbound
+     * header (default {@code Pulse-Priority}, RFC 6648 — no {@code X-} prefix), normalizes it
+     * against the five-tier vocabulary {@code critical, high, normal, low, background}, mirrors
+     * it onto {@link io.github.arun0009.pulse.core.ContextKeys#PRIORITY MDC} and OTel baggage
+     * (key {@code pulse.priority}, set by
+     * {@link io.github.arun0009.pulse.priority.RequestPriorityFilter}), and re-emits it on every
+     * outbound HTTP/Kafka call.
+     *
+     * <p>{@link #tagMeters()} is the opt-in metric-tagging surface: list the meter names you
+     * want stamped with {@code priority=...} (e.g. {@code http.server.requests} for per-priority
+     * SLOs). The tag values come from the bounded five-tier vocabulary, so cardinality is
+     * predictable — no firewall coupling is needed.
+     *
+     * <p>{@link #warnOnCriticalTimeoutExhaustion()} elevates the WARN line emitted when the
+     * timeout budget is exhausted to ERROR if the request was tagged {@code critical} — a
+     * distinct signal that something operationally important was dropped.
+     */
+    public record Priority(
+            @DefaultValue("true") boolean enabled,
+            @DefaultValue("Pulse-Priority") String headerName,
+            @DefaultValue("normal") String defaultPriority,
+            @DefaultValue("true") boolean warnOnCriticalTimeoutExhaustion,
+            @DefaultValue({}) List<String> tagMeters) {}
+
+    /**
+     * Container memory observability — fills the JVM-vs-cgroup blind spot that bites every team
+     * that has ever Googled "OOMKilled but heap looks fine."
+     *
+     * <p>Micrometer's {@code jvm.memory.*} reports heap and non-heap, but the kernel kills your
+     * pod based on RSS measured against the cgroup limit, which includes off-heap allocations
+     * (direct buffers, native libraries, JIT, metaspace, threads). Pulse reads
+     * {@code memory.current}/{@code memory.max} (cgroup v2) or
+     * {@code memory.usage_in_bytes}/{@code memory.limit_in_bytes} (cgroup v1) and exposes:
+     *
+     * <ul>
+     *   <li>{@code pulse.container.memory.used} (base unit: bytes) — current RSS as the kernel sees it.
+     *   <li>{@code pulse.container.memory.limit} (base unit: bytes) — the cgroup's hard memory limit.
+     *   <li>{@code pulse.container.memory.headroom_ratio} — {@code 1 - used/limit}, the value
+     *       your runbook actually wants.
+     *   <li>{@code pulse.container.memory.oom_kills} — counter sourced from
+     *       {@code memory.events}/{@code memory.oom_control}; a non-zero rate means a sibling
+     *       cgroup got killed under the same controller.
+     * </ul>
+     *
+     * <p>Resolution is best-effort: on macOS / Windows / non-cgroup hosts the reader returns
+     * empty values and Pulse silently registers no gauges, so the same starter works on a
+     * developer laptop and in a Kubernetes pod. {@link #headroomCriticalRatio()} is the value
+     * the optional health indicator uses to switch from {@code UP} to {@code OUT_OF_SERVICE}.
+     */
+    public record ContainerMemory(
+            @DefaultValue("true") boolean enabled,
+            @DefaultValue("true") boolean healthIndicatorEnabled,
+            @DefaultValue("0.10") double headroomCriticalRatio,
+            @DefaultValue("/sys/fs/cgroup") String cgroupRoot) {}
+
+    /**
+     * OpenFeature integration. When the {@code dev.openfeature:sdk} is on the classpath, Pulse
+     * registers a {@link io.github.arun0009.pulse.openfeature.PulseOpenFeatureMdcHook} that
+     * threads flag values onto MDC and stamps OTel-semconv {@code feature_flag} span events. If
+     * the optional {@code dev.openfeature.contrib.hooks:otel} hook is also present, Pulse
+     * registers it reflectively so consumers do not have to wire it themselves.
+     *
+     * <p>Setting {@code pulse.open-feature.enabled=false} suppresses both registrations.
+     */
+    public record OpenFeature(@DefaultValue("true") boolean enabled) {}
+
+    /**
+     * Cache observability — currently scoped to Caffeine via Spring's {@code CaffeineCacheManager}.
+     * When enabled (default), Pulse binds every {@code CaffeineCacheManager} bean to Micrometer
+     * so {@code cache.gets}, {@code cache.puts}, {@code cache.evictions}, and
+     * {@code cache.hit_ratio} land on the registry with no extra configuration. Pulse never
+     * mutates the operator's Caffeine spec; if {@code recordStats()} is missing, the bind happens
+     * anyway (meters report zero) and a one-time WARN per manager bean is logged.
+     *
+     * <p>Setting {@code pulse.cache.caffeine.enabled=false} disables the binding.
+     */
+    public record Cache(@DefaultValue Caffeine caffeine) {
+
+        public record Caffeine(@DefaultValue("true") boolean enabled) {}
+    }
 }

@@ -12,7 +12,7 @@ import java.io.IOException;
 
 /**
  * RestTemplate / RestClient interceptor that pushes the current request's remaining timeout budget
- * onto outbound calls as the configured header (default {@code X-Timeout-Ms}). Downstream
+ * onto outbound calls as the configured header (default {@code Pulse-Timeout-Ms}). Downstream
  * Pulse-equipped services pick this up via {@link TimeoutBudgetFilter} and use it as their own
  * budget.
  *
@@ -21,7 +21,7 @@ import java.io.IOException;
  * TimeoutBudget#current()} directly and configure its client per-call.
  *
  * <p>When the remaining budget is zero (the upstream caller's deadline has already passed) the
- * {@code pulse.timeout.budget.exhausted} counter is incremented, tagged with the {@code transport}
+ * {@code pulse.timeout_budget.exhausted} counter is incremented, tagged with the {@code transport}
  * label supplied at construction time so dashboards can distinguish {@code transport=resttemplate}
  * from {@code transport=restclient}.
  */

@@ -35,7 +35,8 @@ public class OkHttpPropagationConfiguration {
         @Bean
         public BeanPostProcessor pulseOkHttpBuilderInstrumenter(
                 PulseProperties properties, ObjectProvider<MeterRegistry> registry) {
-            Map<String, String> headerMap = HeaderPropagation.headerToMdcKey(properties.context());
+            Map<String, String> headerMap =
+                    HeaderPropagation.headerToMdcKey(properties.context(), properties.retry(), properties.priority());
             PulseOkHttpInterceptor interceptor = new PulseOkHttpInterceptor(
                     headerMap,
                     properties.timeoutBudget().outboundHeader(),
@@ -56,7 +57,7 @@ public class OkHttpPropagationConfiguration {
         public PulseOkHttpInterceptor pulseOkHttpInterceptor(
                 PulseProperties properties, ObjectProvider<MeterRegistry> registry) {
             return new PulseOkHttpInterceptor(
-                    HeaderPropagation.headerToMdcKey(properties.context()),
+                    HeaderPropagation.headerToMdcKey(properties.context(), properties.retry(), properties.priority()),
                     properties.timeoutBudget().outboundHeader(),
                     properties.timeoutBudget().enabled(),
                     new TimeoutBudgetOutbound(registry.getIfAvailable()));

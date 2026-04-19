@@ -5,7 +5,7 @@
 
     <groupId>io.github.arun0009</groupId>
     <artifactId>pulse-spring-boot-starter</artifactId>
-    <version>0.2.0-SNAPSHOT</version>
+    <version>1.0.0-SNAPSHOT</version>
     <packaging>jar</packaging>
 
     <name>Pulse — Production correctness for Spring Boot</name>
@@ -29,6 +29,7 @@
         <developer>
             <id>arun0009</id>
             <name>Arun Gopalpuri</name>
+            <email>arun0009@gmail.com</email>
             <url>https://github.com/arun0009</url>
         </developer>
     </developers>
@@ -66,17 +67,18 @@
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
         <nullaway.version>0.13.3</nullaway.version>
-        <opentelemetry.semconv.version>1.34.0</opentelemetry.semconv.version>
+        <opentelemetry.semconv.version>1.40.0</opentelemetry.semconv.version>
         <!-- Reproducible builds: byte-identical artifacts across rebuilds.
              Override per-release via -Dproject.build.outputTimestamp=… or set to a
              commit SHA / commit time. See https://maven.apache.org/guides/mini/guide-reproducible-builds.html -->
         <project.build.outputTimestamp>2026-01-01T00:00:00Z</project.build.outputTimestamp>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-        <resilience4j.version>2.3.0</resilience4j.version>
+        <resilience4j.version>2.4.0</resilience4j.version>
         <spotless.version>3.4.0</spotless.version>
         <spring.boot.version>4.0.5</spring.boot.version>
-        <wiremock.version>3.10.0</wiremock.version>
+        <versions-maven-plugin.version>2.21.0</versions-maven-plugin.version>
+        <wiremock.version>3.13.2</wiremock.version>
     </properties>
 
     <dependencyManagement>
@@ -327,12 +329,36 @@
         <dependency>
             <groupId>com.squareup.okhttp3</groupId>
             <artifactId>okhttp-jvm</artifactId>
-            <version>5.2.1</version>
+            <version>5.3.2</version>
             <optional>true</optional>
         </dependency>
         <dependency>
             <groupId>org.springframework.kafka</groupId>
             <artifactId>spring-kafka</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- OpenFeature — instrumented when present so flag evaluations land on MDC
+             and as span events. Optional: pulled in only by apps that already use it. -->
+        <dependency>
+            <groupId>dev.openfeature</groupId>
+            <artifactId>sdk</artifactId>
+            <version>1.20.2</version>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- Caffeine — instrumented when present so cache hit rate / load time / evictions land
+             on Micrometer and so cache misses can stamp span events. Optional: pulled in only by
+             apps that already use it for @Cacheable storage. -->
+        <dependency>
+            <groupId>com.github.ben-manes.caffeine</groupId>
+            <artifactId>caffeine</artifactId>
+            <version>3.2.3</version>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-cache</artifactId>
             <optional>true</optional>
         </dependency>
 
@@ -454,6 +480,44 @@
                                 <Automatic-Module-Name>io.github.arun0009.pulse</Automatic-Module-Name>
                             </manifestEntries>
                         </archive>
+                    </configuration>
+                </plugin>
+                <!-- versions-maven-plugin — pinned with a stable-only ruleset so
+                     `versions:display-*-updates` and `versions:use-latest-releases`
+                     skip -M*, -RC*, -beta*, -alpha*, -SNAPSHOT candidates.
+                     Day-to-day bumps come from Dependabot (.github/dependabot.yml);
+                     this is the manual ground-truth check (`make versions`) before
+                     cutting a release branch. -->
+                <plugin>
+                    <groupId>org.codehaus.mojo</groupId>
+                    <artifactId>versions-maven-plugin</artifactId>
+                    <version>${versions-maven-plugin.version}</version>
+                    <configuration>
+                        <generateBackupPoms>false</generateBackupPoms>
+                        <ruleSet>
+                            <ignoreVersions>
+                                <ignoreVersion>
+                                    <type>regex</type>
+                                    <version>(?i).*-M\d+</version>
+                                </ignoreVersion>
+                                <ignoreVersion>
+                                    <type>regex</type>
+                                    <version>(?i).*-RC\d*</version>
+                                </ignoreVersion>
+                                <ignoreVersion>
+                                    <type>regex</type>
+                                    <version>(?i).*-beta.*</version>
+                                </ignoreVersion>
+                                <ignoreVersion>
+                                    <type>regex</type>
+                                    <version>(?i).*-alpha.*</version>
+                                </ignoreVersion>
+                                <ignoreVersion>
+                                    <type>regex</type>
+                                    <version>(?i).*-SNAPSHOT</version>
+                                </ignoreVersion>
+                            </ignoreVersions>
+                        </ruleSet>
                     </configuration>
                 </plugin>
             </plugins>

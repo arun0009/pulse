@@ -1,0 +1,146 @@
+site_name: Pulse
+site_description: Batteries-included production observability for Spring Boot.
+site_url: https://arun0009.github.io/pulse/
+site_author: Arun Gopalpuri
+
+repo_name: arun0009/pulse
+repo_url: https://github.com/arun0009/pulse
+edit_uri: edit/main/docs/
+
+copyright: Copyright &copy; Arun Gopalpuri — released under the MIT License
+
+theme:
+  name: material
+  logo: assets/pulse-logo.svg
+  favicon: assets/favicon.svg
+  icon:
+    repo: fontawesome/brands/github
+    edit: material/pencil
+  font:
+    text: Inter
+    code: JetBrains Mono
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: teal
+      accent: cyan
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: teal
+      accent: cyan
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.indexes
+    - navigation.top
+    - navigation.footer
+    - toc.follow
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+    - content.tabs.link
+    - content.action.edit
+    - content.action.view
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+      permalink_title: Anchor link
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+
+plugins:
+  - search
+
+extra_css:
+  - assets/pulse.css
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/arun0009/pulse
+      name: Pulse on GitHub
+    - icon: simple/apachemaven
+      link: https://central.sonatype.com/artifact/io.github.arun0009/pulse-spring-boot-starter
+      name: Pulse on Maven Central
+
+nav:
+  - Home: index.md
+  - Quick start: quickstart.md
+  - Concepts: concepts.md
+  - Features:
+      - features/index.md
+      - Day-one drivers:
+          - Cardinality firewall: features/cardinality-firewall.md
+          - Timeout-budget propagation: features/timeout-budget.md
+          - Context propagation (@Async / @Scheduled / Kafka): features/context-propagation.md
+          - Trace-context guard: features/trace-context-guard.md
+          - Structured logs (OTel-aligned): features/structured-logs.md
+          - Stable exception fingerprints: features/exception-fingerprints.md
+      - Distributed-systems extras:
+          - Dependency health map: features/dependencies.md
+          - Retry amplification detection: features/retry-amplification.md
+          - Multi-tenant context: features/multi-tenant.md
+          - Request priority: features/priority.md
+          - Container-aware memory: features/container-memory.md
+          - Kafka time-based lag: features/kafka-time-lag.md
+          - Request fan-out width: features/fan-out.md
+      - Spring extras:
+          - SLO-as-code: features/slo-as-code.md
+          - Resilience4j auto-instrumentation: features/resilience4j.md
+          - Background-job observability: features/jobs.md
+          - Database (N+1, slow query): features/database.md
+          - Cache observability (Caffeine): features/cache.md
+          - OpenFeature correlation: features/openfeature.md
+          - Continuous-profiling correlation: features/profiling.md
+          - Wide-event API (SpanEvents): features/wide-events.md
+          - Graceful drain + OTel flush: features/graceful-shutdown.md
+          - Fleet config-drift hash: features/fleet-config-drift.md
+          - Live diagnostic actuator (/actuator/pulse + /actuator/pulseui): features/actuator.md
+          - Sampling: features/sampling.md
+  - Configuration: configuration.md
+  - Operations:
+      - Dashboards: operations/dashboards.md
+      - Alerts: operations/alerts.md
+      - Production checklist: operations/production-checklist.md
+  - Runbooks:
+      - runbooks/index.md
+      - Cardinality firewall overflow: runbooks/cardinality-firewall-overflow.md
+      - Timeout-budget exhausted: runbooks/timeout-budget-exhausted.md
+      - Trace context missing: runbooks/trace-context-missing.md
+      - Error-budget burn: runbooks/error-budget-burn.md
+      - HikariCP saturation: runbooks/hikaricp-saturation.md
+  - Reference:
+      - Changelog: release/changelog.md
+      - Design notes:
+          - design/index.md
+          - Multi-tenant context: design/multi-tenant-context.md

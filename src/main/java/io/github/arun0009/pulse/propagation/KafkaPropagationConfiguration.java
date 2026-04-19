@@ -11,6 +11,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.DependsOn;
 import org.springframework.context.annotation.Primary;
 import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -57,18 +58,28 @@ public class KafkaPropagationConfiguration {
         }
 
         @Bean
-        public ProducerFactoryCustomizer pulseProducerFactoryCustomizer(
-                @SuppressWarnings("unused") KafkaPropagationContextInitializer ensureInitialized) {
+        @DependsOn("pulseKafkaPropagationContextInitializer")
+        public ProducerFactoryCustomizer pulseProducerFactoryCustomizer() {
             return new ProducerFactoryCustomizer();
         }
 
         /**
          * The bare Pulse interceptor, exposed as a non-{@code @Primary} bean so applications can
-         * inject it explicitly (for composition with their own custom interceptor wiring).
+         * inject it explicitly (for composition with their own custom interceptor wiring). When a
+         * {@link MeterRegistry} is on the context and {@code pulse.kafka.consumer-time-lag-enabled}
+         * is true (default), the interceptor also samples per-record time lag and exposes it as
+         * the {@code pulse.kafka.consumer.time_lag} gauge (registered with base unit {@code seconds},
+         * so Prometheus normalises it to {@code pulse_kafka_consumer_time_lag_seconds}).
          */
         @Bean
-        public PulseKafkaRecordInterceptor pulseKafkaRecordInterceptor(PulseProperties properties) {
-            return new PulseKafkaRecordInterceptor(properties);
+        public PulseKafkaRecordInterceptor pulseKafkaRecordInterceptor(
+                PulseProperties properties, ObjectProvider<MeterRegistry> registryProvider) {
+            MeterRegistry registry = registryProvider.getIfAvailable();
+            KafkaConsumerTimeLagMetrics lag =
+                    (registry != null && properties.kafka().consumerTimeLagEnabled())
+                            ? new KafkaConsumerTimeLagMetrics(registry)
+                            : null;
+            return new PulseKafkaRecordInterceptor(properties, lag);
         }
 
         /**
@@ -162,7 +173,7 @@ public class KafkaPropagationConfiguration {
 
         public KafkaPropagationContextInitializer(PulseProperties properties, @Nullable MeterRegistry registry) {
             KafkaPropagationContext.initialize(
-                    HeaderPropagation.headerToMdcKey(properties.context()),
+                    HeaderPropagation.headerToMdcKey(properties.context(), properties.retry(), properties.priority()),
                     properties.timeoutBudget().outboundHeader(),
                     registry);
         }

@@ -8,6 +8,7 @@ import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Tags;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.SpanContext;
+import org.slf4j.MDC;
 import org.springframework.beans.factory.SmartInitializingSingleton;
 
 import java.util.concurrent.ConcurrentHashMap;
@@ -25,11 +26,12 @@ import java.util.concurrent.ConcurrentMap;
  * <p>Wired signals:
  *
  * <ul>
- *   <li>{@code pulse.r4j.retry.attempts_total{name}} — every retry attempt past the first.
- *   <li>{@code pulse.r4j.retry.exhausted_total{name}} — incremented when retry gives up.
- *   <li>Span event {@code pulse.r4j.retry.attempt} on the active span every time a retry fires,
- *       carrying the attempt number — so a slow-trace investigation immediately shows "this
- *       trace took 4s because we retried 3 times" rather than just "the call took 4s".
+ *   <li>{@code pulse.resilience.retry.attempts{name}} — every retry attempt past the first.
+ *       Counter; the Prometheus exposition adds {@code _total} automatically.
+ *   <li>{@code pulse.resilience.retry.exhausted{name}} — incremented when retry gives up.
+ *   <li>Span event {@code pulse.resilience.retry.attempt} on the active span every time a retry
+ *       fires, carrying the attempt number — so a slow-trace investigation immediately shows
+ *       "this trace took 4s because we retried 3 times" rather than just "the call took 4s".
  * </ul>
  */
 public final class RetryObservation implements SmartInitializingSingleton {
@@ -56,21 +58,25 @@ public final class RetryObservation implements SmartInitializingSingleton {
 
     private void onRetry(RetryOnRetryEvent event) {
         meterRegistry
-                .counter("pulse.r4j.retry.attempts_total", Tags.of("name", event.getName()))
+                .counter("pulse.resilience.retry.attempts", Tags.of("name", event.getName()))
                 .increment();
+
+        int depth = RetryDepthContext.increment();
+        MDC.put(RetryDepthFilter.MDC_KEY, Integer.toString(depth));
 
         Span span = Span.current();
         SpanContext spanContext = span.getSpanContext();
         if (spanContext.isValid()) {
-            span.addEvent("pulse.r4j.retry.attempt");
-            span.setAttribute("pulse.r4j.retry.name", event.getName());
-            span.setAttribute("pulse.r4j.retry.attempt_number", event.getNumberOfRetryAttempts());
+            span.addEvent("pulse.resilience.retry.attempt");
+            span.setAttribute("pulse.resilience.retry.name", event.getName());
+            span.setAttribute("pulse.resilience.retry.attempt_number", event.getNumberOfRetryAttempts());
+            span.setAttribute("pulse.retry.depth", depth);
         }
     }
 
     private void onError(RetryOnErrorEvent event) {
         meterRegistry
-                .counter("pulse.r4j.retry.exhausted_total", Tags.of("name", event.getName()))
+                .counter("pulse.resilience.retry.exhausted", Tags.of("name", event.getName()))
                 .increment();
     }
 

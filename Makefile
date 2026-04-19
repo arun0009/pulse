@@ -1,4 +1,4 @@
-.PHONY: help format verify test it bench coverage sbom clean release-dryrun
+.PHONY: help format verify test it bench coverage sbom clean release-dryrun versions versions-update
 
 MVN ?= ./mvnw
 
@@ -40,6 +40,13 @@ clean: ## Clean build outputs
 	$(MVN) -B -ntp clean
 
 verify-all: format verify ## Format + everything (recommended pre-commit)
+
+versions: ## Show available stable updates for properties, deps, and plugins (skips -M/-RC/-beta/-SNAPSHOT)
+	@$(MVN) -B -ntp versions:display-property-updates versions:display-dependency-updates versions:display-plugin-updates -DallowMajorUpdates=false
+
+versions-update: ## Bump <properties> and <dependency> versions to latest stable in-place; review the diff before committing
+	$(MVN) -B -ntp versions:update-properties versions:use-latest-releases -DallowMajorUpdates=false
+	@echo "Done. Review with 'git diff pom.xml' and run 'make verify' before committing."
 
 release-dryrun: ## Stage release artifacts locally (signed sources/javadoc/jar) without publishing
 	$(MVN) -B -ntp -Prelease deploy

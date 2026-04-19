@@ -18,13 +18,6 @@
         <encoder class="io.github.arun0009.pulse.logging.PulseLogbackEncoder"/>
     </appender>
 
-    <!-- AUDIT channel — additivity=false so audit lines do NOT also flow to root.
-         Consumers point this at their audit sink in their own logback-spring.xml
-         override; the default lands them on the same console encoder. -->
-    <logger name="AUDIT" level="INFO" additivity="false">
-        <appender-ref ref="CONSOLE"/>
-    </logger>
-
     <root level="INFO">
         <appender-ref ref="CONSOLE"/>
     </root>

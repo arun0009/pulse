@@ -70,7 +70,7 @@ class PulseKafkaRecordInterceptorTest {
     @Test
     void timeout_budget_header_opens_baggage_scope_visible_to_business_logic() {
         ConsumerRecord<Object, Object> record = consumerRecord();
-        record.headers().add("X-Timeout-Ms", "1500".getBytes(StandardCharsets.UTF_8));
+        record.headers().add("Pulse-Timeout-Ms", "1500".getBytes(StandardCharsets.UTF_8));
 
         interceptor.intercept(record, /* consumer */ null);
         try {
@@ -89,7 +89,7 @@ class PulseKafkaRecordInterceptorTest {
     @Test
     void malformed_timeout_header_is_silently_ignored() {
         ConsumerRecord<Object, Object> record = consumerRecord();
-        record.headers().add("X-Timeout-Ms", "not-a-number".getBytes(StandardCharsets.UTF_8));
+        record.headers().add("Pulse-Timeout-Ms", "not-a-number".getBytes(StandardCharsets.UTF_8));
 
         interceptor.intercept(record, /* consumer */ null);
         try {
@@ -110,20 +110,19 @@ class PulseKafkaRecordInterceptorTest {
                         "X-Request-ID",
                         "X-Correlation-ID",
                         "X-User-ID",
-                        "X-Tenant-ID",
+                        "Pulse-Tenant-Id",
                         "Idempotency-Key",
                         List.of()),
                 new PulseProperties.TraceGuard(true, false, List.of()),
                 new PulseProperties.Sampling(1.0, true),
                 new PulseProperties.Async(true, false, 8, 32, 100, "pulse-", true),
-                new PulseProperties.Kafka(true),
+                new PulseProperties.Kafka(true, true),
                 new PulseProperties.ExceptionHandler(true),
-                new PulseProperties.Audit(true),
                 new PulseProperties.Cardinality(true, 1000, "OVERFLOW", List.of(), List.of()),
                 new PulseProperties.TimeoutBudget(
                         true,
-                        "X-Timeout-Ms",
-                        "X-Timeout-Ms",
+                        "Pulse-Timeout-Ms",
+                        "Pulse-Timeout-Ms",
                         Duration.ofSeconds(2),
                         Duration.ofSeconds(30),
                         Duration.ofMillis(50),
@@ -134,10 +133,31 @@ class PulseKafkaRecordInterceptorTest {
                 new PulseProperties.Histograms(true, List.of(), List.of()),
                 new PulseProperties.Slo(true, List.of()),
                 new PulseProperties.Health(true, Duration.ofMinutes(5)),
-                new PulseProperties.Shutdown(true, Duration.ofSeconds(10)),
+                new PulseProperties.Shutdown(
+                        true, Duration.ofSeconds(10), new PulseProperties.Shutdown.Drain(true, Duration.ofSeconds(30))),
                 new PulseProperties.Jobs(true, true, Duration.ofHours(1)),
                 new PulseProperties.Db(true, 50, Duration.ofMillis(500)),
                 new PulseProperties.Resilience(true),
-                new PulseProperties.Profiling(true, null));
+                new PulseProperties.Profiling(true, null),
+                new PulseProperties.Dependencies(
+                        true,
+                        java.util.Map.of(),
+                        "unknown",
+                        20,
+                        new PulseProperties.Dependencies.Health(true, List.of(), 0.05, false)),
+                new PulseProperties.Tenant(
+                        true,
+                        new PulseProperties.Tenant.Header(true, "Pulse-Tenant-Id"),
+                        new PulseProperties.Tenant.Jwt(false, "tenant_id"),
+                        new PulseProperties.Tenant.Subdomain(false, 0),
+                        100,
+                        "__overflow__",
+                        "unknown",
+                        List.of()),
+                new PulseProperties.Retry(true, "Pulse-Retry-Depth", 3),
+                new PulseProperties.Priority(true, "Pulse-Priority", "normal", true, List.of()),
+                new PulseProperties.ContainerMemory(true, true, 0.10, "/sys/fs/cgroup"),
+                new PulseProperties.OpenFeature(true),
+                new PulseProperties.Cache(new PulseProperties.Cache.Caffeine(true)));
     }
 }

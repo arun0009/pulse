@@ -6,7 +6,7 @@
 
 ## TL;DR
 
-`pulse.timeout.budget.exhausted` is firing because outbound calls are leaving this service with
+`pulse.timeout_budget.exhausted` is firing because outbound calls are leaving this service with
 **zero remaining budget**. The upstream caller's deadline had already passed when this hop tried
 to call its downstream — every subsequent call is wasted work.
 
@@ -16,7 +16,7 @@ saturation cascades across the fleet.
 
 ## What Pulse already did for you
 
-- Propagated the inbound `X-Timeout-Ms` header onto OpenTelemetry baggage.
+- Propagated the inbound `Pulse-Timeout-Ms` header onto OpenTelemetry baggage.
 - Subtracted elapsed time at every outbound hop so the next service sees the real remaining budget.
 - Counted exhausted outbound calls per `transport={resttemplate,restclient,webclient,okhttp,kafka}`.
 
@@ -51,7 +51,7 @@ sum(rate(http_server_requests_seconds_count[5m]))
    /actuator/pulse → recent errors → click traceId
    ```
 2. **Check the upstream's SLO**. If the upstream is meeting its SLO, the inbound timeout is set
-   too low for the traffic class — raise it via the caller's `X-Timeout-Ms` header (or
+   too low for the traffic class — raise it via the caller's `Pulse-Timeout-Ms` header (or
    `pulse.timeout-budget.default-budget`).
 3. **Cancel work, don't retry it**. If exhaustion is sustained, the right move is for the caller
    to fail fast (5xx with `Retry-After`) rather than retry. Verify your client retry config

@@ -1,4 +1,4 @@
 @NullMarked
-package io.github.arun0009.pulse.audit;
+package io.github.arun0009.pulse.scheduling;
 
 import org.jspecify.annotations.NullMarked;

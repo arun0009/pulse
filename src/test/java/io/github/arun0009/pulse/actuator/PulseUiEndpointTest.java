@@ -19,7 +19,7 @@ class PulseUiEndpointTest {
         // If it stops being self-contained (e.g. picks up an external CDN), or stops listing a
         // subsystem, this fails.
         PulseProperties props = bindEmpty();
-        PulseDiagnostics diag = new PulseDiagnostics(props, "test-svc", "test-env", "0.0.1", null);
+        PulseDiagnostics diag = new PulseDiagnostics(props, "test-svc", "test-env", "0.0.1", null, null, null);
         PulseUiEndpoint endpoint = new PulseUiEndpoint(diag, new SloRuleGenerator(props.slo(), "test-svc"));
 
         String html = endpoint.html();

@@ -24,7 +24,7 @@ import java.util.Optional;
  * <p>Resolution order:
  *
  * <ol>
- *   <li>If the inbound request carries the configured header (default {@code X-Timeout-Ms}), parse
+ *   <li>If the inbound request carries the configured header (default {@code Pulse-Timeout-Ms}), parse
  *       it.
  *   <li>Otherwise, fall back to the configured default budget.
  * </ol>

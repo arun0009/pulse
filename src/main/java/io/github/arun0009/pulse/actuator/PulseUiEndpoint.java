@@ -1,6 +1,7 @@
 package io.github.arun0009.pulse.actuator;
 
 import io.github.arun0009.pulse.slo.SloRuleGenerator;
+import org.jspecify.annotations.Nullable;
 import org.springframework.boot.actuate.endpoint.annotation.ReadOperation;
 import org.springframework.boot.actuate.endpoint.web.annotation.WebEndpoint;
 
@@ -20,9 +21,9 @@ import java.util.Map;
 public class PulseUiEndpoint {
 
     private final PulseDiagnostics diagnostics;
-    private final SloRuleGenerator sloRules;
+    private final @Nullable SloRuleGenerator sloRules;
 
-    public PulseUiEndpoint(PulseDiagnostics diagnostics, SloRuleGenerator sloRules) {
+    public PulseUiEndpoint(PulseDiagnostics diagnostics, @Nullable SloRuleGenerator sloRules) {
         this.diagnostics = diagnostics;
         this.sloRules = sloRules;
     }
@@ -99,7 +100,7 @@ public class PulseUiEndpoint {
         html.append("<pre>").append(escape(String.valueOf(effectiveConfig))).append("</pre>");
 
         html.append("<h2>SLOs</h2>");
-        String yaml = sloRules.render();
+        String yaml = sloRules == null ? "# SLO subsystem disabled (pulse.slo.enabled=false)\n" : sloRules.render();
         html.append("<pre>").append(escape(yaml)).append("</pre>");
 
         html.append("<h2>How to apply</h2>");

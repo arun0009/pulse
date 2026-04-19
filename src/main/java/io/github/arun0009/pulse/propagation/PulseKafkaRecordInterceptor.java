@@ -1,6 +1,7 @@
 package io.github.arun0009.pulse.propagation;
 
 import io.github.arun0009.pulse.autoconfigure.PulseProperties;
+import io.github.arun0009.pulse.core.LogSanitizer;
 import io.github.arun0009.pulse.guardrails.TimeoutBudget;
 import io.opentelemetry.api.baggage.Baggage;
 import io.opentelemetry.context.Scope;
@@ -39,11 +40,19 @@ public class PulseKafkaRecordInterceptor implements RecordInterceptor<Object, Ob
     private final Map<String, String> headerToMdcKey;
     private final String timeoutBudgetHeader;
     private final boolean timeoutBudgetEnabled;
+    private final @Nullable KafkaConsumerTimeLagMetrics timeLagMetrics;
 
     public PulseKafkaRecordInterceptor(PulseProperties properties) {
-        this.headerToMdcKey = HeaderPropagation.headerToMdcKey(properties.context());
+        this(properties, null);
+    }
+
+    public PulseKafkaRecordInterceptor(
+            PulseProperties properties, @Nullable KafkaConsumerTimeLagMetrics timeLagMetrics) {
+        this.headerToMdcKey =
+                HeaderPropagation.headerToMdcKey(properties.context(), properties.retry(), properties.priority());
         this.timeoutBudgetHeader = properties.timeoutBudget().outboundHeader();
         this.timeoutBudgetEnabled = properties.timeoutBudget().enabled();
+        this.timeLagMetrics = timeLagMetrics;
     }
 
     @Override
@@ -64,6 +73,16 @@ public class PulseKafkaRecordInterceptor implements RecordInterceptor<Object, Ob
                 if (budgetHeader != null && budgetHeader.value() != null) {
                     activateBudgetScope(new String(budgetHeader.value(), StandardCharsets.UTF_8));
                 }
+            }
+
+            if (timeLagMetrics != null) {
+                String groupId;
+                try {
+                    groupId = consumer.groupMetadata().groupId();
+                } catch (RuntimeException ignored) {
+                    groupId = KafkaConsumerTimeLagMetrics.UNKNOWN_GROUP;
+                }
+                timeLagMetrics.observe(record, groupId);
             }
         } catch (RuntimeException e) {
             log.debug("Pulse Kafka record interceptor: header hydration failed", e);
@@ -105,7 +124,7 @@ public class PulseKafkaRecordInterceptor implements RecordInterceptor<Object, Ob
                     .makeCurrent();
             BAGGAGE_SCOPE.set(scope);
         } catch (NumberFormatException e) {
-            log.debug("Pulse Kafka: malformed timeout-budget header value '{}'", headerValue);
+            log.debug("Pulse Kafka: malformed timeout-budget header value '{}'", LogSanitizer.safe(headerValue));
         }
     }
 }

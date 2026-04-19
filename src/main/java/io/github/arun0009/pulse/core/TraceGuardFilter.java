@@ -13,7 +13,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.Ordered;
 import org.springframework.web.filter.OncePerRequestFilter;
-import org.springframework.web.servlet.HandlerMapping;
 
 import java.io.IOException;
 import java.util.List;
@@ -55,8 +54,6 @@ public class TraceGuardFilter extends OncePerRequestFilter implements Ordered {
     /** Legacy Zipkin/B3 header name; mirrors {@code B3Propagator}'s single-header constant. */
     private static final String B3_TRACE_ID = "X-B3-TraceId";
 
-    private static final String UNMATCHED_ROUTE = "other";
-
     private final MeterRegistry registry;
     private final PulseProperties.TraceGuard config;
 
@@ -79,7 +76,7 @@ public class TraceGuardFilter extends OncePerRequestFilter implements Ordered {
             return;
         }
 
-        String routeTag = resolveRouteTag(request);
+        String routeTag = RouteTags.of(request);
         boolean hasTrace = hasTraceContext(request);
 
         if (hasTrace) {
@@ -106,7 +103,7 @@ public class TraceGuardFilter extends OncePerRequestFilter implements Ordered {
                     + "). Configure your upstream caller to propagate context, or set "
                     + "pulse.trace-guard.fail-on-missing=false.");
         }
-        log.warn("Pulse TraceGuard: missing trace context for {}", request.getRequestURI());
+        log.warn("Pulse TraceGuard: missing trace context for route={}", routeTag);
         chain.doFilter(request, response);
     }
 
@@ -114,17 +111,6 @@ public class TraceGuardFilter extends OncePerRequestFilter implements Ordered {
         SpanContext spanContext = Span.current().getSpanContext();
         if (spanContext.isValid()) return true;
         return request.getHeader(TRACEPARENT) != null || request.getHeader(B3_TRACE_ID) != null;
-    }
-
-    /**
-     * Resolves the Spring {@link HandlerMapping} route template for the request, falling back to
-     * a fixed {@code other} bucket when no route was matched. This mirrors how Boot's own
-     * {@code WebMvcMetricsFilter} keeps {@code http.server.requests} cardinality bounded.
-     */
-    private static String resolveRouteTag(HttpServletRequest request) {
-        Object pattern = request.getAttribute(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE);
-        if (pattern instanceof String s && !s.isBlank()) return s;
-        return UNMATCHED_ROUTE;
     }
 
     private static boolean isExempt(String path, List<String> exemptPrefixes) {

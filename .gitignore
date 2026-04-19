@@ -31,3 +31,7 @@ logs/
 
 # Secrets
 src/main/resources/application-local.yml
+
+# Docs site build artifacts
+_site/
+.venv-docs/

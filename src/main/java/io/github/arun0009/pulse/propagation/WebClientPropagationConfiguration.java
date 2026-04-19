@@ -34,7 +34,8 @@ public class WebClientPropagationConfiguration {
         @Bean
         public WebClientCustomizer pulseWebClientCustomizer(
                 PulseProperties properties, ObjectProvider<MeterRegistry> registry) {
-            Map<String, String> headerMap = HeaderPropagation.headerToMdcKey(properties.context());
+            Map<String, String> headerMap =
+                    HeaderPropagation.headerToMdcKey(properties.context(), properties.retry(), properties.priority());
             String budgetHeader = properties.timeoutBudget().outboundHeader();
             boolean budgetEnabled = properties.timeoutBudget().enabled();
             TimeoutBudgetOutbound budgetHelper = new TimeoutBudgetOutbound(registry.getIfAvailable());

@@ -253,3 +253,172 @@ groups:
             Threads are timing out waiting for a connection from pool {{ $labels.pool }}.
             Each timeout becomes a 500 to the caller. Increase pool size or fix the
             query / leak holding connections open.
+
+      # ── Dependency health map (caller-side per-downstream RED) ────────
+      # Pulse tags every outbound HTTP call with `dep` (logical dependency
+      # name from pulse.dependencies.map). When a single downstream's error
+      # rate or latency goes bad, you get an alert that names the culprit
+      # without needing to open the downstream's dashboard.
+      - alert: PulseDependencyDegraded
+        expr: |
+          sum by (application, env, dep)
+            (rate(pulse_dependency_requests_total{outcome=~"SERVER_ERROR|UNKNOWN"}[5m]))
+          /
+          sum by (application, env, dep)
+            (rate(pulse_dependency_requests_total[5m]))
+          > 0.05
+        for: 5m
+        labels:
+          severity: ticket
+          slo: availability
+          subsystem: dependency
+        annotations:
+          summary: "{{ $labels.application }}: dependency {{ $labels.dep }} >5% errors"
+          description: |
+            {{ $labels.application }} is seeing a {{ printf "%.1f%%" (mul $value 100) }} error
+            rate calling {{ $labels.dep }} over the last 5m. Open the dependency map panel
+            to confirm whether this is the only affected caller (downstream issue) or a
+            pattern across all callers of this dep (network / config issue).
+          runbook_url: "https://github.com/arun0009/pulse/blob/main/docs/runbooks/dependency-degraded.md"
+
+      - alert: PulseDependencyLatencyP99High
+        expr: |
+          histogram_quantile(0.99,
+            sum by (application, env, dep, le)
+              (rate(pulse_dependency_latency_seconds_bucket[10m]))
+          ) > 1.0
+        for: 10m
+        labels:
+          severity: ticket
+          slo: latency
+          subsystem: dependency
+        annotations:
+          summary: "{{ $labels.application }}: p99 latency to {{ $labels.dep }} > 1s"
+          description: |
+            10-min p99 latency calling {{ $labels.dep }} = {{ $value }}s. Either the
+            downstream is degraded or the network path to it has changed.
+
+      # ── Request fan-out width (caller-side N+1 detector) ─────────────
+      # pulse.request.fan_out_high fires whenever a single inbound request
+      # fans out to more outbound calls than pulse.dependencies.fan-out-warn-threshold.
+      # Most stable endpoints have fan-out width <10; a sudden p99 climb is
+      # almost always a caller-side N+1 introduced by a recent change.
+      - alert: PulseRequestFanOutHigh
+        expr: |
+          sum by (application, env)
+            (rate(pulse_request_fan_out_high_total[5m])) > 0.05
+        for: 10m
+        labels:
+          severity: ticket
+          slo: latency
+          subsystem: dependency
+        annotations:
+          summary: "{{ $labels.application }}: requests with abnormally high outbound fan-out"
+          description: |
+            >5% of inbound requests fanned out beyond the configured warn threshold
+            in the last 5m. Check the per-endpoint pulse.request.fan_out distribution
+            to find the offending route — this is usually an N+1 at the caller layer
+            introduced by a recent change.
+
+      # ── Retry amplification (cross-service cascade detector) ─────────
+      # Pulse propagates a per-request retry-depth counter through the call
+      # chain (Pulse-Retry-Depth header). When inbound depth crosses
+      # pulse.retry.amplification-threshold (default 3), Pulse increments
+      # pulse.retry.amplification_total. A single hit is an early-warning
+      # sign of a forming cascade; >5% of traffic is the cascade itself.
+      # ── Fleet config drift ───────────────────────────────────────────
+      # When two replicas of the same service report different pulse_config_hash
+      # values, one of them resolved configuration differently — stale ConfigMap,
+      # partial deploy, env-var typo on one pod. This catches a class of issues
+      # that are invisible until they cause incidents.
+      - alert: PulseConfigDrift
+        expr: |
+          count by (application) (count by (application, hash) (pulse_config_hash)) > 1
+        for: 10m
+        labels:
+          severity: ticket
+          slo: consistency
+          subsystem: fleet
+        annotations:
+          summary: "{{ $labels.application }}: replicas disagree on resolved pulse.* config"
+          description: |
+            Multiple distinct pulse.* configuration hashes are reporting for
+            {{ $labels.application }}. Compare /actuator/pulse/config-hash on
+            two pods to find the divergent property.
+
+      # ── Kafka time-based consumer lag ────────────────────────────────
+      # Count-based lag is meaningless without producer rate; time-based lag
+      # is what your SLO actually wants ("oldest unprocessed message is N
+      # seconds old"). Alert at 5m to catch real backlog without paging on
+      # routine catchup after a deploy.
+      - alert: PulseKafkaConsumerFallingBehind
+        expr: |
+          max(pulse_kafka_consumer_time_lag_seconds) by (application, group, topic) > 300
+        for: 5m
+        labels:
+          severity: page
+          slo: freshness
+          subsystem: kafka
+        annotations:
+          summary: "{{ $labels.application }}: kafka consumer {{ $labels.group }} lagging on {{ $labels.topic }}"
+          description: |
+            Consumer group {{ $labels.group }} is processing records that
+            are {{ printf "%.0f" $value }}s old on topic {{ $labels.topic }}.
+            Check consumer throughput, partition skew, or stuck listener
+            threads.
+
+      # ── Container memory (cgroup) ────────────────────────────────────
+      # JVM heap dashboards lie in containers. The kernel kills based on
+      # cgroup RSS (heap + off-heap + native + JIT + metaspace + threads).
+      # When pulse.container.memory.headroom_ratio drops below 10%, an OOM
+      # is one allocation away.
+      - alert: PulseContainerMemoryLowHeadroom
+        expr: |
+          pulse_container_memory_headroom_ratio < 0.10
+        for: 5m
+        labels:
+          severity: page
+          slo: saturation
+          subsystem: container
+        annotations:
+          summary: "{{ $labels.application }}: container memory headroom <10%"
+          description: |
+            cgroup memory headroom is {{ printf "%.1f%%" (mul $value 100) }} on
+            {{ $labels.instance }}. The kernel will OOM-kill the JVM at zero;
+            check off-heap allocations (direct buffers, native libs, metaspace)
+            in addition to heap.
+          runbook_url: "https://github.com/arun0009/pulse/blob/main/docs/runbooks/container-memory-headroom.md"
+
+      - alert: PulseContainerMemoryOomKill
+        expr: |
+          increase(pulse_container_memory_oom_kills_total[10m]) > 0
+        for: 0m
+        labels:
+          severity: page
+          slo: availability
+          subsystem: container
+        annotations:
+          summary: "{{ $labels.application }}: cgroup OOM-kill observed"
+          description: |
+            The kernel has OOM-killed at least one process in this cgroup
+            hierarchy in the last 10m. Investigate immediately — the JVM
+            itself may be the next victim.
+
+      - alert: PulseRetryAmplification
+        expr: |
+          sum by (application, env, endpoint)
+            (rate(pulse_retry_amplification_total[5m])) > 0.05
+        for: 5m
+        labels:
+          severity: page
+          slo: availability
+          subsystem: resilience
+        annotations:
+          summary: "{{ $labels.application }}: retry amplification on {{ $labels.endpoint }}"
+          description: |
+            >5% of requests to {{ $labels.endpoint }} arrived with retry-depth above the
+            configured threshold. A retry storm is forming somewhere in the call chain.
+            Combined with PulseTimeoutBudgetExhaustion, this is the signature of a
+            cascading failure in progress — find the root cause downstream and
+            consider temporarily disabling retries on affected paths.
+          runbook_url: "https://github.com/arun0009/pulse/blob/main/docs/runbooks/retry-amplification.md"

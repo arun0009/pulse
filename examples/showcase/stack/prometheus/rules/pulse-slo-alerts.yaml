@@ -1,0 +1,99 @@
+# Pulse — Multi-window, multi-burn-rate SLO alerts.
+#
+# Pattern from the Google SRE workbook (https://sre.google/workbook/alerting-on-slos/).
+# Two alerts per SLO: a fast one that fires on a 1h window with a 14.4× burn rate
+# (page) and a slow one on a 6h window with a 3× burn rate (ticket). Both must
+# trip before paging — this catches a real incident burning the error budget
+# without paging on every 5xx blip.
+#
+# Default SLO: 99.9% availability (error-budget = 0.1%). Adjust `slo_target` and
+# burn rates in the recording rules below if yours differs.
+
+groups:
+  - name: pulse-slo-recording
+    interval: 30s
+    rules:
+      # 5xx error rate over multiple windows.
+      - record: pulse:http_error_rate:1h
+        expr: |
+          sum by (application, env) (rate(http_server_requests_seconds_count{status=~"5.."}[1h]))
+          /
+          sum by (application, env) (rate(http_server_requests_seconds_count[1h]))
+      - record: pulse:http_error_rate:6h
+        expr: |
+          sum by (application, env) (rate(http_server_requests_seconds_count{status=~"5.."}[6h]))
+          /
+          sum by (application, env) (rate(http_server_requests_seconds_count[6h]))
+
+  - name: pulse-slo-alerts
+    rules:
+      - alert: PulseHighErrorBudgetBurnFast
+        expr: |
+          pulse:http_error_rate:1h > (14.4 * 0.001)
+          and
+          pulse:http_error_rate:6h > (6 * 0.001)
+        for: 2m
+        labels:
+          severity: page
+          slo: availability
+        annotations:
+          summary: "{{ $labels.application }} ({{ $labels.env }}) is burning error budget fast"
+          description: |
+            5xx rate is {{ printf "%.2f%%" (mul (.Value) 100) }} over the last 1h —
+            14.4× the budgeted burn for a 99.9% SLO.
+            At this rate the monthly error budget will be exhausted in <2 days.
+          runbook_url: "https://github.com/arun0009/pulse/blob/main/docs/runbooks/error-budget-burn.md"
+
+      - alert: PulseHighErrorBudgetBurnSlow
+        expr: |
+          pulse:http_error_rate:6h > (3 * 0.001)
+        for: 15m
+        labels:
+          severity: ticket
+          slo: availability
+        annotations:
+          summary: "{{ $labels.application }} ({{ $labels.env }}) error budget burning steadily"
+          description: |
+            6h error rate is {{ printf "%.2f%%" (mul (.Value) 100) }} —
+            consistent enough to exhaust the monthly budget if not addressed this week.
+
+      - alert: PulseCardinalityFirewallOverflow
+        expr: |
+          sum by (application, env) (rate(pulse_cardinality_overflow_total[10m])) > 0
+        for: 5m
+        labels:
+          severity: ticket
+          slo: cost
+        annotations:
+          summary: "{{ $labels.application }}: Pulse capped a runaway-cardinality tag"
+          description: |
+            Pulse rewrote at least one metric tag value to the overflow bucket in the
+            last 10m. This means an instrumentation point exceeded the configured
+            cardinality cap and should be investigated.
+
+      - alert: PulseTimeoutBudgetExhaustion
+        expr: |
+          sum by (application, env) (rate(pulse_timeout_budget_exhausted_total[5m])) > 0.05
+        for: 10m
+        labels:
+          severity: ticket
+          slo: latency
+        annotations:
+          summary: "{{ $labels.application }}: requests arriving at downstreams with no budget left"
+          description: |
+            >5% of outbound attempts are being made with zero remaining timeout
+            budget. Either upstream budgets are unrealistic or this service is
+            spending too much of its budget before fan-out.
+
+      - alert: PulseHighP99Latency
+        expr: |
+          histogram_quantile(0.99,
+            sum by (application, env, le) (rate(http_server_requests_seconds_bucket[10m]))
+          ) > 1.0
+        for: 10m
+        labels:
+          severity: ticket
+          slo: latency
+        annotations:
+          summary: "{{ $labels.application }}: p99 > 1s for 10m"
+          description: "p99 = {{ $value }}s"

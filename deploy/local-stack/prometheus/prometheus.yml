@@ -1,0 +1,25 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - /etc/prometheus/rules/*.yaml
+
+scrape_configs:
+  - job_name: 'otel-collector'
+    static_configs:
+      - targets: ['otel-collector:8889']
+
+  # OTel Collector self-telemetry (exporter success/failure counts, queue depth).
+  # Useful for the PulseOtelExporterFailures alert and the "OTel exporter health"
+  # panel on the Pulse dashboard.
+  - job_name: 'otel-collector-internal'
+    static_configs:
+      - targets: ['otel-collector:8888']
+
+  # Scrape any local app's /actuator/prometheus when it runs on host.docker.internal:8080.
+  # Adjust the target list to match your services.
+  - job_name: 'host-app'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['host.docker.internal:8080']

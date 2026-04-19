@@ -1,0 +1,48 @@
+name: Bug report
+description: Pulse misbehaved or didn't do what the README claims
+labels: ["bug", "needs-triage"]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Concrete description of the unexpected behavior.
+      placeholder: "When I add Pulse to my Spring Boot 4 service, X happens but I expected Y."
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Minimal reproduction
+      description: Smallest amount of code or config that triggers the issue. A link to a small repo is gold.
+    validations:
+      required: true
+  - type: input
+    id: pulse-version
+    attributes:
+      label: Pulse version
+    validations:
+      required: true
+  - type: input
+    id: spring-boot-version
+    attributes:
+      label: Spring Boot version
+    validations:
+      required: true
+  - type: input
+    id: java-version
+    attributes:
+      label: Java version
+    validations:
+      required: true
+  - type: textarea
+    id: actuator-pulse
+    attributes:
+      label: Output of /actuator/pulse
+      description: Paste the JSON if you can — it tells us which guardrails are active and how they're configured.
+      render: json
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs / stack trace
+      render: shell

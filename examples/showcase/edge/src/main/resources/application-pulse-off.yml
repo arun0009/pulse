@@ -1,0 +1,38 @@
+# Profile that disables every Pulse feature, leaving the application running on
+# baseline Spring Boot behavior. Activated via SPRING_PROFILES_ACTIVE=pulse-off.
+#
+# This is what life looks like without Pulse:
+#   - async hops have no MDC / no trace continuity
+#   - high-cardinality tags are uncapped (your bill grows linearly with users)
+#   - downstream calls fall back to the platform's default 30s timeout
+#   - inbound requests without trace headers are accepted silently
+spring:
+  application:
+    name: edge-no-pulse
+
+pulse:
+  context:
+    enabled: false
+  trace-guard:
+    enabled: false
+  cardinality:
+    enabled: false
+  timeout-budget:
+    enabled: false
+  async:
+    propagation-enabled: false
+    auto-configure-executor: false
+  exception-handler:
+    enabled: false
+  audit:
+    enabled: false
+  wide-events:
+    enabled: false
+  histograms:
+    enabled: false
+  banner:
+    enabled: false
+  logging:
+    pii-masking-enabled: false
+  kafka:
+    propagation-enabled: false

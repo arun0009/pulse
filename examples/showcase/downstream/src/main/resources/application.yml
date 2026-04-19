@@ -1,0 +1,25 @@
+spring:
+  application:
+    name: downstream
+
+server:
+  port: 8090
+
+app:
+  env: demo
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics,pulse,prometheus
+
+pulse:
+  sampling:
+    probability: 1.0
+  banner:
+    enabled: true
+  timeout-budget:
+    # Demo only: turn OFF the downstream's own safety net so the cascade is fully visible
+    # when the *caller* fails to propagate a deadline. In production you'd keep this on.
+    default-budget: 0s

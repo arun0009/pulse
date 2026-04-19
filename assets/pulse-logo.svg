@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title desc">
+  <title id="title">Pulse logo</title>
+  <desc id="desc">Simple circular logo with a pulse waveform line.</desc>
+  <defs>
+    <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#22c55e"/>
+      <stop offset="100%" stop-color="#0ea5e9"/>
+    </linearGradient>
+  </defs>
+  <rect x="16" y="16" width="224" height="224" rx="52" fill="#0f172a"/>
+  <circle cx="128" cy="128" r="78" fill="none" stroke="url(#g)" stroke-width="14"/>
+  <path d="M54 132h36l16-30 24 54 20-42h52" fill="none" stroke="#e2e8f0" stroke-linecap="round" stroke-linejoin="round" stroke-width="12"/>
+</svg>

@@ -1,0 +1,51 @@
+# OTel Collector configuration for the Pulse showcase.
+#
+# Receives OTLP from edge-with-pulse, edge-without-pulse, and downstream over both
+# HTTP (4318) and gRPC (4317), then fans signals out to:
+#   - Prometheus (metrics, scraped via the prometheus exporter on :8889)
+#   - debug exporter (stdout for traces; visible via `docker compose logs otel-collector`)
+#
+# Logs are also accepted but not forwarded — the demo apps already write structured logs
+# to their container stdout, which `docker compose logs` surfaces.
+
+receivers:
+  otlp:
+    protocols:
+      http:
+        endpoint: 0.0.0.0:4318
+      grpc:
+        endpoint: 0.0.0.0:4317
+
+processors:
+  batch:
+    timeout: 5s
+    send_batch_size: 1024
+
+exporters:
+  prometheus:
+    endpoint: 0.0.0.0:8889
+    # Pulse adds these as common tags so we keep them on every metric for dashboard slicing.
+    resource_to_telemetry_conversion:
+      enabled: true
+
+  debug:
+    verbosity: basic
+
+service:
+  telemetry:
+    logs:
+      level: warn
+
+  pipelines:
+    metrics:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [prometheus]
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [debug]
+    logs:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [debug]

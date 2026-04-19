@@ -49,7 +49,9 @@ public record PulseProperties(
         @DefaultValue Tenant tenant,
         @DefaultValue Retry retry,
         @DefaultValue Priority priority,
-        @DefaultValue ContainerMemory containerMemory) {
+        @DefaultValue ContainerMemory containerMemory,
+        @DefaultValue OpenFeature openFeature,
+        @DefaultValue Cache cache) {
 
     /** MDC enrichment from the inbound HTTP request. */
     public record Context(
@@ -545,4 +547,30 @@ public record PulseProperties(
             @DefaultValue("true") boolean healthIndicatorEnabled,
             @DefaultValue("0.10") double headroomCriticalRatio,
             @DefaultValue("/sys/fs/cgroup") String cgroupRoot) {}
+
+    /**
+     * OpenFeature integration. When the {@code dev.openfeature:sdk} is on the classpath, Pulse
+     * registers a {@link io.github.arun0009.pulse.openfeature.PulseOpenFeatureMdcHook} that
+     * threads flag values onto MDC and stamps OTel-semconv {@code feature_flag} span events. If
+     * the optional {@code dev.openfeature.contrib.hooks:otel} hook is also present, Pulse
+     * registers it reflectively so consumers do not have to wire it themselves.
+     *
+     * <p>Setting {@code pulse.open-feature.enabled=false} suppresses both registrations.
+     */
+    public record OpenFeature(@DefaultValue("true") boolean enabled) {}
+
+    /**
+     * Cache observability — currently scoped to Caffeine via Spring's {@code CaffeineCacheManager}.
+     * When enabled (default), Pulse binds every {@code CaffeineCacheManager} bean to Micrometer
+     * so {@code cache.gets}, {@code cache.puts}, {@code cache.evictions}, and
+     * {@code cache.hit_ratio} land on the registry with no extra configuration. Pulse never
+     * mutates the operator's Caffeine spec; if {@code recordStats()} is missing, the bind happens
+     * anyway (meters report zero) and a one-time WARN per manager bean is logged.
+     *
+     * <p>Setting {@code pulse.cache.caffeine.enabled=false} disables the binding.
+     */
+    public record Cache(@DefaultValue Caffeine caffeine) {
+
+        public record Caffeine(@DefaultValue("true") boolean enabled) {}
+    }
 }

@@ -99,7 +99,10 @@ public final class PulseDiagnostics {
         pulse.put("dependencies", properties.dependencies());
         pulse.put("tenant", properties.tenant());
         pulse.put("retry", properties.retry());
+        pulse.put("priority", properties.priority());
         pulse.put("containerMemory", properties.containerMemory());
+        pulse.put("openFeature", properties.openFeature());
+        pulse.put("cache", properties.cache());
         return Map.of("pulse", pulse);
     }
 
@@ -288,6 +291,22 @@ public final class PulseDiagnostics {
                                 "headroomCriticalRatio",
                                         properties.containerMemory().headroomCriticalRatio(),
                                 "cgroupRoot", properties.containerMemory().cgroupRoot())));
+        map.put(
+                "priority",
+                entry(
+                        properties.priority().enabled(),
+                        Map.of(
+                                "headerName", properties.priority().headerName(),
+                                "defaultPriority", properties.priority().defaultPriority(),
+                                "warnOnCriticalTimeoutExhaustion",
+                                        properties.priority().warnOnCriticalTimeoutExhaustion(),
+                                "tagMeters", properties.priority().tagMeters())));
+        map.put("openFeature", entry(properties.openFeature().enabled(), Map.of()));
+        map.put(
+                "cache",
+                entry(
+                        properties.cache().caffeine().enabled(),
+                        Map.of("caffeineEnabled", properties.cache().caffeine().enabled())));
         return map;
     }
 

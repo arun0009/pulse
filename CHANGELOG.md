@@ -5,13 +5,16 @@ All notable changes to Pulse are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 and follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format.
 
-## [1.0.0] — 2026-04-19
+## [0.1.0] — 2026-04-19
 
-First public Maven Central release. Pulse 1.0 establishes the public API surface for
-production-correctness on Spring Boot 4 — cardinality firewall, timeout-budget propagation,
-SLO-as-code, structured-logging-with-build-metadata, and the `@PulseTest` slice — and
-commits to backwards compatibility for all `pulse.*` configuration keys, actuator
-endpoints, and `io.github.arun0009.pulse.*` package classes through the 1.x line.
+First public release on Maven Central. Pulse is feature-complete for production-correctness
+on Spring Boot 4 — cardinality firewall, timeout-budget propagation, SLO-as-code,
+structured-logging-with-build-metadata, and the `@PulseTest` slice — but the API surface is
+not yet frozen. Per [SemVer](https://semver.org/spec/v2.0.0.html#spec-item-4), the `0.x`
+line reserves the right to evolve `pulse.*` configuration keys, actuator endpoint shapes,
+and `io.github.arun0009.pulse.*` classes between minor versions based on early-adopter
+feedback. A stable `1.0.0` will be cut once the surface has survived contact with real
+production deployments.
 
 ### Added
 - **Cardinality firewall** — automatic per-meter cap on distinct tag values (default 1,000) with overflow bucketing.
@@ -71,4 +74,4 @@ endpoints, and `io.github.arun0009.pulse.*` package classes through the 1.x line
 Reproduce with `make bench`. Numbers are not absolute (your hardware will
 differ); they exist so the perf claim is falsifiable, not a vibe.
 
-[1.0.0]: https://github.com/arun0009/pulse/releases/tag/v1.0.0
+[0.1.0]: https://github.com/arun0009/pulse/releases/tag/v0.1.0

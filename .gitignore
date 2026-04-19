@@ -1,0 +1,33 @@
+
+# Maven
+target/
+*.jar
+*.war
+*.ear
+*.zip
+*.tar.gz
+*.rar
+!src/test/resources/archives/*.jar
+
+# IntelliJ
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+
+# Eclipse
+.classpath
+.project
+.settings/
+bin/
+
+# Mac
+.DS_Store
+
+# Logs
+*.log
+logs/
+
+# Secrets
+src/main/resources/application-local.yml

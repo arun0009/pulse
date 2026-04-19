@@ -1,0 +1,55 @@
+{
+    "time": {
+        "$resolver": "timestamp",
+        "pattern": {
+            "format": "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
+            "timeZone": "UTC"
+        }
+    },
+    "level": {
+        "$resolver": "level",
+        "field": "name"
+    },
+    "logger": {
+        "$resolver": "logger",
+        "field": "name"
+    },
+    "thread": {
+        "$resolver": "thread",
+        "field": "name"
+    },
+    "message": {
+        "$resolver": "message",
+        "stringified": true
+    },
+    "traceId": {
+        "$resolver": "mdc",
+        "key": "traceId"
+    },
+    "spanId": {
+        "$resolver": "mdc",
+        "key": "spanId"
+    },
+    "service": {
+        "$resolver": "mdc",
+        "key": "service"
+    },
+    "env": {
+        "$resolver": "mdc",
+        "key": "env"
+    },
+    "requestId": {
+        "$resolver": "mdc",
+        "key": "requestId"
+    },
+    "context": {
+        "$resolver": "mdc"
+    },
+    "exception": {
+        "$resolver": "exception",
+        "field": "stackTrace",
+        "stackTrace": {
+            "stringified": true
+        }
+    }
+}

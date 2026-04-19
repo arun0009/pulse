@@ -1,0 +1,113 @@
+name: Release
+
+# Triggered by pushing a tag like `v0.1.0`. Stages artifacts (signed sources,
+# javadoc, jar, SBOM) to target/staging-deploy, then JReleaser publishes them to
+# Maven Central via the Sonatype Central Portal. Pattern mirrors arun0009/idempotent
+# so the same JRELEASER_* GitHub Actions secrets are reused.
+
+permissions:
+  contents: write
+  pull-requests: write
+  id-token: write   # Required for Sigstore keyless signing via OIDC.
+
+on:
+  push:
+    tags:
+      - v*
+
+jobs:
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup Java 21
+        uses: actions/setup-java@v5
+        with:
+          java-version: 21
+          distribution: liberica
+          cache: maven
+
+      - name: Write release version
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+
+      - name: Set release version
+        run: ./mvnw --no-transfer-progress --batch-mode versions:set -DnewVersion=${VERSION}
+
+      - name: Build & deploy artifacts (to local staging dir)
+        run: ./mvnw --no-transfer-progress --batch-mode -Prelease deploy
+
+      - name: Release to Maven Central (sign + publish via JReleaser)
+        env:
+          JRELEASER_GPG_PASSPHRASE: ${{ secrets.JRELEASER_GPG_PASSPHRASE }}
+          JRELEASER_GPG_SECRET_KEY: ${{ secrets.JRELEASER_GPG_SECRET_KEY }}
+          JRELEASER_GPG_PUBLIC_KEY: ${{ secrets.JRELEASER_GPG_PUBLIC_KEY }}
+          JRELEASER_MAVENCENTRAL_USERNAME: ${{ secrets.JRELEASER_MAVENCENTRAL_USERNAME }}
+          JRELEASER_MAVENCENTRAL_TOKEN: ${{ secrets.JRELEASER_MAVENCENTRAL_TOKEN }}
+        run: ./mvnw --no-transfer-progress --batch-mode --non-recursive -Prelease jreleaser:deploy
+
+      - name: Repackage plain jars for the GitHub Release
+        run: ./mvnw clean package -DskipTests
+
+      # Sigstore keyless signing — uses the GH Actions OIDC token as the identity
+      # against Fulcio/Rekor. Produces .sig + .pem alongside each jar so anyone can
+      # verify provenance with:
+      #   cosign verify-blob \
+      #     --certificate pulse-X.Y.Z.jar.pem --signature pulse-X.Y.Z.jar.sig \
+      #     --certificate-identity-regexp "https://github.com/arun0009/pulse/.+" \
+      #     --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+      #     pulse-X.Y.Z.jar
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+        with:
+          cosign-release: v2.4.1
+
+      - name: Sign release artifacts with Sigstore (keyless)
+        env:
+          COSIGN_EXPERIMENTAL: "1"
+        run: |
+          set -euo pipefail
+          for jar in target/*.jar target/*-sbom.json target/*-sbom.xml; do
+            [ -f "$jar" ] || continue
+            echo "Signing $jar"
+            cosign sign-blob --yes \
+              --output-signature "${jar}.sig" \
+              --output-certificate "${jar}.pem" \
+              "$jar"
+          done
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ env.VERSION }}
+          generate_release_notes: true
+          files: |
+            target/*.jar
+            target/*-sbom.json
+            target/*-sbom.xml
+            target/*.sig
+            target/*.pem
+          draft: false
+
+      - name: Bump to next SNAPSHOT
+        run: ./mvnw --no-transfer-progress --batch-mode build-helper:parse-version versions:set -DnewVersion=\${parsedVersion.majorVersion}.\${parsedVersion.minorVersion}.\${parsedVersion.nextIncrementalVersion}-SNAPSHOT versions:commit
+
+      - name: Open PR with next-SNAPSHOT bump
+        uses: peter-evans/create-pull-request@v8
+        with:
+          token: ${{ secrets.RELEASE_PR_PAT || secrets.GITHUB_TOKEN }}
+          branch: chore/prepare-next-release-v${{ env.VERSION }}
+          base: main
+          commit-message: "chore: prepare for next release after v${{ env.VERSION }}"
+          title: "chore: prepare for next release after v${{ env.VERSION }}"
+          body: |
+            Automated bump to next SNAPSHOT after publishing `v${{ env.VERSION }}` to Maven Central.
+          delete-branch: true

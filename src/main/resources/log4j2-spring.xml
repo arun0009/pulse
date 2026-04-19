@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="WARN" packages="io.github.arun0009.pulse.logging">
+    <Appenders>
+        <Console name="Console" target="SYSTEM_OUT">
+            <JsonTemplateLayout eventTemplateUri="classpath:pulse-json-layout.json"/>
+        </Console>
+    </Appenders>
+
+    <Loggers>
+        <!-- Dedicated AUDIT appender placeholder — point to your audit sink in your service -->
+        <Logger name="AUDIT" level="INFO" additivity="false">
+            <AppenderRef ref="Console"/>
+        </Logger>
+
+        <Root level="info">
+            <AppenderRef ref="Console"/>
+        </Root>
+    </Loggers>
+</Configuration>

@@ -1,0 +1,112 @@
+# Pulse failure-demo — full observability stack.
+#
+# Three demo services + three observability backends:
+#
+#   downstream            :8090   slow service (sleeps 5s unless honored timeout budget arrives)
+#   edge-with-pulse       :8080   Pulse fully on
+#   edge-without-pulse    :8081   Pulse beans loaded but disabled via profile pulse-off
+#   otel-collector        :4317   OTLP gRPC receiver  (traces, logs)
+#                         :4318   OTLP HTTP receiver
+#                         :8889   Prometheus exporter (legacy / collector self-metrics)
+#   prometheus            :9090   scrapes /actuator/prometheus from each demo app
+#   grafana               :3000   pre-provisioned with the Pulse Service Overview dashboard
+#
+# Run:
+#   make all
+#
+# Then open:
+#   http://localhost:3000              (admin / admin)  → "Pulse" folder → Pulse — Service Overview
+#   http://localhost:9090/alerts       multi-window burn-rate alerts evaluating the demo traffic
+#   http://localhost:8080/actuator/pulse  Pulse self-diagnostics on the with-pulse instance
+
+services:
+
+  downstream:
+    image: pulse-demo/downstream:0.0.1-SNAPSHOT
+    build:
+      context: ./downstream
+      dockerfile: Dockerfile
+    environment:
+      JAVA_TOOL_OPTIONS: "-XX:+UseG1GC -XX:MaxRAMPercentage=75"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4318"
+      MANAGEMENT_OTLP_METRICS_EXPORT_URL: "http://otel-collector:4318/v1/metrics"
+    ports:
+      - "8090:8090"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8090/actuator/health || exit 1"]
+      interval: 5s
+      retries: 10
+
+  edge-with-pulse:
+    image: pulse-demo/edge:0.0.1-SNAPSHOT
+    build:
+      context: ./edge
+      dockerfile: Dockerfile
+    environment:
+      JAVA_TOOL_OPTIONS: "-XX:+UseG1GC -XX:MaxRAMPercentage=75"
+      DOWNSTREAM_URL: "http://downstream:8090"
+      SPRING_APPLICATION_NAME: "edge-with-pulse"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4318"
+      MANAGEMENT_OTLP_METRICS_EXPORT_URL: "http://otel-collector:4318/v1/metrics"
+    ports:
+      - "8080:8080"
+    depends_on:
+      downstream:
+        condition: service_healthy
+
+  edge-without-pulse:
+    image: pulse-demo/edge:0.0.1-SNAPSHOT
+    environment:
+      JAVA_TOOL_OPTIONS: "-XX:+UseG1GC -XX:MaxRAMPercentage=75"
+      DOWNSTREAM_URL: "http://downstream:8090"
+      SPRING_PROFILES_ACTIVE: "pulse-off"
+      SERVER_PORT: "8081"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4318"
+      MANAGEMENT_OTLP_METRICS_EXPORT_URL: "http://otel-collector:4318/v1/metrics"
+    ports:
+      - "8081:8081"
+    depends_on:
+      downstream:
+        condition: service_healthy
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.118.0
+    command: ["--config=/etc/otel-collector/config.yaml"]
+    volumes:
+      - ./stack/otel-collector/config.yaml:/etc/otel-collector/config.yaml:ro
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+      - "8889:8889"
+
+  prometheus:
+    image: prom/prometheus:v3.0.1
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.retention.time=2h"
+      - "--web.enable-lifecycle"
+    volumes:
+      - ./stack/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./stack/prometheus/rules:/etc/prometheus/rules:ro
+    ports:
+      - "9090:9090"
+    depends_on:
+      - edge-with-pulse
+      - edge-without-pulse
+      - downstream
+
+  grafana:
+    image: grafana/grafana:11.4.0
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: "Viewer"
+      GF_USERS_DEFAULT_THEME: "dark"
+    volumes:
+      - ./stack/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./stack/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus

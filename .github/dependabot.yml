@@ -1,0 +1,22 @@
+version: 2
+updates:
+  - package-ecosystem: maven
+    directory: "/"
+    schedule:
+      interval: daily
+      time: "20:00"
+    open-pull-requests-limit: 10
+    groups:
+      spring:
+        patterns: ["org.springframework*"]
+      opentelemetry:
+        patterns: ["io.opentelemetry*"]
+      micrometer:
+        patterns: ["io.micrometer*"]
+      build-plugins:
+        dependency-type: development
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly

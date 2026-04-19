@@ -1,0 +1,27 @@
+# Prometheus config for the Pulse failure-demo.
+#
+# Scrapes the OTel collector's prometheus exporter, plus a few demo-only Pulse alert
+# rules so /alerts in the UI shows what an SLO breach looks like out of the box.
+
+global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+
+scrape_configs:
+  - job_name: pulse-edge-with
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['edge-with-pulse:8080']
+
+  - job_name: pulse-edge-without
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['edge-without-pulse:8081']
+
+  - job_name: pulse-downstream
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['downstream:8090']
+
+rule_files:
+  - /etc/prometheus/rules/*.yaml

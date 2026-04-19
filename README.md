@@ -374,9 +374,9 @@ When a single request prepares more than `pulse.db.n-plus-one-threshold` stateme
 
 1. Increments the suspect counter, tagged by route template (no per-id explosion).
 2. Adds a `pulse.db.n_plus_one.suspect` event to the active span with the statement count and
-   endpoint as attributes — clickable from your tracing UI.
+	endpoint as attributes — clickable from your tracing UI.
 3. Logs a single structured WARN to the `pulse.db.n-plus-one` channel with the per-verb
-   breakdown (e.g. `{SELECT=247, UPDATE=1}`) and the existing `traceId` / `requestId` MDC.
+	breakdown (e.g. `{SELECT=247, UPDATE=1}`) and the existing `traceId` / `requestId` MDC.
 
 Slow queries are routed through Hibernate's built-in `org.hibernate.SQL_SLOW` logger; Pulse
 seeds `hibernate.session.events.log.LOG_QUERIES_SLOWER_THAN_MS` to
@@ -387,7 +387,31 @@ with the trace that issued the query — zero extra plumbing.
 The whole subsystem is gated by `@ConditionalOnClass(StatementInspector.class)` — non-JPA apps
 (MongoDB, plain JDBC, REST-only) pay nothing.
 
-### 10. Observability for observability
+### 10. Resilience4j auto-instrumentation
+
+If your application registers a `CircuitBreakerRegistry`, `RetryRegistry`, or `BulkheadRegistry`,
+Pulse attaches event consumers automatically — no annotations on your `@CircuitBreaker` /
+`@Retry` methods, no manual subscribers:
+
+```
+pulse.r4j.circuit_breaker.state_transitions{name, from, to}   # CLOSED→OPEN counter
+pulse.r4j.circuit_breaker.state{name}                          # live state gauge
+pulse.r4j.circuit_breaker.errors_total{name}                   # numerator for burn-rate
+pulse.r4j.retry.attempts_total{name}                           # silent retries surfaced
+pulse.r4j.retry.exhausted_total{name}                          # gave up after max attempts
+pulse.r4j.bulkhead.rejected_total{name}                        # load shed at the boundary
+```
+
+Every state transition also lands as a span event (`pulse.r4j.cb.state_transition`) on the
+active span — so a slow-trace investigation immediately tells you "this trace took 4s because
+the circuit went HALF_OPEN at attempt 3 of the retry," not just "this trace was slow." Each
+retry attempt likewise stamps `pulse.r4j.retry.attempt` on the parent span with the attempt
+number, eliminating the silent-retry blind spot.
+
+Cardinality is bounded by the number of breakers/retries you declare (single-digit per
+service in practice).
+
+### 11. Observability for observability
 
 `/actuator/pulse` lists every subsystem and its effective config. `/actuator/pulse/runtime`
 reports cardinality top-offenders, SLO compliance, and (via the bundled

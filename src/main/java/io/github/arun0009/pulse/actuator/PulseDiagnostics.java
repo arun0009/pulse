@@ -95,6 +95,7 @@ public final class PulseDiagnostics {
         pulse.put("shutdown", properties.shutdown());
         pulse.put("jobs", properties.jobs());
         pulse.put("db", properties.db());
+        pulse.put("resilience", properties.resilience());
         return Map.of("pulse", pulse);
     }
 
@@ -234,6 +235,7 @@ public final class PulseDiagnostics {
                                 "nPlusOneThreshold", properties.db().nPlusOneThreshold(),
                                 "slowQueryThreshold",
                                         properties.db().slowQueryThreshold().toString())));
+        map.put("resilience", entry(properties.resilience().enabled(), Map.of()));
         return map;
     }
 

@@ -41,7 +41,8 @@ public record PulseProperties(
         @DefaultValue Health health,
         @DefaultValue Shutdown shutdown,
         @DefaultValue Jobs jobs,
-        @DefaultValue Db db) {
+        @DefaultValue Db db,
+        @DefaultValue Resilience resilience) {
 
     /** MDC enrichment from the inbound HTTP request. */
     public record Context(
@@ -270,4 +271,17 @@ public record PulseProperties(
             @DefaultValue("true") boolean enabled,
             @DefaultValue("50") int nPlusOneThreshold,
             @DefaultValue("500ms") Duration slowQueryThreshold) {}
+
+    /**
+     * Resilience4j auto-instrumentation. When the application registers a
+     * {@code CircuitBreakerRegistry}, {@code RetryRegistry}, or {@code BulkheadRegistry},
+     * Pulse attaches event consumers that turn state transitions, retries, and rejections
+     * into Micrometer counters + span events + structured log lines. No code changes required
+     * on the consumer's @CircuitBreaker / @Retry annotated methods.
+     *
+     * <p>Setting {@code enabled=false} disables every observer at once. Each individual
+     * observer is also gated on its registry being present, so a service that only uses
+     * circuit breakers does not pay for retry or bulkhead wiring.
+     */
+    public record Resilience(@DefaultValue("true") boolean enabled) {}
 }

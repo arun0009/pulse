@@ -136,6 +136,7 @@ class PulseKafkaRecordInterceptorTest {
                 new PulseProperties.Health(true, Duration.ofMinutes(5)),
                 new PulseProperties.Shutdown(true, Duration.ofSeconds(10)),
                 new PulseProperties.Jobs(true, true, Duration.ofHours(1)),
-                new PulseProperties.Db(true, 50, Duration.ofMillis(500)));
+                new PulseProperties.Db(true, 50, Duration.ofMillis(500)),
+                new PulseProperties.Resilience(true));
     }
 }

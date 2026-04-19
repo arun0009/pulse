@@ -17,10 +17,8 @@
 	<img alt="Spring Boot 4" src="https://img.shields.io/badge/Spring%20Boot-4-6DB33F?logo=springboot&logoColor=white"/>
 </p>
 
-> **Requires Spring Boot 4.x and Java 21+.** Pulse uses Boot 4's repackaged actuator
-> API (`org.springframework.boot.health.contributor`), the new Micrometer + OTel
-> starters, and Java 21 records / pattern matching. A Boot 3.x backport may follow in
-> 1.x but is not on the 1.0 roadmap. See [Requirements](#requirements).
+> **Requires Spring Boot 4.x and Java 21+.** Full compatibility matrix in
+> [Requirements](#requirements).
 
 ---
 
@@ -47,16 +45,17 @@ No agent. No bytecode weaving. No custom runtime. One dependency.
 
 ## Quick start
 
-**1. Add the dependency**
+**1. Add the dependency** ([latest version on Maven Central](https://central.sonatype.com/artifact/io.github.arun0009/pulse-spring-boot-starter))
 
 ```xml
 <dependency>
 	<groupId>io.github.arun0009</groupId>
 	<artifactId>pulse-spring-boot-starter</artifactId>
+	<version>1.0.0</version>
 </dependency>
 ```
 
-**2. Point at your OTel Collector**
+**2. Point at your OTel Collector** (skip this if you already have OTLP env vars wired)
 
 ```bash
 export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
@@ -64,10 +63,16 @@ export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
 
 **3. Start your app and verify your pipeline is actually exporting**
 
+The exact command depends on your build (`./mvnw spring-boot:run`, `./gradlew bootRun`, etc.).
+Once it's up, ask the actuator whether spans are landing — substitute the port your management
+endpoint listens on (default `8080`):
+
 ```bash
-$ curl -s localhost:8080/actuator/health | jq '.components.otelExporter'
-{ "status": "UP", "details": { "lastSuccessAgeMs": 1230, "totalSuccess": 14 } }
+$ curl -s localhost:8080/actuator/health/otelExporter
+{"status":"UP","details":{"lastSuccessAgeMs":1230,"totalSuccess":14}}
 ```
+
+(`jq` not required — Pulse already returns sorted, single-line JSON.)
 
 That's it. No agent, no bytecode weaving, no custom runtime.
 For a browser-friendly view of every Pulse subsystem (what's on, what's off,
@@ -541,7 +546,7 @@ Pulse holds itself to the same bar it sets for your observability:
 - **CodeQL** — GitHub security scanning on every PR and weekly schedule
 - **CycloneDX SBOM** — supply-chain audit artifact generated on every build
 - **Sigstore signing** — keyless provenance on every release artifact via GitHub OIDC
-- **JMH benchmarks** — overhead claims are falsifiable, run on every PR
+- **JMH benchmarks** — overhead claims are falsifiable; benchmarks run in CI on every PR (non-blocking) and on demand via `make bench`
 - **GraalVM native hints** — `RuntimeHints` registered for the reflection / proxy / resource edges Spring AOT cannot infer
 - **Reproducible builds** — `project.build.outputTimestamp` set; bytewise-identical artifacts across rebuilds
 - **Multi-JDK CI** — tested on Java 21 and 25
@@ -550,15 +555,25 @@ Pulse holds itself to the same bar it sets for your observability:
 
 ## Requirements
 
-- Java 21+
-- Spring Boot 4.0+
-- Log4j2 runtime by default — Logback supported via opt-in (see [Logback users](#5-structured-logs-with-deploy--commit--pod--region-on-every-line) above)
+| Component         | Supported                                                                                      |
+|-------------------|------------------------------------------------------------------------------------------------|
+| Java              | 21, 25 (CI runs both)                                                                          |
+| Spring Boot       | 4.0+                                                                                           |
+| Micrometer        | The version Boot 4 brings transitively (no override needed)                                    |
+| OpenTelemetry SDK | The version `io.opentelemetry.instrumentation:opentelemetry-spring-boot-starter` brings        |
+| Logging           | Log4j2 by default; Logback supported via opt-in (see [Logback users](#5-structured-logs-with-deploy--commit--pod--region-on-every-line)) |
+| GraalVM native    | Reflection / proxy / resource hints registered via `RuntimeHints` (best-effort; not gated in CI yet) |
+
+Pulse uses Boot 4's repackaged actuator API, the new Micrometer + OTel
+starters, and Java 21 records / pattern matching. A Boot 3.x backport may
+follow in the 1.x line but is not on the 1.0 roadmap.
 
 ## Status
 
-Active development. See [`CHANGELOG.md`](CHANGELOG.md) for what's in each release,
-[`CONTRIBUTING.md`](CONTRIBUTING.md) for the local workflow, and
-[`SECURITY.md`](SECURITY.md) for vulnerability reporting.
+1.0 — see [`CHANGELOG.md`](CHANGELOG.md) for what's in each release,
+[`CONTRIBUTING.md`](CONTRIBUTING.md) for the local workflow,
+[`SECURITY.md`](SECURITY.md) for vulnerability reporting, and
+[`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md) for community expectations.
 
 ## License
 

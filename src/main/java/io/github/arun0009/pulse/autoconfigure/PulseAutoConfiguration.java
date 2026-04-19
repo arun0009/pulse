@@ -30,6 +30,7 @@ import io.github.arun0009.pulse.shutdown.PulseOtelShutdownLifecycle;
 import io.github.arun0009.pulse.slo.SloProjector;
 import io.github.arun0009.pulse.slo.SloRuleGenerator;
 import io.github.arun0009.pulse.startup.PulseStartupBanner;
+import io.github.arun0009.pulse.tenant.PulseTenantConfiguration;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.config.MeterFilter;
 import io.opentelemetry.sdk.OpenTelemetrySdk;
@@ -91,6 +92,7 @@ import org.springframework.core.env.Environment;
     PulseResilience4jConfiguration.class,
     PulseProfilingConfiguration.class,
     PulseDependenciesConfiguration.class,
+    PulseTenantConfiguration.class,
 })
 public class PulseAutoConfiguration {
 

@@ -46,7 +46,8 @@ public record PulseProperties(
         @DefaultValue Db db,
         @DefaultValue Resilience resilience,
         @DefaultValue Profiling profiling,
-        @DefaultValue Dependencies dependencies) {
+        @DefaultValue Dependencies dependencies,
+        @DefaultValue Tenant tenant) {
 
     /** MDC enrichment from the inbound HTTP request. */
     public record Context(
@@ -340,4 +341,67 @@ public record PulseProperties(
             @DefaultValue Map<String, String> map,
             @DefaultValue("unknown") String defaultName,
             @DefaultValue("20") int fanOutWarnThreshold) {}
+
+    /**
+     * Multi-tenant context — extracts the tenant id from the inbound request, propagates it on
+     * MDC + outbound HTTP/Kafka headers, and (optionally) tags Micrometer meters with it.
+     *
+     * <p>Three built-in extractors ship with Pulse, each opt-in via its own {@code enabled}
+     * flag. The header extractor is on by default to match the behavior of the existing
+     * {@link Context#tenantIdHeader()} pre-0.3.0. Applications add their own by declaring a
+     * {@code @Bean TenantExtractor} — Spring's {@code @Order} controls the resolution order.
+     *
+     * <p>Resolution priority (first non-empty wins):
+     *
+     * <ol>
+     *   <li>{@code pulse.tenant.id} system property — for {@code @SpringBootTest} and dev.
+     *   <li>The highest-priority extractor whose {@code extract()} returns non-empty.
+     *   <li>{@link #unknownValue()} — written to MDC and used as the metric tag.
+     * </ol>
+     *
+     * <p>Cardinality is the killer concern with tenant tags. {@link #maxTagCardinality()} sits on
+     * top of the global {@link Cardinality#maxTagValuesPerMeter()} ceiling so a multi-tenant SaaS
+     * can keep the global cap at 1000 (for paths, methods, statuses) while keeping the tenant
+     * tag at a much tighter 100. Excess tenants are bucketed to {@link #overflowValue()}.
+     *
+     * <p>Propagation defaults: tenant id always flows on MDC, OTel baggage (via the existing
+     * Pulse propagation chain), outbound HTTP/Kafka headers, and the {@code pulse.events}
+     * wide-event counter. Metric tagging on {@code http.server.requests}, {@code
+     * pulse.dependency.*}, etc. is opt-in via {@link #tagMeters()} — operators add the meter
+     * names they want tenant attribution on, and the cardinality cap protects them.
+     */
+    public record Tenant(
+            @DefaultValue("true") boolean enabled,
+            @DefaultValue Header header,
+            @DefaultValue Jwt jwt,
+            @DefaultValue Subdomain subdomain,
+            @DefaultValue("100") int maxTagCardinality,
+            @DefaultValue("__overflow__") String overflowValue,
+            @DefaultValue("unknown") String unknownValue,
+            @DefaultValue({}) List<String> tagMeters) {
+
+        /** Header-based extraction. Default: read {@code X-Tenant-ID}. */
+        public record Header(
+                @DefaultValue("true") boolean enabled,
+                @DefaultValue("X-Tenant-ID") String name) {}
+
+        /**
+         * JWT-claim extraction. Reads the {@code Authorization: Bearer ...} header, parses the
+         * payload as JSON without verifying the signature, and reads {@link #claim()}. Pulse does
+         * not perform signature verification — that's Spring Security's job. The claim is treated
+         * as advisory metadata once Security has authenticated the request.
+         */
+        public record Jwt(
+                @DefaultValue("false") boolean enabled,
+                @DefaultValue("tenant_id") String claim) {}
+
+        /**
+         * Subdomain extraction. Splits {@code Host} on dots and returns the segment at
+         * {@link #index()} (default {@code 0} — the leftmost label). For
+         * {@code acme.app.example.com} with index 0, the tenant resolves to {@code acme}.
+         */
+        public record Subdomain(
+                @DefaultValue("false") boolean enabled,
+                @DefaultValue("0") int index) {}
+    }
 }

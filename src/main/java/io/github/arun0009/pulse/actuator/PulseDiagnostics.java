@@ -98,6 +98,7 @@ public final class PulseDiagnostics {
         pulse.put("resilience", properties.resilience());
         pulse.put("profiling", properties.profiling());
         pulse.put("dependencies", properties.dependencies());
+        pulse.put("tenant", properties.tenant());
         return Map.of("pulse", pulse);
     }
 
@@ -260,6 +261,15 @@ public final class PulseDiagnostics {
         dependenciesDetails.put("defaultName", properties.dependencies().defaultName());
         dependenciesDetails.put("fanOutWarnThreshold", properties.dependencies().fanOutWarnThreshold());
         map.put("dependencies", entry(properties.dependencies().enabled(), dependenciesDetails));
+        Map<String, Object> tenantDetails = new LinkedHashMap<>();
+        tenantDetails.put("headerEnabled", properties.tenant().header().enabled());
+        tenantDetails.put("headerName", properties.tenant().header().name());
+        tenantDetails.put("jwtEnabled", properties.tenant().jwt().enabled());
+        tenantDetails.put("jwtClaim", properties.tenant().jwt().claim());
+        tenantDetails.put("subdomainEnabled", properties.tenant().subdomain().enabled());
+        tenantDetails.put("maxTagCardinality", properties.tenant().maxTagCardinality());
+        tenantDetails.put("tagMeters", properties.tenant().tagMeters());
+        map.put("tenant", entry(properties.tenant().enabled(), tenantDetails));
         return map;
     }
 

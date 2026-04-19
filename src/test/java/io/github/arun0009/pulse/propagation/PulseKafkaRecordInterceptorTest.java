@@ -139,6 +139,15 @@ class PulseKafkaRecordInterceptorTest {
                 new PulseProperties.Db(true, 50, Duration.ofMillis(500)),
                 new PulseProperties.Resilience(true),
                 new PulseProperties.Profiling(true, null),
-                new PulseProperties.Dependencies(true, java.util.Map.of(), "unknown", 20));
+                new PulseProperties.Dependencies(true, java.util.Map.of(), "unknown", 20),
+                new PulseProperties.Tenant(
+                        true,
+                        new PulseProperties.Tenant.Header(true, "X-Tenant-ID"),
+                        new PulseProperties.Tenant.Jwt(false, "tenant_id"),
+                        new PulseProperties.Tenant.Subdomain(false, 0),
+                        100,
+                        "__overflow__",
+                        "unknown",
+                        List.of()));
     }
 }

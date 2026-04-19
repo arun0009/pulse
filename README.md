@@ -221,8 +221,63 @@ pulse:
 ### 7. Structured JSON logs with PII masking
 
 The bundled `log4j2-spring.xml` ships a JSON layout that emits `traceId`, `spanId`, `service`,
-`env`, `requestId`, `errorFingerprint`, and your custom MDC keys on every line. The PII masking
-converter redacts emails, SSNs, credit card numbers, Bearer tokens, and JSON
+`env`, `app.version`, `build.commit`, `requestId`, `errorFingerprint`, and your custom MDC keys
+on **every** line — including pre-Spring-boot lines from background threads. "Which deploy
+logged this?" is never a question again.
+
+#### How `app.version` and `build.commit` get resolved
+
+Pulse cannot put values *into* your JAR or environment — Maven plugins aren't transitive, and a
+Fargate task that downloads a pre-built JAR has no git context. What Pulse *does* is read
+whichever source is present at runtime, in priority order, and stamps the value on every log
+line and metric tag. First non-empty wins:
+
+| # | Source | Best for |
+|---|--------|----------|
+| 1 | `-Dpulse.app.version=…` / `-Dpulse.build.commit=…` JVM args | Operator override |
+| 2 | Classpath `META-INF/build-info.properties` + `git.properties` | **Build-once-deploy-many** (Artifactory → Docker → Fargate / EKS) — values travel inside the JAR |
+| 3 | `OTEL_RESOURCE_ATTRIBUTES` env var (`service.version`, `deployment.commit`) | Kubernetes / Fargate task definitions that template these in |
+| 4 | Common env vars (`GIT_COMMIT`, `GITHUB_SHA`, `CI_COMMIT_SHA`, `BUILD_VERSION`, `IMAGE_TAG`, …) | CI smoke runs and deploy pipelines that thread the SHA in |
+| 5 | Boot JAR `META-INF/MANIFEST.MF` `Implementation-Version` | Free `app.version` from your pom — **no plugin needed** |
+| 6 | Fallback `"unknown"` | — |
+
+**Pick whichever fits your pipeline:**
+
+- **Build-once-deploy-many shops** (the JAR you `mvn package` is the JAR Fargate runs, possibly weeks later) — wire the two Maven plugins in your `pom.xml`. The values are baked into the JAR at build time, survive Artifactory + Docker, and require zero deploy-time configuration:
+	```xml
+	<plugin>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-maven-plugin</artifactId>
+			<executions>
+					<execution><goals><goal>build-info</goal></goals></execution>
+			</executions>
+	</plugin>
+	<plugin>
+			<groupId>io.github.git-commit-id</groupId>
+			<artifactId>git-commit-id-maven-plugin</artifactId>
+			<version>9.2.0</version>
+			<executions>
+					<execution>
+							<id>get-git-info</id>
+							<goals><goal>revision</goal></goals>
+							<phase>initialize</phase>
+					</execution>
+			</executions>
+			<configuration>
+					<generateGitPropertiesFile>true</generateGitPropertiesFile>
+					<commitIdGenerationMode>full</commitIdGenerationMode>
+					<failOnNoGitDirectory>false</failOnNoGitDirectory>
+			</configuration>
+	</plugin>
+	```
+
+- **Kubernetes / OTel-instrumented platforms** — set `OTEL_RESOURCE_ATTRIBUTES=service.version=1.4.2,deployment.commit=$GIT_SHA` in your deployment manifest or task definition. No XML required.
+
+- **Do nothing** — `app.version` still resolves from your boot JAR's `Implementation-Version` (Spring Boot writes this from the pom version with zero config). Commit hash will be `unknown`.
+
+#### PII masking
+
+The PII masking converter redacts emails, SSNs, credit card numbers, Bearer tokens, and JSON
 `password|secret|token|apikey` fields before they reach the appender — **off by default** is not
 Pulse's idea of safe.
 

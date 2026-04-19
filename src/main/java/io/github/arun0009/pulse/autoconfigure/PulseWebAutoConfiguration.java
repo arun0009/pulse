@@ -5,12 +5,14 @@ import io.github.arun0009.pulse.actuator.PulseEndpoint;
 import io.github.arun0009.pulse.actuator.PulseUiEndpoint;
 import io.github.arun0009.pulse.core.ContextContributor;
 import io.github.arun0009.pulse.core.PulseRequestContextFilter;
+import io.github.arun0009.pulse.core.PulseRequestMatcher;
 import io.github.arun0009.pulse.core.TraceGuardFilter;
 import io.github.arun0009.pulse.exception.PulseExceptionHandler;
 import io.github.arun0009.pulse.guardrails.TimeoutBudgetFilter;
 import io.github.arun0009.pulse.slo.SloRuleGenerator;
 import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.servlet.Filter;
+import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.actuate.autoconfigure.endpoint.condition.ConditionalOnAvailableEndpoint;
@@ -57,9 +59,18 @@ public class PulseWebAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
+    public PulseRequestMatcherFactory pulseRequestMatcherFactory(BeanFactory beanFactory) {
+        return new PulseRequestMatcherFactory(beanFactory);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
     @ConditionalOnProperty(prefix = "pulse.trace-guard", name = "enabled", havingValue = "true", matchIfMissing = true)
-    public TraceGuardFilter pulseTraceGuardFilter(MeterRegistry registry, PulseProperties properties) {
-        return new TraceGuardFilter(registry, properties.traceGuard());
+    public TraceGuardFilter pulseTraceGuardFilter(
+            MeterRegistry registry, PulseProperties properties, PulseRequestMatcherFactory matcherFactory) {
+        PulseRequestMatcher gate =
+                matcherFactory.build("trace-guard", properties.traceGuard().enabledWhen());
+        return new TraceGuardFilter(registry, properties.traceGuard(), gate);
     }
 
     @Bean

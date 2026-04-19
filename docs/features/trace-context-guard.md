@@ -77,17 +77,37 @@ handles writing on the response.
 pulse:
   trace-guard:
     enabled: true                        # default
-    span-event-on-received: true         # default
-    span-event-on-missing: true          # default
-    route-tag-fallback: UNMATCHED        # default
+    fail-on-missing: false               # default
+    exclude-path-prefixes:               # default
+      - /actuator
+      - /health
+      - /metrics
+    enabled-when: {}                     # since 1.1.0; empty = run for every request
 ```
 
 | Key | Type | Default | Notes |
 |---|---|---|---|
 | `enabled` | boolean | `true` | Master switch |
-| `span-event-on-received` | boolean | `true` | Emit `trace.context.received` event on the span |
-| `span-event-on-missing` | boolean | `true` | Emit `trace.context.missing` event on the span |
-| `route-tag-fallback` | string | `UNMATCHED` | Tag value for requests with no matched route pattern |
+| `fail-on-missing` | boolean | `false` | Throw a 500 instead of just incrementing the counter |
+| `exclude-path-prefixes` | list | `/actuator, /health, /metrics` | Coarse, always-on path skip |
+| `enabled-when` | matcher | empty | Per-request gate — see [Conditional features](conditional-features.md) |
+
+### Skipping synthetic traffic (`enabled-when`)
+
+To bypass the guard for monitoring probes or smoke tests without setting
+`enabled: false` globally:
+
+```yaml
+pulse:
+  trace-guard:
+    enabled-when:
+      header-not-equals:
+        client-id: test-client-id
+```
+
+Real traffic still passes through the guard normally. See [Conditional
+features](conditional-features.md) for the full matcher schema (header
+equals/not-equals/prefix, path matches/excludes, custom bean).
 
 ## Shipped alert
 

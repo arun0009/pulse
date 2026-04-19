@@ -41,6 +41,16 @@ import java.util.List;
  * </ol>
  *
  * <p>Behavior on missing context is governed by {@link PulseProperties.TraceGuard#failOnMissing()}.
+ *
+ * <p>A request can be excluded from the guard in two ways:
+ * <ol>
+ *   <li>{@link PulseProperties.TraceGuard#excludePathPrefixes()} — coarse, path-prefix-based,
+ *       evaluated first. Defaults cover {@code /actuator}, {@code /health}, {@code /metrics}.
+ *   <li>{@link PulseProperties.TraceGuard#enabledWhen()} (since 1.1) — declarative
+ *       header/path predicate compiled by {@code PulseRequestMatcherFactory}. Lets you skip the
+ *       guard for synthetic monitoring traffic, smoke tests, or trusted internal callers without
+ *       turning the feature off globally.
+ * </ol>
  */
 public class TraceGuardFilter extends OncePerRequestFilter implements Ordered {
 
@@ -56,10 +66,16 @@ public class TraceGuardFilter extends OncePerRequestFilter implements Ordered {
 
     private final MeterRegistry registry;
     private final PulseProperties.TraceGuard config;
+    private final PulseRequestMatcher gate;
 
     public TraceGuardFilter(MeterRegistry registry, PulseProperties.TraceGuard config) {
+        this(registry, config, PulseRequestMatcher.ALWAYS);
+    }
+
+    public TraceGuardFilter(MeterRegistry registry, PulseProperties.TraceGuard config, PulseRequestMatcher gate) {
         this.registry = registry;
         this.config = config;
+        this.gate = gate;
     }
 
     @Override
@@ -72,6 +88,11 @@ public class TraceGuardFilter extends OncePerRequestFilter implements Ordered {
             throws ServletException, IOException {
 
         if (isExempt(request.getRequestURI(), config.excludePathPrefixes())) {
+            chain.doFilter(request, response);
+            return;
+        }
+
+        if (!gate.matches(request)) {
             chain.doFilter(request, response);
             return;
         }

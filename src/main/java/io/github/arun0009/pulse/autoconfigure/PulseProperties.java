@@ -63,13 +63,31 @@ public record PulseProperties(
             @DefaultValue("Idempotency-Key") String idempotencyKeyHeader,
             @DefaultValue({}) List<String> additionalHeaders) {}
 
-    /** Detect inbound requests missing trace-context headers. */
+    /**
+     * Detect inbound requests missing trace-context headers.
+     *
+     * <p>{@link #enabledWhen()} (since 1.1) provides per-request gating: the guard is skipped
+     * for requests where the matcher returns {@code false}. Use it to bypass synthetic monitoring
+     * traffic, smoke tests, or trusted internal callers without setting {@code enabled=false}
+     * globally. The default is an empty matcher, which matches every request — pre-1.1 behaviour.
+     *
+     * <pre>
+     * pulse:
+     *   trace-guard:
+     *     enabled: true
+     *     enabled-when:
+     *       header-not-equals:
+     *         client-id: test-client-id
+     * </pre>
+     */
     public record TraceGuard(
             @DefaultValue("true") boolean enabled,
             @DefaultValue("false") boolean failOnMissing,
 
             @DefaultValue({"/actuator", "/health", "/metrics"})
-            List<String> excludePathPrefixes) {}
+            List<String> excludePathPrefixes,
+
+            @DefaultValue PulseRequestMatcherProperties enabledWhen) {}
 
     /**
      * Trace sampler configuration.

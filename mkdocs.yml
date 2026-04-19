@@ -99,6 +99,8 @@ nav:
   - Concepts: concepts.md
   - Features:
       - features/index.md
+      - Cross-cutting:
+          - Conditional features (enabled-when): features/conditional-features.md
       - Day-one drivers:
           - Cardinality firewall: features/cardinality-firewall.md
           - Timeout budget: features/timeout-budget.md

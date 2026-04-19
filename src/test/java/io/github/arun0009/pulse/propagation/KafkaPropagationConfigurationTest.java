@@ -208,7 +208,17 @@ class KafkaPropagationConfigurationTest {
                         "Pulse-Tenant-Id",
                         "Idempotency-Key",
                         List.of()),
-                new PulseProperties.TraceGuard(true, false, List.of()),
+                new PulseProperties.TraceGuard(
+                        true,
+                        false,
+                        List.of(),
+                        new io.github.arun0009.pulse.autoconfigure.PulseRequestMatcherProperties(
+                                java.util.Map.of(),
+                                java.util.Map.of(),
+                                java.util.Map.of(),
+                                List.of(),
+                                List.of(),
+                                null)),
                 new PulseProperties.Sampling(1.0, true),
                 new PulseProperties.Async(true, false, 8, 32, 100, "pulse-", true),
                 new PulseProperties.Kafka(true, true),

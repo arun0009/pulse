@@ -21,6 +21,7 @@ import io.github.arun0009.pulse.propagation.OkHttpPropagationConfiguration;
 import io.github.arun0009.pulse.propagation.RestClientPropagationConfiguration;
 import io.github.arun0009.pulse.propagation.RestTemplatePropagationConfiguration;
 import io.github.arun0009.pulse.propagation.WebClientPropagationConfiguration;
+import io.github.arun0009.pulse.resilience.PulseResilience4jConfiguration;
 import io.github.arun0009.pulse.scheduling.ContextPropagatingTaskScheduler;
 import io.github.arun0009.pulse.scheduling.PulseSchedulingConfigurer;
 import io.github.arun0009.pulse.shutdown.PulseOtelShutdownLifecycle;
@@ -85,6 +86,7 @@ import org.springframework.core.env.Environment;
     OkHttpPropagationConfiguration.class,
     KafkaPropagationConfiguration.class,
     PulseDbConfiguration.class,
+    PulseResilience4jConfiguration.class,
 })
 public class PulseAutoConfiguration {
 

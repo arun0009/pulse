@@ -73,6 +73,7 @@
         <project.build.outputTimestamp>2026-01-01T00:00:00Z</project.build.outputTimestamp>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+        <resilience4j.version>2.3.0</resilience4j.version>
         <spotless.version>3.4.0</spotless.version>
         <spring.boot.version>4.0.5</spring.boot.version>
         <wiremock.version>3.10.0</wiremock.version>
@@ -200,6 +201,30 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-hibernate</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <!-- Resilience4j — optional, compile-only. Lets Pulse compile against
+             CircuitBreakerRegistry / RetryRegistry / RateLimiterRegistry / BulkheadRegistry /
+             TimeLimiterRegistry so it can attach event consumers when these registries are
+             wired by the consumer (typically through resilience4j-spring-boot3 or hand-rolled).
+             Apps that don't use Resilience4j short-circuit the whole subsystem via
+             @ConditionalOnClass at zero startup cost. -->
+        <dependency>
+            <groupId>io.github.resilience4j</groupId>
+            <artifactId>resilience4j-circuitbreaker</artifactId>
+            <version>${resilience4j.version}</version>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>io.github.resilience4j</groupId>
+            <artifactId>resilience4j-retry</artifactId>
+            <version>${resilience4j.version}</version>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>io.github.resilience4j</groupId>
+            <artifactId>resilience4j-bulkhead</artifactId>
+            <version>${resilience4j.version}</version>
             <optional>true</optional>
         </dependency>
         <!--

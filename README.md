@@ -63,22 +63,16 @@ Drop in Pulse and you get all of this **on by default**, zero configuration requ
 export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
 ```
 
-**3. Start your app and verify**
+**3. Start your app and verify your pipeline is actually exporting**
 
 ```bash
-$ curl -s localhost:8080/actuator/pulse | jq '.subsystems | keys'
-[
-	"async", "audit", "cardinalityFirewall", "exceptionHandler", "histograms",
-	"kafka", "logging", "requestContext", "sampling", "slo",
-	"timeoutBudget", "traceGuard", "wideEvents"
-]
-
 $ curl -s localhost:8080/actuator/health | jq '.components.otelExporter'
 { "status": "UP", "details": { "lastSuccessAgeMs": 1230, "totalSuccess": 14 } }
 ```
 
 That's it. No agent, no bytecode weaving, no custom runtime.
-A browser-friendly view lives at **`/actuator/pulseui`**.
+For a browser-friendly view of every Pulse subsystem (what's on, what's off,
+which configuration won) hit **`/actuator/pulseui`**.
 
 Don't have a Collector yet? `docker compose -f deploy/local-stack/docker-compose.yml up -d`
 brings up the full pipeline in one command ([details](#run-a-local-stack)).

@@ -3,6 +3,9 @@ package io.github.arun0009.pulse.priority;
 import io.github.arun0009.pulse.autoconfigure.PulseProperties;
 import io.github.arun0009.pulse.core.ContextKeys;
 import io.github.arun0009.pulse.core.PulseRequestContextFilter;
+import io.opentelemetry.api.baggage.Baggage;
+import io.opentelemetry.context.Context;
+import io.opentelemetry.context.Scope;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -48,7 +51,10 @@ public final class RequestPriorityFilter extends OncePerRequestFilter implements
         @Nullable String previousMdc = MDC.get(ContextKeys.PRIORITY);
         @Nullable RequestPriority previousContext = RequestPriority.current().orElse(null);
         RequestPriority resolved = RequestPriority.parseOrDefault(request.getHeader(headerName), defaultPriority);
-        try {
+        Baggage updated = Baggage.current().toBuilder()
+                .put(ContextKeys.PRIORITY_BAGGAGE_KEY, resolved.wireValue())
+                .build();
+        try (Scope ignored = updated.storeInContext(Context.current()).makeCurrent()) {
             MDC.put(ContextKeys.PRIORITY, resolved.wireValue());
             RequestPriority.set(resolved);
             chain.doFilter(request, response);

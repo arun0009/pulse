@@ -55,4 +55,14 @@ public final class ContextKeys {
     public static final String SPAN_ID = "spanId";
 
     public static final String RESPONSE_TRACE_HEADER = "X-Trace-ID";
+
+    /**
+     * OTel baggage keys. Pulse mirrors the corresponding MDC values onto baggage so they survive
+     * the OTel context boundary (cross-thread, cross-process via the OTel propagator) in addition
+     * to Pulse's own header-based propagation. Names follow Pulse's snake_case-within-segment
+     * meter convention so they line up with the broader {@code pulse.*} namespace.
+     */
+    public static final String TENANT_BAGGAGE_KEY = "pulse.tenant.id";
+
+    public static final String PRIORITY_BAGGAGE_KEY = "pulse.priority";
 }

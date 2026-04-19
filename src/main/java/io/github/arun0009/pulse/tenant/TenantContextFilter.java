@@ -3,6 +3,9 @@ package io.github.arun0009.pulse.tenant;
 import io.github.arun0009.pulse.autoconfigure.PulseProperties;
 import io.github.arun0009.pulse.core.ContextKeys;
 import io.github.arun0009.pulse.core.PulseRequestContextFilter;
+import io.opentelemetry.api.baggage.Baggage;
+import io.opentelemetry.context.Context;
+import io.opentelemetry.context.Scope;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -71,7 +74,10 @@ public final class TenantContextFilter extends OncePerRequestFilter implements O
         @Nullable String previousMdc = MDC.get(ContextKeys.TENANT_ID);
         @Nullable String previousContext = TenantContext.current().orElse(null);
         String tenant = resolve(request);
-        try {
+        Baggage updated = Baggage.current().toBuilder()
+                .put(ContextKeys.TENANT_BAGGAGE_KEY, tenant)
+                .build();
+        try (Scope ignored = updated.storeInContext(Context.current()).makeCurrent()) {
             MDC.put(ContextKeys.TENANT_ID, tenant);
             TenantContext.set(tenant);
             chain.doFilter(request, response);

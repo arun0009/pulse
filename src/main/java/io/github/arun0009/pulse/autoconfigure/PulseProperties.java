@@ -428,9 +428,10 @@ public record PulseProperties(
      * can keep the global cap at 1000 (for paths, methods, statuses) while keeping the tenant
      * tag at a much tighter 100. Excess tenants are bucketed to {@link #overflowValue()}.
      *
-     * <p>Propagation defaults: tenant id always flows on MDC, OTel baggage (via the existing
-     * Pulse propagation chain), outbound HTTP/Kafka headers, and the {@code pulse.events}
-     * wide-event counter. Metric tagging on {@code http.server.requests}, {@code
+     * <p>Propagation defaults: tenant id always flows on MDC, OTel baggage (key
+     * {@code pulse.tenant.id}, mirrored by {@link io.github.arun0009.pulse.tenant.TenantContextFilter}),
+     * outbound HTTP/Kafka headers (via {@link io.github.arun0009.pulse.propagation.HeaderPropagation}),
+     * and the {@code pulse.events} wide-event counter. Metric tagging on {@code http.server.requests}, {@code
      * pulse.dependency.*}, etc. is opt-in via {@link #tagMeters()} — operators add the meter
      * names they want tenant attribution on, and the cardinality cap protects them.
      */
@@ -498,8 +499,10 @@ public record PulseProperties(
      * Request criticality propagation. Pulse extracts the priority from the configured inbound
      * header (default {@code Pulse-Priority}, RFC 6648 — no {@code X-} prefix), normalizes it
      * against the five-tier vocabulary {@code critical, high, normal, low, background}, mirrors
-     * it onto {@link io.github.arun0009.pulse.core.ContextKeys#PRIORITY MDC} and OTel baggage,
-     * and re-emits it on every outbound HTTP/Kafka call.
+     * it onto {@link io.github.arun0009.pulse.core.ContextKeys#PRIORITY MDC} and OTel baggage
+     * (key {@code pulse.priority}, set by
+     * {@link io.github.arun0009.pulse.priority.RequestPriorityFilter}), and re-emits it on every
+     * outbound HTTP/Kafka call.
      *
      * <p>{@link #tagMeters()} is the opt-in metric-tagging surface: list the meter names you
      * want stamped with {@code priority=...} (e.g. {@code http.server.requests} for per-priority

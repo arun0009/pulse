@@ -2,6 +2,7 @@ package io.github.arun0009.pulse.tenant;
 
 import io.github.arun0009.pulse.autoconfigure.PulseProperties;
 import io.github.arun0009.pulse.core.ContextKeys;
+import io.opentelemetry.api.baggage.Baggage;
 import jakarta.servlet.FilterChain;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -84,6 +85,21 @@ class TenantContextFilterTest {
                 assertThat(MDC.get(ContextKeys.TENANT_ID)).isEqualTo("header-acme");
 
         filter.doFilter(req, new MockHttpServletResponse(), chain);
+    }
+
+    @Test
+    void mirrorsResolvedTenantOntoOtelBaggage() throws Exception {
+        TenantContextFilter filter = filter(new HeaderTenantExtractor("Pulse-Tenant-Id"));
+        MockHttpServletRequest req = new MockHttpServletRequest();
+        req.addHeader("Pulse-Tenant-Id", "acme");
+        FilterChain chain =
+                (request, response) -> assertThat(Baggage.current().getEntryValue(ContextKeys.TENANT_BAGGAGE_KEY))
+                        .isEqualTo("acme");
+
+        filter.doFilter(req, new MockHttpServletResponse(), chain);
+
+        assertThat(Baggage.current().getEntryValue(ContextKeys.TENANT_BAGGAGE_KEY))
+                .isNull();
     }
 
     @Test

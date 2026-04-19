@@ -253,3 +253,69 @@ groups:
             Threads are timing out waiting for a connection from pool {{ $labels.pool }}.
             Each timeout becomes a 500 to the caller. Increase pool size or fix the
             query / leak holding connections open.
+
+      # ── Dependency health map (caller-side per-downstream RED) ────────
+      # Pulse tags every outbound HTTP call with `dep` (logical dependency
+      # name from pulse.dependencies.map). When a single downstream's error
+      # rate or latency goes bad, you get an alert that names the culprit
+      # without needing to open the downstream's dashboard.
+      - alert: PulseDependencyDegraded
+        expr: |
+          sum by (application, env, dep)
+            (rate(pulse_dependency_requests_total{outcome=~"SERVER_ERROR|UNKNOWN"}[5m]))
+          /
+          sum by (application, env, dep)
+            (rate(pulse_dependency_requests_total[5m]))
+          > 0.05
+        for: 5m
+        labels:
+          severity: ticket
+          slo: availability
+          subsystem: dependency
+        annotations:
+          summary: "{{ $labels.application }}: dependency {{ $labels.dep }} >5% errors"
+          description: |
+            {{ $labels.application }} is seeing a {{ printf "%.1f%%" (mul $value 100) }} error
+            rate calling {{ $labels.dep }} over the last 5m. Open the dependency map panel
+            to confirm whether this is the only affected caller (downstream issue) or a
+            pattern across all callers of this dep (network / config issue).
+          runbook_url: "https://github.com/arun0009/pulse/blob/main/docs/runbooks/dependency-degraded.md"
+
+      - alert: PulseDependencyLatencyP99High
+        expr: |
+          histogram_quantile(0.99,
+            sum by (application, env, dep, le)
+              (rate(pulse_dependency_latency_seconds_bucket[10m]))
+          ) > 1.0
+        for: 10m
+        labels:
+          severity: ticket
+          slo: latency
+          subsystem: dependency
+        annotations:
+          summary: "{{ $labels.application }}: p99 latency to {{ $labels.dep }} > 1s"
+          description: |
+            10-min p99 latency calling {{ $labels.dep }} = {{ $value }}s. Either the
+            downstream is degraded or the network path to it has changed.
+
+      # ── Request fan-out width (caller-side N+1 detector) ─────────────
+      # pulse.request.fan_out_high fires whenever a single inbound request
+      # fans out to more outbound calls than pulse.dependencies.fan-out-warn-threshold.
+      # Most stable endpoints have fan-out width <10; a sudden p99 climb is
+      # almost always a caller-side N+1 introduced by a recent change.
+      - alert: PulseRequestFanOutHigh
+        expr: |
+          sum by (application, env)
+            (rate(pulse_request_fan_out_high_total[5m])) > 0.05
+        for: 10m
+        labels:
+          severity: ticket
+          slo: latency
+          subsystem: dependency
+        annotations:
+          summary: "{{ $labels.application }}: requests with abnormally high outbound fan-out"
+          description: |
+            >5% of inbound requests fanned out beyond the configured warn threshold
+            in the last 5m. Check the per-endpoint pulse.request.fan_out distribution
+            to find the offending route — this is usually an N+1 at the caller layer
+            introduced by a recent change.

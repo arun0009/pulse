@@ -4,6 +4,7 @@ import io.github.arun0009.pulse.actuator.PulseDiagnostics;
 import io.github.arun0009.pulse.async.ExecutorConfiguration;
 import io.github.arun0009.pulse.audit.AuditLogger;
 import io.github.arun0009.pulse.db.PulseDbConfiguration;
+import io.github.arun0009.pulse.dependencies.PulseDependenciesConfiguration;
 import io.github.arun0009.pulse.events.SpanEvents;
 import io.github.arun0009.pulse.guardrails.CardinalityFirewall;
 import io.github.arun0009.pulse.guardrails.SamplingConfiguration;
@@ -89,6 +90,7 @@ import org.springframework.core.env.Environment;
     PulseDbConfiguration.class,
     PulseResilience4jConfiguration.class,
     PulseProfilingConfiguration.class,
+    PulseDependenciesConfiguration.class,
 })
 public class PulseAutoConfiguration {
 

@@ -6,6 +6,7 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Centralized configuration for Pulse.
@@ -44,7 +45,8 @@ public record PulseProperties(
         @DefaultValue Jobs jobs,
         @DefaultValue Db db,
         @DefaultValue Resilience resilience,
-        @DefaultValue Profiling profiling) {
+        @DefaultValue Profiling profiling,
+        @DefaultValue Dependencies dependencies) {
 
     /** MDC enrichment from the inbound HTTP request. */
     public record Context(
@@ -305,4 +307,37 @@ public record PulseProperties(
      */
     public record Profiling(
             @DefaultValue("true") boolean enabled, @Nullable String pyroscopeUrl) {}
+
+    /**
+     * Dependency health map — turns every outbound HTTP/Kafka call into a per-dependency RED
+     * (rate / errors / duration) signal so an operator can answer "which downstream is hurting
+     * me?" without opening N dashboards.
+     *
+     * <p>Each outbound call is tagged with a logical {@code pulse.dependency} derived from the
+     * {@link #map() host&nbsp;→&nbsp;name} table (or, when the host is unknown, the value of
+     * {@link #defaultName()}). Pulse emits:
+     *
+     * <ul>
+     *   <li>{@code pulse.dependency.requests{dep, method, status, outcome}} — counter
+     *   <li>{@code pulse.dependency.latency{dep, method, outcome}} — timer with the standard SLO
+     *       buckets so p50/p95/p99 are computable in Prometheus
+     *   <li>{@code pulse.request.fan_out} — distribution of outbound calls per inbound request
+     *   <li>{@code pulse.request.distinct_dependencies} — distribution of distinct downstreams
+     *       per inbound request (helps spot fan-out width regressions before they cascade)
+     * </ul>
+     *
+     * <p>Cardinality is bounded by your dependency count: if you call {@code payment-service} from
+     * 50 endpoints, the {@code dep} tag still has only one value. The defaults survive
+     * 10k-pod deployments without operator intervention.
+     *
+     * <p>{@link #fanOutWarnThreshold()} controls when {@code pulse.request.fan_out_high} fires —
+     * the per-request guardrail that lets you alert "endpoint X went from 5 calls to 50". A
+     * threshold of {@code 20} catches the classic loop-fetching anti-pattern at the call layer
+     * without firing for legitimate aggregations.
+     */
+    public record Dependencies(
+            @DefaultValue("true") boolean enabled,
+            @DefaultValue Map<String, String> map,
+            @DefaultValue("unknown") String defaultName,
+            @DefaultValue("20") int fanOutWarnThreshold) {}
 }

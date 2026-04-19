@@ -97,6 +97,7 @@ public final class PulseDiagnostics {
         pulse.put("db", properties.db());
         pulse.put("resilience", properties.resilience());
         pulse.put("profiling", properties.profiling());
+        pulse.put("dependencies", properties.dependencies());
         return Map.of("pulse", pulse);
     }
 
@@ -254,6 +255,11 @@ public final class PulseDiagnostics {
                     "pyroscopeAgentServer", detection.serverAddress() == null ? "" : detection.serverAddress());
         }
         map.put("profiling", entry(properties.profiling().enabled(), profilingDetails));
+        Map<String, Object> dependenciesDetails = new LinkedHashMap<>();
+        dependenciesDetails.put("knownHosts", properties.dependencies().map().size());
+        dependenciesDetails.put("defaultName", properties.dependencies().defaultName());
+        dependenciesDetails.put("fanOutWarnThreshold", properties.dependencies().fanOutWarnThreshold());
+        map.put("dependencies", entry(properties.dependencies().enabled(), dependenciesDetails));
         return map;
     }
 

@@ -233,6 +233,7 @@ class KafkaPropagationConfigurationTest {
                 new PulseProperties.Jobs(true, true, Duration.ofHours(1)),
                 new PulseProperties.Db(true, 50, Duration.ofMillis(500)),
                 new PulseProperties.Resilience(true),
-                new PulseProperties.Profiling(true, null));
+                new PulseProperties.Profiling(true, null),
+                new PulseProperties.Dependencies(true, java.util.Map.of(), "unknown", 20));
     }
 }

@@ -384,7 +384,8 @@ public record PulseProperties(
             @DefaultValue Health health) {
 
         /**
-         * Topology-aware health configuration. {@link DependencyHealthIndicator} reads the
+         * Topology-aware health configuration.
+         * {@link io.github.arun0009.pulse.dependencies.DependencyHealthIndicator} reads the
          * existing dependency RED metrics ({@code pulse.dependency.requests},
          * {@code pulse.dependency.latency}) and reports {@code DEGRADED} when a dependency
          * named in {@link #critical()} crosses {@link #errorRateThreshold()} over the trailing

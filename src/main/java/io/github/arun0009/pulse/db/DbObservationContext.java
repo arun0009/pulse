@@ -16,9 +16,9 @@ import java.util.Map;
  *       seeding a fresh state on the request thread.
  *   <li>{@link PulseStatementInspector} calls {@link #recordStatement(String)} every time
  *       Hibernate prepares SQL — inspector callbacks run synchronously on the request thread.
- *   <li>{@link PulseDbObservationFilter} calls {@link #endAndPublish} after the controller
- *       returns, emitting the per-request histogram + N+1 suspect counter and clearing the
- *       thread-local.
+ *   <li>{@link PulseDbObservationFilter} reads {@link #snapshot()} after the controller
+ *       returns, emits the per-request histogram + N+1 suspect counter, and finally calls
+ *       {@link #clear()} in a {@code finally} to release the thread-local.
  * </ol>
  *
  * <p>Why a thread-local rather than a request-scoped Spring bean: scope proxies on every

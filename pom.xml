@@ -336,6 +336,15 @@
             <optional>true</optional>
         </dependency>
 
+        <!-- OpenFeature — instrumented when present so flag evaluations land on MDC
+             and as span events. Optional: pulled in only by apps that already use it. -->
+        <dependency>
+            <groupId>dev.openfeature</groupId>
+            <artifactId>sdk</artifactId>
+            <version>1.18.0</version>
+            <optional>true</optional>
+        </dependency>
+
         <!-- ========================================================================
              Test slice (@PulseTest, PulseTestHarness) — shipped in src/main so
              consumers can pull it in via the starter and use it from their own

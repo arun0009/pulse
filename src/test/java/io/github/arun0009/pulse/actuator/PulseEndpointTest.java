@@ -34,6 +34,15 @@ class PulseEndpointTest {
     }
 
     @Test
+    void slo_segment_returns_disabled_marker_when_generator_absent() {
+        PulseProperties props = bindEmpty();
+        PulseDiagnostics diagnostics = new PulseDiagnostics(props, "test-svc", "test-env", "0.0.1", null);
+        PulseEndpoint endpoint = new PulseEndpoint(diagnostics, null);
+
+        assertThat(endpoint.read("slo")).asString().contains("pulse.slo.enabled=false");
+    }
+
+    @Test
     void config_hash_segment_returns_stable_hash_and_flat_entries() {
         PulseProperties props = bindEmpty();
         PulseDiagnostics diagnostics = new PulseDiagnostics(props, "test-svc", "test-env", "0.0.1", null);

@@ -29,9 +29,9 @@ import java.util.Map;
 public class PulseEndpoint {
 
     private final PulseDiagnostics diagnostics;
-    private final SloRuleGenerator sloRules;
+    private final @Nullable SloRuleGenerator sloRules;
 
-    public PulseEndpoint(PulseDiagnostics diagnostics, SloRuleGenerator sloRules) {
+    public PulseEndpoint(PulseDiagnostics diagnostics, @Nullable SloRuleGenerator sloRules) {
         this.diagnostics = diagnostics;
         this.sloRules = sloRules;
     }
@@ -44,7 +44,7 @@ public class PulseEndpoint {
     @ReadOperation
     public @Nullable Object read(@Selector String segment) {
         if ("slo".equals(segment)) {
-            return sloRules.render();
+            return sloRules == null ? "# SLO subsystem disabled (pulse.slo.enabled=false)\n" : sloRules.render();
         }
         if ("effective-config".equals(segment)) {
             return diagnostics.effectiveConfig();

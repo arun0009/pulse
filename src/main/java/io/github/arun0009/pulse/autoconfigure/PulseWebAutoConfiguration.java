@@ -88,15 +88,15 @@ public class PulseWebAutoConfiguration {
     @ConditionalOnClass(name = "org.springframework.boot.actuate.endpoint.annotation.Endpoint")
     @ConditionalOnAvailableEndpoint
     @ConditionalOnMissingBean
-    public PulseEndpoint pulseEndpoint(PulseDiagnostics diagnostics, SloRuleGenerator sloRules) {
-        return new PulseEndpoint(diagnostics, sloRules);
+    public PulseEndpoint pulseEndpoint(PulseDiagnostics diagnostics, ObjectProvider<SloRuleGenerator> sloRules) {
+        return new PulseEndpoint(diagnostics, sloRules.getIfAvailable());
     }
 
     @Bean
     @ConditionalOnClass(name = "org.springframework.boot.actuate.endpoint.web.annotation.WebEndpoint")
     @ConditionalOnAvailableEndpoint
     @ConditionalOnMissingBean
-    public PulseUiEndpoint pulseUiEndpoint(PulseDiagnostics diagnostics, SloRuleGenerator sloRules) {
-        return new PulseUiEndpoint(diagnostics, sloRules);
+    public PulseUiEndpoint pulseUiEndpoint(PulseDiagnostics diagnostics, ObjectProvider<SloRuleGenerator> sloRules) {
+        return new PulseUiEndpoint(diagnostics, sloRules.getIfAvailable());
     }
 }

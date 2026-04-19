@@ -128,13 +128,13 @@ with a context-propagating `TaskDecorator` — no manual
 ```java
 @Async
 public CompletableFuture<Order> submit(Order order) {
-    log.info("placing order");   // traceId, requestId, userId all present
-    return CompletableFuture.completedFuture(order);
+		log.info("placing order");   // traceId, requestId, userId all present
+		return CompletableFuture.completedFuture(order);
 }
 
 @Scheduled(fixedDelay = 60_000)
 public void reconcile() {
-    log.info("reconciling");     // traceId is the scheduler's, not null
+		log.info("reconciling");     // traceId is the scheduler's, not null
 }
 ```
 
@@ -189,18 +189,18 @@ appender. **On by default** — off-by-default safety isn't safety.
 
 ```xml
 <dependency>
-  <groupId>io.github.arun0009</groupId>
-  <artifactId>pulse-spring-boot-starter</artifactId>
-  <exclusions>
-    <exclusion>
-      <groupId>org.springframework.boot</groupId>
-      <artifactId>spring-boot-starter-log4j2</artifactId>
-    </exclusion>
-  </exclusions>
+	<groupId>io.github.arun0009</groupId>
+	<artifactId>pulse-spring-boot-starter</artifactId>
+	<exclusions>
+		<exclusion>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-log4j2</artifactId>
+		</exclusion>
+	</exclusions>
 </dependency>
 <dependency>
-  <groupId>org.springframework.boot</groupId>
-  <artifactId>spring-boot-starter-logging</artifactId>
+	<groupId>org.springframework.boot</groupId>
+	<artifactId>spring-boot-starter-logging</artifactId>
 </dependency>
 ```
 
@@ -229,12 +229,12 @@ low-cardinality fingerprint and surfaced everywhere it matters:
 
 ```json
 {
-  "type": "urn:pulse:error:internal",
-  "title": "Internal Server Error",
-  "status": 500,
-  "requestId": "9b8a...",
-  "traceId": "4c1f...",
-  "errorFingerprint": "a3f1c2d8e0"
+	"type": "urn:pulse:error:internal",
+	"title": "Internal Server Error",
+	"status": 500,
+	"requestId": "9b8a...",
+	"traceId": "4c1f...",
+	"errorFingerprint": "a3f1c2d8e0"
 }
 ```
 
@@ -254,130 +254,130 @@ above and the rest works the moment you happen to need it.
 ### Distributed-systems essentials
 
 - **Dependency health map (caller-side RED + fan-out width)** —
-  `pulse.dependency.requests` / `pulse.dependency.latency` per logical
-  downstream (host-derived or `@PulseDependency("payment-service")`),
-  `pulse.request.fan_out` per endpoint. Answers "which downstream is killing
-  me?" without opening 50 dashboards. Works across `RestTemplate`,
-  `WebClient`, `RestClient`, OkHttp.
+	`pulse.dependency.requests` / `pulse.dependency.latency` per logical
+	downstream (host-derived or `@PulseDependency("payment-service")`),
+	`pulse.request.fan_out` per endpoint. Answers "which downstream is killing
+	me?" without opening 50 dashboards. Works across `RestTemplate`,
+	`WebClient`, `RestClient`, OkHttp.
 - **Retry amplification detection** — `Pulse-Retry-Depth` baggage propagates
-  through every hop; `pulse.retry.amplification{endpoint}` + span event +
-  WARN log fire when the chain depth exceeds `pulse.retry.amplification-threshold`
-  (default 3). Combined with timeout-budget propagation, you have the two
-  leading indicators of a cascade in flight.
+	through every hop; `pulse.retry.amplification{endpoint}` + span event +
+	WARN log fire when the chain depth exceeds `pulse.retry.amplification-threshold`
+	(default 3). Combined with timeout-budget propagation, you have the two
+	leading indicators of a cascade in flight.
 - **Request criticality propagation** — `Pulse-Priority` header lands on
-  baggage + MDC + outbound calls; `RequestPriority.current()` lets
-  user-code load-shedders read it without touching the OTel API; critical
-  requests log at WARN (not INFO) when their timeout budget is exhausted.
+	baggage + MDC + outbound calls; `RequestPriority.current()` lets
+	user-code load-shedders read it without touching the OTel API; critical
+	requests log at WARN (not INFO) when their timeout budget is exhausted.
 - **Topology-aware health** — `DependencyHealthIndicator` reads the
-  dependency-map metrics (no extra HTTP calls) and reports DEGRADED when a
-  downstream's caller-side error rate crosses a threshold, so
-  `/actuator/health` stops lying about being green when payment-service is
-  on fire.
+	dependency-map metrics (no extra HTTP calls) and reports DEGRADED when a
+	downstream's caller-side error rate crosses a threshold, so
+	`/actuator/health` stops lying about being green when payment-service is
+	on fire.
 
 ### Platform realities
 
 - **Container memory** — `CgroupMemoryReader` parses cgroup v1 and v2 inside
-  the JVM (no JNI, no agent): `pulse.container.memory.used`,
-  `pulse.container.memory.limit`, `pulse.container.memory.headroom_ratio`,
-  `pulse.container.memory.oom_kills` (counter). `ContainerMemoryHealthIndicator`
-  flips DEGRADED below `pulse.container.memory.warning-headroom-ratio`
-  (default 0.15) so the readiness probe can pull the pod out of rotation
-  before the OOMKiller does.
+	the JVM (no JNI, no agent): `pulse.container.memory.used`,
+	`pulse.container.memory.limit`, `pulse.container.memory.headroom_ratio`,
+	`pulse.container.memory.oom_kills` (counter). `ContainerMemoryHealthIndicator`
+	flips DEGRADED below `pulse.container.memory.warning-headroom-ratio`
+	(default 0.15) so the readiness probe can pull the pod out of rotation
+	before the OOMKiller does.
 - **Kafka time-based consumer lag** — `pulse.kafka.consumer.time_lag` (in
-  seconds, baseUnit-tagged) is `now() − record.timestamp()` on every consumed
-  record. Time lag is the SLO; offset lag is the vanity metric. The shipped
-  `PulseKafkaConsumerFallingBehind` alert fires above 5 minutes.
+	seconds, baseUnit-tagged) is `now() − record.timestamp()` on every consumed
+	record. Time lag is the SLO; offset lag is the vanity metric. The shipped
+	`PulseKafkaConsumerFallingBehind` alert fires above 5 minutes.
 - **Fleet config-drift detection** — `ConfigHasher` deterministically hashes
-  the resolved `pulse.*` configuration tree at startup; the
-  `pulse.config.hash{hash}` gauge plus `/actuator/pulse/config-hash` make the
-  recording rule `count(distinct pulse_config_hash) by (application, env) > 1`
-  fire `PulseConfigDrift`. Catches stale ConfigMaps, partial deploys, and
-  one-pod env-var typos that otherwise only surface as p99 tail latency.
+	the resolved `pulse.*` configuration tree at startup; the
+	`pulse.config.hash{hash}` gauge plus `/actuator/pulse/config-hash` make the
+	recording rule `count(distinct pulse_config_hash) by (application, env) > 1`
+	fire `PulseConfigDrift`. Catches stale ConfigMaps, partial deploys, and
+	one-pod env-var typos that otherwise only surface as p99 tail latency.
 - **Graceful-shutdown observability** — `pulse.shutdown.inflight` gauge
-  (proves the readiness probe is draining), `pulse.shutdown.drain.duration`
-  timer, and `pulse.shutdown.dropped` counter for requests still in flight
-  when the drain window expires. `PulseDrainObservabilityLifecycle` runs as
-  a `SmartLifecycle` just before the OTel flush.
+	(proves the readiness probe is draining), `pulse.shutdown.drain.duration`
+	timer, and `pulse.shutdown.dropped` counter for requests still in flight
+	when the drain window expires. `PulseDrainObservabilityLifecycle` runs as
+	a `SmartLifecycle` just before the OTel flush.
 
 ### SLOs, alerts, and signal shape
 
 - **SLO-as-code** — declare objectives in `application.yml`; `curl
-  /actuator/pulse/slo | kubectl apply -f -` produces multi-window,
-  multi-burn-rate `PrometheusRule` YAML (Google SRE workbook pattern). Live
-  in-process projection at `/actuator/pulse/runtime` for desk-side checks.
+	/actuator/pulse/slo | kubectl apply -f -` produces multi-window,
+	multi-burn-rate `PrometheusRule` YAML (Google SRE workbook pattern). Live
+	in-process projection at `/actuator/pulse/runtime` for desk-side checks.
 - **Wide-event API** — `events.emit("order.placed", attrs)` writes a span
-  event, increments a bounded counter (tagged only by event name), and
-  stamps a structured log line in one call. ~25 ns/op.
+	event, increments a bounded counter (tagged only by event name), and
+	stamps a structured log line in one call. ~25 ns/op.
 - **Prefer-sampling-on-error** — best-effort upgrade pass at span start
-  (`http.response.status_code >= 500`, `exception.type`, gRPC non-OK)
-  rescues error spans the `TraceIdRatioBased` sampler would otherwise drop.
-  Honest about its limit: real tail sampling needs the OTel Collector — this
-  is the in-process layer on top.
+	(`http.response.status_code >= 500`, `exception.type`, gRPC non-OK)
+	rescues error spans the `TraceIdRatioBased` sampler would otherwise drop.
+	Honest about its limit: real tail sampling needs the OTel Collector — this
+	is the in-process layer on top.
 - **Graceful OTel flush on shutdown** — JVM exit blocks until the last span
-  batch drains, with a configurable timeout. Rolling deploys stop dropping
-  trailing telemetry.
+	batch drains, with a configurable timeout. Rolling deploys stop dropping
+	trailing telemetry.
 
 ### Integrations
 
 - **Background jobs / `@Scheduled`** — every observed job gets
-  `pulse.jobs.executions{job, outcome}`, `pulse.jobs.duration{job, outcome}`,
-  `pulse.jobs.in_flight{job}` (overrun detector), and a `jobs` health
-  indicator that flips DOWN when a job hasn't succeeded inside
-  `pulse.jobs.failure-grace-period` (default 1 h). ShedLock-managed jobs are
-  observed automatically because the decorator wraps the `Runnable` before
-  the scheduler sees it.
+	`pulse.jobs.executions{job, outcome}`, `pulse.jobs.duration{job, outcome}`,
+	`pulse.jobs.in_flight{job}` (overrun detector), and a `jobs` health
+	indicator that flips DOWN when a job hasn't succeeded inside
+	`pulse.jobs.failure-grace-period` (default 1 h). ShedLock-managed jobs are
+	observed automatically because the decorator wraps the `Runnable` before
+	the scheduler sees it.
 - **Database (N+1 detection)** — when Hibernate ORM is on the classpath, a
-  `StatementInspector` + servlet filter count prepared statements per
-  request. `pulse.db.statements_per_request` distribution +
-  `pulse.db.n_plus_one.suspect{endpoint}` counter + span event + WARN log
-  fire when a request crosses `pulse.db.n-plus-one-threshold` (default 50).
-  Slow queries flow through Hibernate's built-in `org.hibernate.SQL_SLOW`
-  logger, automatically correlated with the trace by Pulse's JSON layout.
+	`StatementInspector` + servlet filter count prepared statements per
+	request. `pulse.db.statements_per_request` distribution +
+	`pulse.db.n_plus_one.suspect{endpoint}` counter + span event + WARN log
+	fire when a request crosses `pulse.db.n-plus-one-threshold` (default 50).
+	Slow queries flow through Hibernate's built-in `org.hibernate.SQL_SLOW`
+	logger, automatically correlated with the trace by Pulse's JSON layout.
 - **Resilience4j** — auto-attaches event consumers to any
-  `CircuitBreakerRegistry` / `RetryRegistry` / `BulkheadRegistry`:
-  `pulse.resilience.circuit_breaker.{state_transitions,state,errors}`,
-  `pulse.resilience.retry.{attempts,exhausted}`,
-  `pulse.resilience.bulkhead.rejected`. State transitions and retry attempts
-  also land as span events on the active span — eliminating the silent-retry
-  blind spot in slow-trace investigations.
+	`CircuitBreakerRegistry` / `RetryRegistry` / `BulkheadRegistry`:
+	`pulse.resilience.circuit_breaker.{state_transitions,state,errors}`,
+	`pulse.resilience.retry.{attempts,exhausted}`,
+	`pulse.resilience.bulkhead.rejected`. State transitions and retry attempts
+	also land as span events on the active span — eliminating the silent-retry
+	blind spot in slow-trace investigations.
 - **Multi-tenant context** — `TenantExtractor` SPI plus three opt-in
-  built-ins (header / JWT claim / subdomain). The resolved tenant lands on
-  MDC, OTel baggage, every outbound HTTP / Kafka header, and (opt-in)
-  configured meters as a tag. A separate `pulse.tenant.max-tag-cardinality`
-  (default 100) caps the tenant tag independently of the global firewall.
-  Default header is `Pulse-Tenant-Id` (RFC 6648). Extraction priority is
-  explicit: system property > header > JWT claim > subdomain > unknown.
+	built-ins (header / JWT claim / subdomain). The resolved tenant lands on
+	MDC, OTel baggage, every outbound HTTP / Kafka header, and (opt-in)
+	configured meters as a tag. A separate `pulse.tenant.max-tag-cardinality`
+	(default 100) caps the tenant tag independently of the global firewall.
+	Default header is `Pulse-Tenant-Id` (RFC 6648). Extraction priority is
+	explicit: system property > header > JWT claim > subdomain > unknown.
 - **OpenFeature** — when `dev.openfeature:sdk` is on the classpath, Pulse
-  auto-registers a hook stamping every flag evaluation on MDC and as an OTel
-  semconv span event (`feature_flag.key`, `feature_flag.variant`,
-  `feature_flag.provider_name`). The upstream `contrib.hooks:otel` hook is
-  registered automatically if present.
+	auto-registers a hook stamping every flag evaluation on MDC and as an OTel
+	semconv span event (`feature_flag.key`, `feature_flag.variant`,
+	`feature_flag.provider_name`). The upstream `contrib.hooks:otel` hook is
+	registered automatically if present.
 - **Continuous profiling (Pyroscope-aware, vendor-neutral)** — every span
-  carries `profile.id` (Grafana convention), `pyroscope.profile_id`, and
-  (root spans) `pulse.profile.url`. Pulse never bundles or starts a
-  profiler; if you've already injected the Pyroscope agent it is detected
-  at startup and surfaced at `/actuator/pulse`.
+	carries `profile.id` (Grafana convention), `pyroscope.profile_id`, and
+	(root spans) `pulse.profile.url`. Pulse never bundles or starts a
+	profiler; if you've already injected the Pyroscope agent it is detected
+	at startup and surfaced at `/actuator/pulse`.
 - **Caffeine** — when Caffeine is on the classpath, every
-  `CaffeineCacheManager` bean's existing caches are bound to Micrometer
-  (`cache.gets{result=hit|miss}`, `cache.puts`, `cache.evictions`). If
-  `recordStats()` is missing on a manager, Pulse warns once per bean
-  instead of silently overwriting your `Caffeine` builder configuration.
+	`CaffeineCacheManager` bean's existing caches are bound to Micrometer
+	(`cache.gets{result=hit|miss}`, `cache.puts`, `cache.evictions`). If
+	`recordStats()` is missing on a manager, Pulse warns once per bean
+	instead of silently overwriting your `Caffeine` builder configuration.
 
 ### Diagnostics and dev experience
 
 - **`/actuator/pulse`** lists every subsystem and its effective config.
 - **`/actuator/pulseui`** renders the same as a single dependency-free HTML page.
 - **`/actuator/pulse/runtime`** reports cardinality top-offenders, SLO
-  compliance, and (via `OtelExporterHealthIndicator`) whether the trace
-  exporter has actually exported anything in the last few minutes.
+	compliance, and (via `OtelExporterHealthIndicator`) whether the trace
+	exporter has actually exported anything in the last few minutes.
 - **`/actuator/pulse/effective-config`** dumps the entire resolved
-  `PulseProperties` tree.
+	`PulseProperties` tree.
 - **`@PulseTest`** — Spring Boot test slice + `PulseTestHarness` fluent
-  assertions over both spans and Micrometer meters. Wires an in-memory
-  OpenTelemetry SDK — no Collector, no Testcontainers, no flake.
+	assertions over both spans and Micrometer meters. Wires an in-memory
+	OpenTelemetry SDK — no Collector, no Testcontainers, no flake.
 - **IDE autocomplete** — `META-INF/spring-configuration-metadata.json` ships
-  with every property typed, defaulted, and described, so `pulse.*` keys
-  autocomplete in IntelliJ / VS Code with value hints.
+	with every property typed, defaulted, and described, so `pulse.*` keys
+	autocomplete in IntelliJ / VS Code with value hints.
 
 ---
 

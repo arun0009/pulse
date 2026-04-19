@@ -151,6 +151,7 @@ public class PulseAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
+    @ConditionalOnProperty(prefix = "pulse.slo", name = "enabled", havingValue = "true", matchIfMissing = true)
     public SloRuleGenerator pulseSloRuleGenerator(
             PulseProperties properties, @Value("${spring.application.name:unknown-service}") String serviceName) {
         return new SloRuleGenerator(properties.slo(), serviceName);
@@ -158,6 +159,7 @@ public class PulseAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
+    @ConditionalOnProperty(prefix = "pulse.slo", name = "enabled", havingValue = "true", matchIfMissing = true)
     public SloProjector pulseSloProjector(PulseProperties properties, MeterRegistry registry) {
         return new SloProjector(properties.slo(), registry);
     }

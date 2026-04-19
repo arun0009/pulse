@@ -64,6 +64,8 @@ class PulseOpenFeatureMdcHookTest {
         }
     }
 
+    @SuppressWarnings(
+            "deprecation") // HookContext.builder() is the only public constructor for tests in OpenFeature 1.20+.
     private HookContext<Object> sampleCtx(String key, Object defaultValue) {
         return HookContext.builder()
                 .flagKey(key)

@@ -2,8 +2,8 @@ package io.github.arun0009.pulse.resilience;
 
 import io.github.arun0009.pulse.autoconfigure.PulseProperties;
 import io.github.arun0009.pulse.core.ContextKeys;
-import io.github.arun0009.pulse.core.LogSanitizer;
 import io.github.arun0009.pulse.core.PulseRequestContextFilter;
+import io.github.arun0009.pulse.core.RouteTags;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.opentelemetry.api.trace.Span;
@@ -62,16 +62,35 @@ public final class RetryDepthFilter extends OncePerRequestFilter implements Orde
         @Nullable String previousMdc = MDC.get(MDC_KEY);
         int previousContext = RetryDepthContext.current();
         int inbound = parse(request.getHeader(headerName));
+        boolean amplified = inbound >= amplificationThreshold;
         try {
             if (inbound > 0) {
                 RetryDepthContext.set(inbound);
                 MDC.put(MDC_KEY, Integer.toString(inbound));
             }
-            if (inbound >= amplificationThreshold) {
-                fireAmplification(request, inbound);
+            if (amplified) {
+                Span span = Span.current();
+                SpanContext context = span.getSpanContext();
+                if (context.isValid()) {
+                    span.addEvent("pulse.retry.amplification");
+                    span.setAttribute("pulse.retry.depth", inbound);
+                }
             }
             chain.doFilter(request, response);
         } finally {
+            if (amplified) {
+                String route = RouteTags.of(request);
+                Counter.builder("pulse.retry.amplification")
+                        .tag("endpoint", route)
+                        .description("Inbound requests whose retry-depth crossed the amplification threshold")
+                        .register(registry)
+                        .increment();
+                log.warn(
+                        "Pulse retry-amplification detected: depth={} route={} threshold={}",
+                        inbound,
+                        route,
+                        amplificationThreshold);
+            }
             if (previousMdc == null) {
                 MDC.remove(MDC_KEY);
             } else {
@@ -83,32 +102,6 @@ public final class RetryDepthFilter extends OncePerRequestFilter implements Orde
                 RetryDepthContext.set(previousContext);
             }
         }
-    }
-
-    private void fireAmplification(HttpServletRequest request, int depth) {
-        String endpoint = endpoint(request);
-        Counter.builder("pulse.retry.amplification")
-                .tag("endpoint", endpoint)
-                .description("Inbound requests whose retry-depth crossed the amplification threshold")
-                .register(registry)
-                .increment();
-        Span span = Span.current();
-        SpanContext context = span.getSpanContext();
-        if (context.isValid()) {
-            span.addEvent("pulse.retry.amplification");
-            span.setAttribute("pulse.retry.depth", depth);
-            span.setAttribute("pulse.retry.endpoint", endpoint);
-        }
-        log.warn(
-                "Pulse retry-amplification detected: depth={} endpoint={} threshold={}",
-                depth,
-                LogSanitizer.safe(endpoint),
-                amplificationThreshold);
-    }
-
-    private static String endpoint(HttpServletRequest request) {
-        String uri = request.getRequestURI();
-        return uri == null ? "unknown" : uri;
     }
 
     private static int parse(@Nullable String value) {

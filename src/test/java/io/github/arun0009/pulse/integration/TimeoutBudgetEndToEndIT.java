@@ -2,6 +2,7 @@ package io.github.arun0009.pulse.integration;
 
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.matching.RequestPatternBuilder;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -82,11 +83,8 @@ class TimeoutBudgetEndToEndIT {
         var captured = downstream.findAll(leafCalls);
         assertThat(captured).hasSize(1);
 
-        String observed = captured.get(0).getHeader("Pulse-Timeout-Ms");
-        assertThat(observed)
-                .as("downstream must receive the Pulse-Timeout-Ms header")
-                .isNotNull();
-        long observedMs = Long.parseLong(observed);
+        long observedMs = parseTimeoutHeader(
+                captured.get(0).getHeader("Pulse-Timeout-Ms"), "downstream must receive the Pulse-Timeout-Ms header");
         assertThat(observedMs)
                 .as("remaining budget must be < inbound budget (some time spent on edge)")
                 .isLessThan(2000)
@@ -102,11 +100,19 @@ class TimeoutBudgetEndToEndIT {
 
         var captured = downstream.findAll(getRequestedFor(urlEqualTo("/leaf")));
         assertThat(captured).hasSize(1);
-        assertThat(captured.get(0).getHeader("Pulse-Timeout-Ms"))
-                .as("a default budget must still propagate when caller did not set one")
-                .isNotNull();
-        long observedMs = Long.parseLong(captured.get(0).getHeader("Pulse-Timeout-Ms"));
+        long observedMs = parseTimeoutHeader(
+                captured.get(0).getHeader("Pulse-Timeout-Ms"),
+                "a default budget must still propagate when caller did not set one");
         assertThat(observedMs).isPositive();
+    }
+
+    private static long parseTimeoutHeader(@Nullable String header, String description) {
+        assertThat(header).as(description).isNotNull();
+        try {
+            return Long.parseLong(header);
+        } catch (NumberFormatException e) {
+            throw new AssertionError("Pulse-Timeout-Ms must be a long, got: " + header, e);
+        }
     }
 
     @SpringBootApplication

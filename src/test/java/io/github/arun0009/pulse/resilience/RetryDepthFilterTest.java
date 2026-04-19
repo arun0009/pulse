@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import org.slf4j.MDC;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
+import org.springframework.web.servlet.HandlerMapping;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -44,13 +45,32 @@ class RetryDepthFilterTest {
     @Test
     void emitsAmplificationCounterWhenThresholdCrossed() throws Exception {
         MockHttpServletRequest req = new MockHttpServletRequest();
-        req.setRequestURI("/orders");
+        req.setRequestURI("/orders/123");
+        req.addHeader("Pulse-Retry-Depth", "5");
+        // The matched route is normally set by Spring's HandlerMapping during dispatch; simulate
+        // it inside the chain so the filter's deferred emission picks up the bounded route tag.
+        FilterChain chain = (request, response) ->
+                request.setAttribute(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE, "/orders/{id}");
+
+        filter.doFilter(req, new MockHttpServletResponse(), chain);
+
+        assertThat(registry.find("pulse.retry.amplification")
+                        .tag("endpoint", "/orders/{id}")
+                        .counter()
+                        .count())
+                .isEqualTo(1.0);
+    }
+
+    @Test
+    void amplificationFallsBackToOtherWhenRouteUnmatched() throws Exception {
+        MockHttpServletRequest req = new MockHttpServletRequest();
+        req.setRequestURI("/no-route-bound");
         req.addHeader("Pulse-Retry-Depth", "5");
 
         filter.doFilter(req, new MockHttpServletResponse(), (r, s) -> {});
 
         assertThat(registry.find("pulse.retry.amplification")
-                        .tag("endpoint", "/orders")
+                        .tag("endpoint", "other")
                         .counter()
                         .count())
                 .isEqualTo(1.0);

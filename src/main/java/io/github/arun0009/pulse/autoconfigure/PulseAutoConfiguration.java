@@ -3,6 +3,7 @@ package io.github.arun0009.pulse.autoconfigure;
 import io.github.arun0009.pulse.actuator.PulseDiagnostics;
 import io.github.arun0009.pulse.async.ExecutorConfiguration;
 import io.github.arun0009.pulse.audit.AuditLogger;
+import io.github.arun0009.pulse.cache.PulseCaffeineConfiguration;
 import io.github.arun0009.pulse.container.PulseContainerMemoryConfiguration;
 import io.github.arun0009.pulse.db.PulseDbConfiguration;
 import io.github.arun0009.pulse.dependencies.PulseDependenciesConfiguration;
@@ -103,6 +104,7 @@ import org.springframework.core.env.Environment;
     PulseTenantConfiguration.class,
     PulseContainerMemoryConfiguration.class,
     PulseOpenFeatureConfiguration.class,
+    PulseCaffeineConfiguration.class,
 })
 public class PulseAutoConfiguration {
 

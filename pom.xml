@@ -345,6 +345,21 @@
             <optional>true</optional>
         </dependency>
 
+        <!-- Caffeine — instrumented when present so cache hit rate / load time / evictions land
+             on Micrometer and so cache misses can stamp span events. Optional: pulled in only by
+             apps that already use it for @Cacheable storage. -->
+        <dependency>
+            <groupId>com.github.ben-manes.caffeine</groupId>
+            <artifactId>caffeine</artifactId>
+            <version>3.2.3</version>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-cache</artifactId>
+            <optional>true</optional>
+        </dependency>
+
         <!-- ========================================================================
              Test slice (@PulseTest, PulseTestHarness) — shipped in src/main so
              consumers can pull it in via the starter and use it from their own

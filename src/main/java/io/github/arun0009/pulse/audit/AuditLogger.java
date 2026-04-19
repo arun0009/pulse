@@ -15,22 +15,16 @@ import java.util.Map;
  * <p>Routes through the dedicated {@code AUDIT} logger so audit events can be sent to a separate
  * appender (e.g., a different Kafka topic or S3 bucket) without polluting application logs.
  *
- * <p>Two APIs are provided:
+ * <p>Use the fluent builder to construct an event and call {@link Event#emit()} to write it:
  *
- * <ul>
- *   <li><strong>Fluent builder</strong> ({@link #event(String)}) — preferred. Type-checked
- *       attribute names, structured context, and explicit {@code emit()} call:
- *       <pre>
- *       audit.event("order.created")
- *            .actor(currentUser.id())
- *            .resource("order:" + order.id())
- *            .outcome(Outcome.SUCCESS)
- *            .detail("amount", order.amount())
- *            .emit();
- *       </pre>
- *   <li><strong>Legacy positional</strong> ({@link #log(String, String, String, String)}) —
- *       deprecated, retained for backward compatibility. Will be removed in Pulse 2.0.
- * </ul>
+ * <pre>
+ * audit.event("order.created")
+ *      .actor(currentUser.id())
+ *      .resource("order:" + order.id())
+ *      .outcome(Outcome.SUCCESS)
+ *      .detail("amount", order.amount())
+ *      .emit();
+ * </pre>
  *
  * <p>All audit events emit at {@code INFO} level on the {@code AUDIT} logger with their
  * attributes mirrored to MDC for the duration of the call. Configure a dedicated appender for
@@ -56,20 +50,6 @@ public class AuditLogger {
     /** Begin building an audit event. The event is emitted when {@link Event#emit()} is called. */
     public Event event(String action) {
         return new Event(action);
-    }
-
-    /** @deprecated Use {@link #event(String)} fluent builder. Removed in Pulse 2.0. */
-    @Deprecated(forRemoval = true)
-    public void log(String action, String actor, String resource, String outcome) {
-        log(action, actor, resource, outcome, null);
-    }
-
-    /** @deprecated Use {@link #event(String)} fluent builder. Removed in Pulse 2.0. */
-    @Deprecated(forRemoval = true)
-    public void log(String action, String actor, String resource, String outcome, @Nullable String detail) {
-        Event evt = event(action).actor(actor).resource(resource).outcome(outcome);
-        if (detail != null) evt.detail("detail", detail);
-        evt.emit();
     }
 
     /**

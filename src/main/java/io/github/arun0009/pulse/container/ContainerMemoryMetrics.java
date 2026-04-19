@@ -1,36 +1,41 @@
 package io.github.arun0009.pulse.container;
 
-import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.FunctionCounter;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Registers the {@code pulse.container.memory.*} family of meters using values polled from
- * {@link CgroupMemoryReader} on every gauge read. Polling on read (rather than on a schedule)
- * keeps the gauge value perfectly fresh and removes the need for an extra thread.
+ * {@link CgroupMemoryReader}. Polling on read (rather than on a schedule) keeps every value
+ * perfectly fresh per scrape and removes the need for an extra thread.
  *
  * <p>If the underlying snapshot has no usable values (host JVM, macOS dev laptop, etc.) the
  * gauges silently report {@link Double#NaN} which Prometheus filters out — there is no
  * misleading "limit = 0" panel.
  *
- * <p>The OOM-kill counter is implemented as a {@link Counter} whose value is mirrored from the
- * cgroup's monotonic counter so a Prometheus {@code rate()} reflects real OOM-kill events
- * without us having to subscribe to kernel notifications.
+ * <p>The OOM-kill counter is a {@link FunctionCounter} that wraps the cgroup's own monotonic
+ * counter. Prometheus's {@code rate()} reflects real OOM-kill events without us having to
+ * subscribe to kernel notifications, mirror values, or schedule a poller.
+ *
+ * <p>To amortize the file read across the (typically 4) meters in a single scrape, each call
+ * caches the resulting snapshot for {@link #SNAPSHOT_TTL_MS} milliseconds. Scrapes happen
+ * every 15-60s in practice, so the TTL is purely about coalescing the burst inside a single
+ * scrape rather than reducing scrape-to-scrape work.
  */
 public final class ContainerMemoryMetrics {
 
     private static final Logger log = LoggerFactory.getLogger(ContainerMemoryMetrics.class);
+    private static final long SNAPSHOT_TTL_MS = 250L;
 
     private final CgroupMemoryReader reader;
     private final MeterRegistry registry;
     private final AtomicReference<CgroupMemoryReader.Snapshot> last =
             new AtomicReference<>(CgroupMemoryReader.Snapshot.empty());
-    private final AtomicLong oomMirror = new AtomicLong();
+    private volatile long lastReadAtMs;
     private boolean wired;
 
     public ContainerMemoryMetrics(CgroupMemoryReader reader, MeterRegistry registry) {
@@ -51,13 +56,20 @@ public final class ContainerMemoryMetrics {
             return false;
         }
         last.set(snapshot);
+        lastReadAtMs = System.currentTimeMillis();
 
-        Gauge.builder("pulse.container.memory.used", this, ContainerMemoryMetrics::usedBytes)
+        Gauge.builder(
+                        "pulse.container.memory.used",
+                        this,
+                        m -> m.refresh().used().map(Long::doubleValue).orElse(Double.NaN))
                 .description("Container memory in use as the kernel sees it (cgroup memory.current / usage_in_bytes)")
                 .baseUnit("bytes")
                 .register(registry);
 
-        Gauge.builder("pulse.container.memory.limit", this, ContainerMemoryMetrics::limitBytes)
+        Gauge.builder(
+                        "pulse.container.memory.limit",
+                        this,
+                        m -> m.refresh().limit().map(Long::doubleValue).orElse(Double.NaN))
                 .description("Container memory hard limit (cgroup memory.max / limit_in_bytes)")
                 .baseUnit("bytes")
                 .register(registry);
@@ -66,54 +78,36 @@ public final class ContainerMemoryMetrics {
                 .description("1 - used/limit. Below 0.10 the kernel may OOM-kill.")
                 .register(registry);
 
-        Counter oomCounter = Counter.builder("pulse.container.memory.oom_kills")
-                .description("Number of OOM-kill events observed in this cgroup hierarchy")
+        FunctionCounter.builder("pulse.container.memory.oom_kills", this, m ->
+                        (double) (long) m.refresh().oomKillCount().orElse(0L))
+                .description("Cumulative OOM-kill events observed by the kernel for this cgroup hierarchy")
                 .register(registry);
 
-        Gauge.builder("pulse.container.memory.refresh_age", this, m -> 0.0)
-                .description("Always 0 — gauges read live from cgroup on every scrape.")
-                .baseUnit("seconds")
-                .register(registry);
-
-        // Bootstrap the OOM mirror to whatever the kernel reports right now so the first
-        // poll afterwards correctly reflects deltas.
-        snapshot.oomKillCount().ifPresent(oomMirror::set);
-        wireOomCounter(oomCounter);
         wired = true;
         return true;
     }
 
-    private void wireOomCounter(Counter counter) {
-        // Mirror the cgroup's monotonic kill counter into the Micrometer counter on every
-        // gauge poll. Cheap: one file read per scrape (typically 15-60s).
-        Gauge.builder("pulse.container.memory.oom_kills_observed", this, m -> {
-                    CgroupMemoryReader.Snapshot fresh = reader.snapshot();
-                    last.set(fresh);
-                    fresh.oomKillCount().ifPresent(value -> {
-                        long delta = value - oomMirror.getAndSet(value);
-                        if (delta > 0) counter.increment(delta);
-                    });
-                    return (double) (long) fresh.oomKillCount().orElse(0L);
-                })
-                .description("Cumulative cgroup oom_kill counter as last sampled.")
-                .register(registry);
-    }
-
-    private double usedBytes() {
-        return last.get().used().map(Long::doubleValue).orElse(Double.NaN);
-    }
-
-    private double limitBytes() {
-        return last.get().limit().map(Long::doubleValue).orElse(Double.NaN);
+    /**
+     * Returns a fresh snapshot, re-reading from cgroup at most once every
+     * {@link #SNAPSHOT_TTL_MS} ms so the burst of meter reads inside a single scrape
+     * collapses to one file read.
+     */
+    private CgroupMemoryReader.Snapshot refresh() {
+        long now = System.currentTimeMillis();
+        if (now - lastReadAtMs >= SNAPSHOT_TTL_MS) {
+            last.set(reader.snapshot());
+            lastReadAtMs = now;
+        }
+        return last.get();
     }
 
     private double headroomRatio() {
-        Double headroom = last.get().headroomRatio();
+        Double headroom = refresh().headroomRatio();
         return headroom == null ? Double.NaN : headroom;
     }
 
     /** Latest snapshot — used by the health indicator. */
     public CgroupMemoryReader.Snapshot snapshot() {
-        return last.get();
+        return refresh();
     }
 }

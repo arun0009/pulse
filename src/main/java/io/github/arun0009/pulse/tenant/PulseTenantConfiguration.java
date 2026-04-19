@@ -13,7 +13,6 @@ import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-import java.util.Comparator;
 import java.util.List;
 
 /**
@@ -105,17 +104,8 @@ public class PulseTenantConfiguration {
     @ConditionalOnMissingBean(name = "pulseTenantSortedExtractors")
     public TenantSortedExtractorsHolder pulseTenantSortedExtractors(ObjectProvider<TenantExtractor> extractors) {
         // Holder bean so non-web tests can still see the sorted extractor chain.
-        return new TenantSortedExtractorsHolder(extractors
-                .orderedStream()
-                .sorted(Comparator.comparingInt(orderOf()))
-                .toList());
-    }
-
-    private static java.util.function.ToIntFunction<TenantExtractor> orderOf() {
-        return e -> {
-            if (e instanceof org.springframework.core.Ordered o) return o.getOrder();
-            return Integer.MAX_VALUE;
-        };
+        // ObjectProvider.orderedStream() already honors @Order / Ordered.
+        return new TenantSortedExtractorsHolder(extractors.orderedStream().toList());
     }
 
     /** Tiny holder so code that wants the resolved order can inject one bean instead of a list. */

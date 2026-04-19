@@ -88,6 +88,9 @@ public final class PulseDrainObservabilityLifecycle implements SmartLifecycle {
                 break;
             }
         }
+        // Re-read after loop exit — requests may have completed between the last poll
+        // and now; using the stale loop variable would over-count dropped requests.
+        remaining = inflightSupplier.getAsInt();
         long elapsedNs = System.nanoTime() - startNs;
         drainTimer.record(elapsedNs, TimeUnit.NANOSECONDS);
         if (remaining > 0) {

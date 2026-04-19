@@ -165,6 +165,21 @@ public void reconcile() {
 Same story for Kafka — Pulse composes its `RecordInterceptor` with any of yours so MDC + the
 remaining timeout budget arrive on the listener thread.
 
+**Background-job observability is built into the same wrapper.** Every `@Scheduled` method
+also gets:
+
+- `pulse.jobs.executions{job, outcome=success|failure}` — execution counter
+- `pulse.jobs.duration{job, outcome}` — per-run timer (with the SLO histogram buckets)
+- `pulse.jobs.in_flight{job}` — overrun detector (sustained `>1` means the job runs longer than its interval and Spring is queuing executions)
+- A `jobs` health indicator that flips DOWN when any observed job hasn't succeeded within
+	`pulse.jobs.failure-grace-period` (default `1h`)
+- A live job table at `/actuator/pulse` showing last-success timestamp, last-failure cause,
+	success/failure counts per job
+
+No annotations, no per-job boilerplate — the same wrapping that propagates context observes
+the run. ShedLock-managed jobs are observed automatically too, since they decorate the
+`Runnable` *before* it reaches the scheduler.
+
 ### 4. SLO-as-code
 
 ```yaml
@@ -229,6 +244,73 @@ The bundled `log4j2-spring.xml` ships a JSON layout that emits `traceId`, `spanI
 `env`, `app.version`, `build.commit`, `requestId`, `errorFingerprint`, and your custom MDC keys
 on **every** line — including pre-Spring-boot lines from background threads. "Which deploy
 logged this?" is never a question again.
+
+**OTel semantic-convention aliases.** Every Pulse log line also carries the OTel-canonical
+field names alongside the flat ones, so OTel-native sinks (Datadog, Honeycomb, Grafana derived
+fields, the Collector's `transform` processor) work without manual relabeling:
+
+| Pulse flat name | OTel semconv alias |
+|---|---|
+| `traceId` / `spanId` | `trace_id` / `span_id` (OTel logs data model) |
+| `service` | `service.name` |
+| `env` | `deployment.environment` |
+| `app.version` | `service.version` |
+| `build.commit` | `vcs.ref.head.revision` |
+| `requestId` | `http.request.id` |
+| `userId` (from `X-User-ID`) | `user.id` |
+
+Both names point at the same MDC key or system property — there's no double-resolution cost
+and no risk of skew. The flat names will be removed in `1.0.0` after a deprecation cycle; the
+OTel names are stable and will remain.
+
+**Resource attributes — *where* the JVM is running.** On top of the per-request fields above,
+every log line is stamped with the OTel resource attributes that identify the host, container,
+Kubernetes pod, and cloud region. Pulse resolves them once at startup and seeds JVM system
+properties so they appear on **every** thread's logs (including pre-Spring-boot startup
+chatter), with no per-request cost:
+
+| OTel attribute | Resolution sources, in priority order |
+|---|---|
+| `host.name` | `OTEL_RESOURCE_ATTRIBUTES`, `HOSTNAME`, `InetAddress.getLocalHost()` |
+| `container.id` | `OTEL_RESOURCE_ATTRIBUTES`, 64-hex match in `/proc/self/cgroup` |
+| `k8s.pod.name` | `OTEL_RESOURCE_ATTRIBUTES`, `POD_NAME` / `MY_POD_NAME`, `HOSTNAME` (only if `KUBERNETES_SERVICE_HOST` is set) |
+| `k8s.namespace.name` | `OTEL_RESOURCE_ATTRIBUTES`, `POD_NAMESPACE` / `MY_POD_NAMESPACE`, `/var/run/secrets/kubernetes.io/serviceaccount/namespace` |
+| `k8s.node.name` | `OTEL_RESOURCE_ATTRIBUTES`, `NODE_NAME` / `MY_NODE_NAME` |
+| `cloud.provider` | inferred from env: `aws` (AWS_REGION / AWS_EXECUTION_ENV), `gcp` (GOOGLE_CLOUD_PROJECT / *_REGION), `azure` (AZURE_REGION / WEBSITE_SITE_NAME) |
+| `cloud.region` | `AWS_REGION`, `GOOGLE_CLOUD_REGION`, `AZURE_REGION`, … |
+| `cloud.availability_zone` | `AWS_AVAILABILITY_ZONE` |
+
+This means dashboards like *"5xx rate per AZ"* or *"slow checkout requests on node-7 in
+us-east-1a"* are one Loki/LogQL filter away — **no per-app glue, no helm-chart MDC
+injection**. Undetected attributes default to `"unknown"` so the field is always present (a
+clean signal you can grep for to find unconfigured deployments). Operators can always override
+any value with `OTEL_RESOURCE_ATTRIBUTES=k8s.pod.name=foo,cloud.region=us-east-1`, which keeps
+Pulse consistent with the rest of the OTel ecosystem.
+
+**Logback users.** Pulse defaults to Log4j2 (transitive via `spring-boot-starter-log4j2`), but
+ships an equivalent `logback-spring.xml` + `PulseLogbackEncoder` that produce the *exact same*
+JSON shape — same OTel semconv aliases, same PII masking, same field set. To opt in:
+
+```xml
+<dependency>
+	<groupId>io.github.arun0009</groupId>
+	<artifactId>pulse-spring-boot-starter</artifactId>
+	<exclusions>
+		<exclusion>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-log4j2</artifactId>
+		</exclusion>
+	</exclusions>
+</dependency>
+<dependency>
+	<groupId>org.springframework.boot</groupId>
+	<artifactId>spring-boot-starter-logging</artifactId>
+</dependency>
+```
+
+Spring Boot's `LoggingSystem` auto-detects Logback on the classpath and loads
+`logback-spring.xml` from Pulse's classpath. No further configuration required — dashboards
+built on the Log4j2 path work unchanged.
 
 #### How `app.version` and `build.commit` get resolved
 
@@ -301,7 +383,85 @@ Attributes go on the span and log (rich, high-cardinality is fine). The counter 
 event name (bounded), so you can SLO against business events without accidentally exploding
 metrics cardinality.
 
-### 9. Observability for observability
+### 9. Database observability — N+1 detection, free
+
+When Hibernate ORM is on the classpath, Pulse automatically wires a `StatementInspector` and a
+servlet filter that count prepared SQL statements per request:
+
+```
+pulse.db.statements_per_request{endpoint="GET /orders/{id}"}    # distribution: p50/p95/max
+pulse.db.n_plus_one.suspect{endpoint="GET /orders/{id}/items"}  # counter, fires above threshold
+```
+
+When a single request prepares more than `pulse.db.n-plus-one-threshold` statements (default
+`50`), Pulse:
+
+1. Increments the suspect counter, tagged by route template (no per-id explosion).
+2. Adds a `pulse.db.n_plus_one.suspect` event to the active span with the statement count and
+	endpoint as attributes — clickable from your tracing UI.
+3. Logs a single structured WARN to the `pulse.db.n-plus-one` channel with the per-verb
+	breakdown (e.g. `{SELECT=247, UPDATE=1}`) and the existing `traceId` / `requestId` MDC.
+
+Slow queries are routed through Hibernate's built-in `org.hibernate.SQL_SLOW` logger; Pulse
+seeds `hibernate.session.events.log.LOG_QUERIES_SLOWER_THAN_MS` to
+`pulse.db.slow-query-threshold` (default `500ms`). Because Pulse's JSON layout already adds
+`traceId` / `service` to every log line, the slow-query message is automatically correlated
+with the trace that issued the query — zero extra plumbing.
+
+The whole subsystem is gated by `@ConditionalOnClass(StatementInspector.class)` — non-JPA apps
+(MongoDB, plain JDBC, REST-only) pay nothing.
+
+### 10. Resilience4j auto-instrumentation
+
+If your application registers a `CircuitBreakerRegistry`, `RetryRegistry`, or `BulkheadRegistry`,
+Pulse attaches event consumers automatically — no annotations on your `@CircuitBreaker` /
+`@Retry` methods, no manual subscribers:
+
+```
+pulse.r4j.circuit_breaker.state_transitions{name, from, to}   # CLOSED→OPEN counter
+pulse.r4j.circuit_breaker.state{name}                          # live state gauge
+pulse.r4j.circuit_breaker.errors_total{name}                   # numerator for burn-rate
+pulse.r4j.retry.attempts_total{name}                           # silent retries surfaced
+pulse.r4j.retry.exhausted_total{name}                          # gave up after max attempts
+pulse.r4j.bulkhead.rejected_total{name}                        # load shed at the boundary
+```
+
+Every state transition also lands as a span event (`pulse.r4j.cb.state_transition`) on the
+active span — so a slow-trace investigation immediately tells you "this trace took 4s because
+the circuit went HALF_OPEN at attempt 3 of the retry," not just "this trace was slow." Each
+retry attempt likewise stamps `pulse.r4j.retry.attempt` on the parent span with the attempt
+number, eliminating the silent-retry blind spot.
+
+Cardinality is bounded by the number of breakers/retries you declare (single-digit per
+service in practice).
+
+### 11. Continuous-profiling correlation (Pyroscope-aware, vendor-neutral)
+
+Pulse stamps every span with attributes that turn any APM into a one-click flame-graph link:
+
+```
+profile.id=<traceId>            # Grafana convention; lit up by Tempo + Grafana traces UI
+pyroscope.profile_id=<traceId>  # parity with the Pyroscope agent's auto-instrumentation
+pulse.profile.url=<deep link>   # root-only; populated when pulse.profiling.pyroscope-url is set
+```
+
+```yaml
+pulse:
+	profiling:
+	pyroscope-url: https://pyroscope.example.com   # optional; enables the deep-link attribute
+```
+
+Pulse never bundles or starts a profiler. If you've already injected the Pyroscope agent
+(`-javaagent:pyroscope.jar`), Pulse detects it on startup, logs a single confirmation line, and
+surfaces the detection result at `/actuator/pulse` — so an operator can confirm the
+profile↔trace bridge is wired without spelunking through logs. The attributes are stamped
+regardless of whether the agent is actually running, since the work in trace UIs to render the
+link template is the same either way.
+
+The "click a slow span, jump to the CPU flame graph for that exact window" workflow Datadog
+charges $30+/host/month for is one config line away.
+
+### 12. Observability for observability
 
 `/actuator/pulse` lists every subsystem and its effective config. `/actuator/pulse/runtime`
 reports cardinality top-offenders, SLO compliance, and (via the bundled
@@ -481,7 +641,7 @@ Pulse holds itself to the same bar it sets for your observability:
 
 - Java 21+
 - Spring Boot 4.0+
-- Log4j2 runtime (the starter ships a Log4j2 layout; SLF4J/Logback users can swap in their own)
+- Log4j2 runtime by default — Logback supported via opt-in (see [Logback users](#7-structured-json-logs-with-pii-masking) above)
 
 ## Status
 

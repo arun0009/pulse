@@ -49,6 +49,19 @@ class PulseRuntimeHintsTest {
 
         Assertions.assertThat(resource().forResource("pulse-json-layout.json")).accepts(hints);
         Assertions.assertThat(resource().forResource("log4j2-spring.xml")).accepts(hints);
+        Assertions.assertThat(resource().forResource("logback-spring.xml")).accepts(hints);
+    }
+
+    @Test
+    void registers_pulse_logback_encoder_for_reflection() {
+        // Logback's JoranConfigurator instantiates the encoder reflectively from the class name
+        // in logback-spring.xml. Without this hint, Logback-on-native-image falls back to a
+        // no-op encoder and structured logs disappear.
+        RuntimeHints hints = new RuntimeHints();
+        new PulseRuntimeHints().registerHints(hints, getClass().getClassLoader());
+
+        Assertions.assertThat(reflection().onType(io.github.arun0009.pulse.logging.PulseLogbackEncoder.class))
+                .accepts(hints);
     }
 
     @Test

@@ -1,5 +1,6 @@
 package io.github.arun0009.pulse.autoconfigure;
 
+import org.jspecify.annotations.Nullable;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.DefaultValue;
 
@@ -39,7 +40,11 @@ public record PulseProperties(
         @DefaultValue Histograms histograms,
         @DefaultValue Slo slo,
         @DefaultValue Health health,
-        @DefaultValue Shutdown shutdown) {
+        @DefaultValue Shutdown shutdown,
+        @DefaultValue Jobs jobs,
+        @DefaultValue Db db,
+        @DefaultValue Resilience resilience,
+        @DefaultValue Profiling profiling) {
 
     /** MDC enrichment from the inbound HTTP request. */
     public record Context(
@@ -217,4 +222,87 @@ public record PulseProperties(
     public record Shutdown(
             @DefaultValue("true") boolean otelFlushEnabled,
             @DefaultValue("10s") Duration otelFlushTimeout) {}
+
+    /**
+     * Background-job observability — wraps every {@code @Scheduled} method (and any other
+     * {@link Runnable} routed through Spring's {@link org.springframework.scheduling.TaskScheduler})
+     * with metrics + a registry that powers the {@code jobs} health indicator.
+     *
+     * <p>Metrics emitted (cardinality bounded by your {@code @Scheduled} method count):
+     * {@code pulse.jobs.executions{job, outcome}}, {@code pulse.jobs.duration{job, outcome}},
+     * {@code pulse.jobs.in_flight{job}}.
+     *
+     * <p>{@link #failureGracePeriod()} controls when {@code JobsHealthIndicator} flips a job to
+     * {@code DOWN}: any job that has been observed running but has not succeeded within this
+     * window is considered stuck. The default of 1 hour is generous enough to cover daily and
+     * hourly jobs without false-positiving five-minute jobs that briefly fail and recover.
+     * Tighten per environment if you run sub-minute jobs.
+     */
+    public record Jobs(
+            @DefaultValue("true") boolean enabled,
+            @DefaultValue("true") boolean healthIndicatorEnabled,
+            @DefaultValue("1h") Duration failureGracePeriod) {}
+
+    /**
+     * Database observability — wires a Hibernate {@code StatementInspector} that counts every
+     * prepared SQL statement against a per-request scope and emits:
+     *
+     * <ul>
+     *   <li>{@code pulse.db.statements_per_request{endpoint}} — distribution summary so an
+     *       operator can see p50/p95/max statements per endpoint.
+     *   <li>{@code pulse.db.n_plus_one.suspect{endpoint}} — counter that fires when a single
+     *       request prepares more than {@link #nPlusOneThreshold()} statements, plus a span
+     *       event and a structured WARN log line carrying {@code traceId}.
+     * </ul>
+     *
+     * <p>Slow queries are routed through Hibernate's built-in {@code org.hibernate.SQL_SLOW}
+     * logger; Pulse seeds the {@code hibernate.session.events.log.LOG_QUERIES_SLOWER_THAN_MS}
+     * property to {@link #slowQueryThreshold()}. Because the Pulse JSON layout already adds
+     * {@code traceId}/{@code requestId}/{@code service} to every line, the slow-query log is
+     * automatically correlated with the trace that issued the query — no extra plumbing
+     * required.
+     *
+     * <p>The default {@link #nPlusOneThreshold()} of {@code 50} is empirically gentle: it catches
+     * the classic "loop fetching detail rows" anti-pattern without firing for legitimately
+     * statement-heavy endpoints (batch jobs, schema migrations, complex reports). Tighten in
+     * production where 20-30 statements should already be a red flag, or relax for analytical
+     * services. Setting {@code enabled=false} removes the inspector and the filter altogether
+     * (zero overhead for apps that opt out).
+     */
+    public record Db(
+            @DefaultValue("true") boolean enabled,
+            @DefaultValue("50") int nPlusOneThreshold,
+            @DefaultValue("500ms") Duration slowQueryThreshold) {}
+
+    /**
+     * Resilience4j auto-instrumentation. When the application registers a
+     * {@code CircuitBreakerRegistry}, {@code RetryRegistry}, or {@code BulkheadRegistry},
+     * Pulse attaches event consumers that turn state transitions, retries, and rejections
+     * into Micrometer counters + span events + structured log lines. No code changes required
+     * on the consumer's @CircuitBreaker / @Retry annotated methods.
+     *
+     * <p>Setting {@code enabled=false} disables every observer at once. Each individual
+     * observer is also gated on its registry being present, so a service that only uses
+     * circuit breakers does not pay for retry or bulkhead wiring.
+     */
+    public record Resilience(@DefaultValue("true") boolean enabled) {}
+
+    /**
+     * Continuous-profiling correlation. When enabled (default), Pulse stamps
+     * {@code profile.id} and {@code pyroscope.profile_id} attributes on every span using the
+     * trace id, so any APM that ingests the attributes can render a one-click "Open profile"
+     * link without per-vendor configuration.
+     *
+     * <p>Setting {@link #pyroscopeUrl()} to your Pyroscope (or compatible) host adds a
+     * root-span-only {@code pulse.profile.url} attribute pointing directly at the flame graph
+     * for the trace's time window — clickable in Tempo, Jaeger, Zipkin, and Grafana traces UI.
+     *
+     * <p>Pulse never bundles or starts a profiler. {@link io.github.arun0009.pulse.profiling.PyroscopeDetector}
+     * detects the {@code -javaagent:pyroscope.jar} the operator already injected into the JVM
+     * and surfaces the result in {@code /actuator/pulse}; the profile-link attributes work
+     * regardless of whether the agent is running, since they only describe how to find the
+     * profile if one exists.
+     */
+    public record Profiling(
+            @DefaultValue("true") boolean enabled, @Nullable String pyroscopeUrl) {}
 }

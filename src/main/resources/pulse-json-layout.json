@@ -22,6 +22,15 @@
         "$resolver": "message",
         "stringified": true
     },
+
+    "trace_id": {
+        "$resolver": "mdc",
+        "key": "traceId"
+    },
+    "span_id": {
+        "$resolver": "mdc",
+        "key": "spanId"
+    },
     "traceId": {
         "$resolver": "mdc",
         "key": "traceId"
@@ -30,26 +39,90 @@
         "$resolver": "mdc",
         "key": "spanId"
     },
+
+    "service.name": {
+        "$resolver": "mdc",
+        "key": "service"
+    },
     "service": {
         "$resolver": "mdc",
         "key": "service"
     },
-    "env": {
-        "$resolver": "mdc",
-        "key": "env"
+    "service.version": {
+        "$resolver": "pattern",
+        "pattern": "${sys:pulse.app.version:-unknown}"
     },
     "app.version": {
         "$resolver": "pattern",
         "pattern": "${sys:pulse.app.version:-unknown}"
     },
+    "deployment.environment": {
+        "$resolver": "mdc",
+        "key": "env"
+    },
+    "env": {
+        "$resolver": "mdc",
+        "key": "env"
+    },
+    "vcs.ref.head.revision": {
+        "$resolver": "pattern",
+        "pattern": "${sys:pulse.build.commit:-unknown}"
+    },
     "build.commit": {
         "$resolver": "pattern",
         "pattern": "${sys:pulse.build.commit:-unknown}"
+    },
+
+    "user.id": {
+        "$resolver": "mdc",
+        "key": "userId"
+    },
+    "userId": {
+        "$resolver": "mdc",
+        "key": "userId"
+    },
+    "http.request.id": {
+        "$resolver": "mdc",
+        "key": "requestId"
     },
     "requestId": {
         "$resolver": "mdc",
         "key": "requestId"
     },
+
+    "host.name": {
+        "$resolver": "pattern",
+        "pattern": "${sys:pulse.host.name:-unknown}"
+    },
+    "container.id": {
+        "$resolver": "pattern",
+        "pattern": "${sys:pulse.container.id:-unknown}"
+    },
+    "k8s.pod.name": {
+        "$resolver": "pattern",
+        "pattern": "${sys:pulse.k8s.pod.name:-unknown}"
+    },
+    "k8s.namespace.name": {
+        "$resolver": "pattern",
+        "pattern": "${sys:pulse.k8s.namespace.name:-unknown}"
+    },
+    "k8s.node.name": {
+        "$resolver": "pattern",
+        "pattern": "${sys:pulse.k8s.node.name:-unknown}"
+    },
+    "cloud.provider": {
+        "$resolver": "pattern",
+        "pattern": "${sys:pulse.cloud.provider:-unknown}"
+    },
+    "cloud.region": {
+        "$resolver": "pattern",
+        "pattern": "${sys:pulse.cloud.region:-unknown}"
+    },
+    "cloud.availability_zone": {
+        "$resolver": "pattern",
+        "pattern": "${sys:pulse.cloud.availability_zone:-unknown}"
+    },
+
     "context": {
         "$resolver": "mdc"
     },

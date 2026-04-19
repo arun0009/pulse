@@ -3,20 +3,27 @@ package io.github.arun0009.pulse.autoconfigure;
 import io.github.arun0009.pulse.actuator.PulseDiagnostics;
 import io.github.arun0009.pulse.async.ExecutorConfiguration;
 import io.github.arun0009.pulse.audit.AuditLogger;
+import io.github.arun0009.pulse.db.PulseDbConfiguration;
 import io.github.arun0009.pulse.events.SpanEvents;
 import io.github.arun0009.pulse.guardrails.CardinalityFirewall;
 import io.github.arun0009.pulse.guardrails.SamplingConfiguration;
 import io.github.arun0009.pulse.health.OtelExporterHealthIndicator;
 import io.github.arun0009.pulse.health.OtelExporterHealthRegistrar;
+import io.github.arun0009.pulse.jobs.InstrumentedTaskScheduler;
+import io.github.arun0009.pulse.jobs.JobRegistry;
+import io.github.arun0009.pulse.jobs.JobsHealthIndicator;
 import io.github.arun0009.pulse.metrics.BusinessMetrics;
 import io.github.arun0009.pulse.metrics.CommonTagsConfiguration;
 import io.github.arun0009.pulse.metrics.DeployInfoMetrics;
 import io.github.arun0009.pulse.metrics.HistogramMeterFilter;
+import io.github.arun0009.pulse.profiling.PulseProfilingConfiguration;
 import io.github.arun0009.pulse.propagation.KafkaPropagationConfiguration;
 import io.github.arun0009.pulse.propagation.OkHttpPropagationConfiguration;
 import io.github.arun0009.pulse.propagation.RestClientPropagationConfiguration;
 import io.github.arun0009.pulse.propagation.RestTemplatePropagationConfiguration;
 import io.github.arun0009.pulse.propagation.WebClientPropagationConfiguration;
+import io.github.arun0009.pulse.resilience.PulseResilience4jConfiguration;
+import io.github.arun0009.pulse.scheduling.ContextPropagatingTaskScheduler;
 import io.github.arun0009.pulse.scheduling.PulseSchedulingConfigurer;
 import io.github.arun0009.pulse.shutdown.PulseOtelShutdownLifecycle;
 import io.github.arun0009.pulse.slo.SloProjector;
@@ -79,6 +86,9 @@ import org.springframework.core.env.Environment;
     WebClientPropagationConfiguration.class,
     OkHttpPropagationConfiguration.class,
     KafkaPropagationConfiguration.class,
+    PulseDbConfiguration.class,
+    PulseResilience4jConfiguration.class,
+    PulseProfilingConfiguration.class,
 })
 public class PulseAutoConfiguration {
 
@@ -149,7 +159,8 @@ public class PulseAutoConfiguration {
             @Value("${spring.application.name:unknown-service}") String serviceName,
             @Value("${app.env:unknown-env}") String environment,
             ObjectProvider<CardinalityFirewall> cardinalityFirewall,
-            ObjectProvider<SloProjector> sloProjector) {
+            ObjectProvider<SloProjector> sloProjector,
+            ObjectProvider<JobRegistry> jobRegistry) {
         String version = getClass().getPackage().getImplementationVersion();
         return new PulseDiagnostics(
                 properties,
@@ -157,7 +168,8 @@ public class PulseAutoConfiguration {
                 environment,
                 version == null ? "dev" : version,
                 cardinalityFirewall.getIfAvailable(),
-                sloProjector.getIfAvailable());
+                sloProjector.getIfAvailable(),
+                jobRegistry.getIfAvailable());
     }
 
     @Bean
@@ -192,6 +204,44 @@ public class PulseAutoConfiguration {
         return scheduler;
     }
 
+    /**
+     * Tracks the runtime state of every {@code @Scheduled} job Pulse has observed so the
+     * {@code jobs} health indicator and {@code /actuator/pulse} can report on them. Always
+     * registered when jobs are enabled (default) — it has no overhead until a job actually runs.
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnProperty(prefix = "pulse.jobs", name = "enabled", havingValue = "true", matchIfMissing = true)
+    public JobRegistry pulseJobRegistry() {
+        return new JobRegistry();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(name = "pulseJobsHealthIndicator")
+    @ConditionalOnClass(HealthIndicator.class)
+    @ConditionalOnProperty(
+            prefix = "pulse.jobs",
+            name = "health-indicator-enabled",
+            havingValue = "true",
+            matchIfMissing = true)
+    public HealthIndicator pulseJobsHealthIndicator(JobRegistry registry, PulseProperties properties) {
+        return new JobsHealthIndicator(registry, properties.jobs());
+    }
+
+    /**
+     * Wraps the application's {@link org.springframework.scheduling.TaskScheduler} with one of
+     * two decorators based on {@code pulse.jobs.enabled}:
+     *
+     * <ul>
+     *   <li>{@code true} (default) — {@link InstrumentedTaskScheduler}: context propagation +
+     *       per-job metrics + registry updates.
+     *   <li>{@code false} — {@link ContextPropagatingTaskScheduler}: context propagation only.
+     * </ul>
+     *
+     * <p>The wrapper is supplied to the configurer as a function so neither decorator is
+     * instantiated until {@link org.springframework.scheduling.config.ScheduledTaskRegistrar} is
+     * actually being configured (lazy + matches Spring's lifecycle ordering).
+     */
     @Bean
     @ConditionalOnMissingBean
     @ConditionalOnProperty(
@@ -199,8 +249,18 @@ public class PulseAutoConfiguration {
             name = "scheduled-propagation-enabled",
             havingValue = "true",
             matchIfMissing = true)
-    public PulseSchedulingConfigurer pulseSchedulingConfigurer(org.springframework.scheduling.TaskScheduler scheduler) {
-        return new PulseSchedulingConfigurer(scheduler);
+    public PulseSchedulingConfigurer pulseSchedulingConfigurer(
+            org.springframework.scheduling.TaskScheduler scheduler,
+            PulseProperties properties,
+            ObjectProvider<JobRegistry> jobRegistry,
+            ObjectProvider<MeterRegistry> meterRegistry) {
+        java.util.function.UnaryOperator<org.springframework.scheduling.TaskScheduler> wrapper;
+        if (properties.jobs().enabled()) {
+            wrapper = ts -> new InstrumentedTaskScheduler(ts, meterRegistry.getObject(), jobRegistry.getObject());
+        } else {
+            wrapper = ContextPropagatingTaskScheduler::new;
+        }
+        return new PulseSchedulingConfigurer(scheduler, wrapper);
     }
 
     @Bean(destroyMethod = "")

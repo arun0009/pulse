@@ -567,7 +567,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-dependency-plugin</artifactId>
-                <version>3.7.0</version>
+                <version>3.10.0</version>
                 <executions>
                     <execution>
                         <id>resolve-agent-jars</id>
@@ -580,7 +580,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.13.0</version>
+                <version>3.15.0</version>
                 <configuration>
                     <release>${java.version}</release>
                     <parameters>true</parameters>
@@ -637,7 +637,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
-                <version>3.2.5</version>
+                <version>3.5.5</version>
                 <configuration>
                     <!-- `@{argLine}` threads through the jacoco:prepare-agent output so
                          JaCoCo's -javaagent isn't clobbered. `-javaagent:${mockito}` pins
@@ -668,7 +668,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-failsafe-plugin</artifactId>
-                <version>3.2.5</version>
+                <version>3.5.5</version>
                 <configuration>
                     <!-- Mirror surefire — Mockito javaagent + silenced SLF4J internals
                          + Log4j2 pin during integration tests.
@@ -980,7 +980,7 @@
                     <plugin>
                         <groupId>org.codehaus.mojo</groupId>
                         <artifactId>exec-maven-plugin</artifactId>
-                        <version>3.5.0</version>
+                        <version>3.6.3</version>
                         <configuration>
                             <executable>java</executable>
                             <classpathScope>test</classpathScope>

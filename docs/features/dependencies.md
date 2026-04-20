@@ -1,47 +1,63 @@
 # Dependency health map
 
-> **Status:** Stable · **Config prefix:** `pulse.dependencies` ·
-> **Source:** [`io.github.arun0009.pulse.dependencies`](https://github.com/arun0009/pulse/tree/main/src/main/java/io/github/arun0009/pulse/dependencies)
+When the system is misbehaving, the question is *"which downstream is killing
+me?"* — and the answer is buried across fifty dashboards. Server-side metrics
+on the downstream don't capture caller-side retries, circuit-breaker fallbacks,
+or pool saturation. Caller-side metrics do.
 
-## Value prop
+**Pulse records caller-side RED metrics for every outbound call.** One PromQL
+query per service tells you which downstream is responsible for the pain.
 
-Answers *"which downstream is killing me?"* without opening 50 dashboards.
-Caller-side RED metrics per logical downstream — the only view that
-captures retries, circuit-breaker fallbacks, and pool-saturation symptoms in
-one place.
+## What you get
 
-## What it does
+```promql
+topk(5, sum by (dependency)
+        (rate(pulse_dependency_requests_total{status_class!="2xx"}[5m])))
+```
 
-For every outbound HTTP call (`RestTemplate`, `RestClient`, `WebClient`,
-`OkHttp`), Pulse classifies the dependency by host (or by an explicit
-`@PulseDependency("payment-service")` annotation if you've stamped one) and
-records:
+The five worst-offender downstreams, ranked by error rate. Pivots straight to
+the `pulse_dependency_latency_seconds` histogram for the same `dependency`
+to see whether they're slow, broken, or both.
 
-- `pulse.dependency.requests{dependency, status_class}` — RED count
-- `pulse.dependency.latency{dependency, status_class}` — RED latency timer
-- `pulse.request.fan_out{endpoint}` — distinct dependencies called per
-  inbound request (see [fan-out](fan-out.md))
+A health indicator (`/actuator/health/dependency`) flips DEGRADED when any
+critical dependency's caller-side error rate crosses
+`pulse.dependencies.health.error-ratio-threshold` — so Kubernetes pulls the
+pod out of rotation before users see it.
 
-`DependencyHealthIndicator` reads these meters (no extra HTTP calls) and
-reports DEGRADED when a downstream's caller-side error rate crosses
-`pulse.dependencies.health.error-ratio-threshold` (default `0.10`), so
-`/actuator/health` stops lying about being green when payment-service is
-on fire.
+## Turn it on
 
-## Configuration
+Nothing. On by default. Pulse classifies dependencies by host name; for
+nicer logical names, annotate the client:
+
+```java
+@PulseDependency("payment-service")
+RestClient paymentClient = RestClient.create();
+```
+
+## What it adds
+
+| Metric | Tags | Meaning |
+| --- | --- | --- |
+| `pulse.dependency.requests` | `dependency`, `status_class` | RED count, caller-side |
+| `pulse.dependency.latency` | `dependency`, `status_class` | RED latency, caller-side |
+| `pulse.request.fan_out` | `endpoint` | Distinct dependencies called per inbound request — see [Request fan-out](fan-out.md) |
+
+## When to skip it
+
+You usually don't. The metrics are emitted by the same outbound interceptors
+that handle [timeout-budget propagation](timeout-budget.md), so the
+incremental cost is one Micrometer record per call.
+
+To turn off just the health indicator (keep the metrics):
 
 ```yaml
 pulse:
   dependencies:
-    enabled: true
     health:
-      enabled: true
-      error-ratio-threshold: 0.10
-      window: 5m
+      enabled: false
 ```
 
-!!! note "Expanded coverage coming"
+---
 
-    Full metric / tag / annotation reference and a sample dashboard panel
-    land in a 1.0.x patch. Track
-    [`features/dependencies` issues on GitHub](https://github.com/arun0009/pulse/issues?q=label%3Adocs+dependencies).
+**Source:** [`io.github.arun0009.pulse.dependencies`](https://github.com/arun0009/pulse/tree/main/src/main/java/io/github/arun0009/pulse/dependencies) ·
+**Status:** Stable since 1.0.0

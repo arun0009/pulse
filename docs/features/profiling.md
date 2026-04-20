@@ -1,37 +1,58 @@
 # Continuous-profiling correlation
 
-> **Status:** Stable · **Config prefix:** `pulse.profiling` ·
-> **Source:** [`io.github.arun0009.pulse.profiling`](https://github.com/arun0009/pulse/tree/main/src/main/java/io/github/arun0009/pulse/profiling)
+Continuous profiling — Pyroscope, Parca, Datadog Profiler — is the third leg
+of observability after traces and logs. The hard part is correlating a slow
+trace with the profile that captured the same time window. Without
+correlation, the profile is just a flame graph for the whole pod.
 
-## Value prop
+**Pulse stamps profile IDs onto every span** so the trace UI can deep-link
+straight to the matching profile slice. One click instead of a manual time
+window math.
 
-Continuous profiling (Pyroscope, Parca, Datadog Profiler) is the third leg
-of observability after traces and logs. The hard part is correlating a
-slow trace with the profile that captured the same time window — Pulse
-makes that one click.
+## What you get
 
-## What it does
+Every span in your trace carries:
 
-Every span carries:
+| Attribute | Convention |
+| --- | --- |
+| `profile.id` | Grafana convention |
+| `pyroscope.profile_id` | Pyroscope convention |
+| `pulse.profile.url` (root spans only) | Pre-built deep link to the matching profile slice |
 
-- `profile.id` (Grafana convention)
-- `pyroscope.profile_id`
-- `pulse.profile.url` (root spans only) — pre-built deep link
+In Grafana Tempo, that means the profile-correlation panel works without
+extra wiring. In other UIs, the URL is one copy-paste.
 
-Pulse never bundles or starts a profiler. If you've already injected the
-Pyroscope agent it is detected at startup and surfaced at
-`/actuator/pulse`.
+## Turn it on
 
-## Configuration
+Set the URL template that points at your profiler instance:
 
 ```yaml
 pulse:
   profiling:
-    enabled: true
     profile-url-template: "https://pyroscope.example.com/?query={query}"
 ```
 
-!!! note "Expanded coverage coming"
+Pulse never bundles or starts a profiler. If you've already injected the
+Pyroscope agent, Pulse detects it at startup and surfaces the integration
+state at `/actuator/pulse`.
 
-    Full reference (URL template variables, Datadog Profiler integration,
-    Parca compatibility notes) lands in a 1.0.x patch.
+## What it adds
+
+The three span attributes above. Nothing else — no metrics, no logs;
+correlation alone is the value.
+
+## When to skip it
+
+If you don't run a continuous profiler, the attributes are just noise on
+the span:
+
+```yaml
+pulse:
+  profiling:
+    enabled: false
+```
+
+---
+
+**Source:** [`io.github.arun0009.pulse.profiling`](https://github.com/arun0009/pulse/tree/main/src/main/java/io/github/arun0009/pulse/profiling) ·
+**Status:** Stable since 1.0.0

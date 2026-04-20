@@ -1,43 +1,69 @@
 # Live diagnostic actuator
 
-> **Status:** Stable · **Config prefix:** `pulse.actuator` ·
-> **Source:** [`io.github.arun0009.pulse.actuator`](https://github.com/arun0009/pulse/tree/main/src/main/java/io/github/arun0009/pulse/actuator)
+When something looks off, the answer should never be *"redeploy with debug
+logging."* You should be able to ask the running app what it's doing, what
+it's configured with, and what it last sent to the Collector — without
+disturbing it.
 
-## Value prop
+**Pulse exposes its full operational state through the actuator**, both as
+JSON for tooling and as a single dependency-free HTML page for humans.
 
-When something looks off, the answer should never be "redeploy with debug
-logging." Pulse exposes its full operational state through the actuator,
-both as JSON for tools and as a single dependency-free HTML page for
-humans.
+## What you get
 
-## Endpoints
+A single browser tab, no auth gymnastics, no extra dashboards to provision:
 
 | Endpoint | What it shows |
-|---|---|
-| `/actuator/pulse` | JSON snapshot of every Pulse subsystem and its effective configuration |
+| --- | --- |
+| `/actuator/pulse` | JSON snapshot of every Pulse feature and its effective configuration |
 | `/actuator/pulseui` | Same, rendered as a single HTML page (browser-friendly) |
 | `/actuator/pulse/runtime` | Cardinality top-offenders, SLO compliance, OTel exporter freshness |
 | `/actuator/pulse/effective-config` | Full resolved `PulseProperties` tree |
-| `/actuator/pulse/config-hash` | Fleet-drift hash + contributing keys |
-| `/actuator/pulse/slo` | Generated `PrometheusRule` YAML, ready to `kubectl apply` |
-| `/actuator/health/otelExporter` | UP/DOWN based on whether the trace exporter has actually exported anything in the last `pulse.health.otel-exporter-stale-after` (default `5m`) |
+| `/actuator/pulse/config-hash` | [Fleet-drift](fleet-config-drift.md) hash + contributing keys |
+| `/actuator/pulse/slo` | Generated `PrometheusRule` YAML (see [SLO-as-code](slo-as-code.md)) |
+
+Plus the pre-built health indicators:
+
+| Endpoint | Meaning |
+| --- | --- |
+| `/actuator/health/otelExporter` | UP when the trace exporter has actually exported in the last `pulse.health.otel-exporter-stale-after` (default 5m) |
 | `/actuator/health/dependency` | DEGRADED when caller-side error rate for any tracked downstream crosses threshold |
 | `/actuator/health/containerMemory` | DEGRADED below configured memory headroom ratio |
 | `/actuator/health/jobs` | DOWN when a `@Scheduled` job hasn't succeeded inside its grace period |
 
-## Configuration
+## Turn it on
+
+Nothing. The endpoints are registered automatically. Expose them through
+standard Spring Boot configuration:
+
+```yaml
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,pulse,pulseui,prometheus
+```
+
+## When to turn off the UI
+
+If you don't want the HTML page exposed (e.g. on a shared management port
+behind a reverse proxy you don't control):
 
 ```yaml
 pulse:
   actuator:
-    enabled: true
-    ui-enabled: true
-  health:
-    otel-exporter-stale-after: 5m
+    ui-enabled: false
 ```
 
-!!! note "Expanded coverage coming"
+JSON endpoints stay available either way.
 
-    Full reference (custom subsystem registration in `PulseDiagnostics`,
-    UI customisation, security recommendations for exposing the
-    endpoints) lands in a 1.0.x patch.
+## Security note
+
+The Pulse endpoints expose configuration and runtime state — useful for
+operators, sensitive in the wrong hands. Apply the same exposure controls
+you'd use for `/actuator/env`: bind management endpoints to a separate port
+(`management.server.port`) and put them behind your normal admin auth.
+
+---
+
+**Source:** [`io.github.arun0009.pulse.actuator`](https://github.com/arun0009/pulse/tree/main/src/main/java/io/github/arun0009/pulse/actuator) ·
+**Status:** Stable since 1.0.0

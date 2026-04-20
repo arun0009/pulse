@@ -1,34 +1,17 @@
 # Request priority
 
-> **Status:** Stable · **Config prefix:** `pulse.priority` ·
-> **Source:** [`io.github.arun0009.pulse.priority`](https://github.com/arun0009/pulse/tree/main/src/main/java/io/github/arun0009/pulse/priority)
-
-## Value prop
-
 When the system is overloaded, *some* requests matter more than others —
 checkout > recommendations, paid-tier > free, foreground > background.
-Pulse propagates a `Pulse-Priority` header end-to-end so user-code load
-shedders can drop low-priority work and your alerts can ignore noisy
+Without a priority signal you load-shed indiscriminately and drop the
+requests that pay the bills.
+
+**Pulse propagates a `Pulse-Priority` header end-to-end** so your load
+shedders can drop the right requests, and your alerts can ignore noisy
 low-priority error bursts.
 
-## What it does
+## What you get
 
-The `RequestPriorityFilter` reads the configured header (default
-`Pulse-Priority`) and resolves it to one of the configured tiers
-(default: `critical`, `high`, `normal`, `low`). The resolved priority lands
-on:
-
-- **MDC** (`pulse.priority`)
-- **OTel baggage** (key `pulse.priority`)
-- **Outbound HTTP / Kafka headers** (configurable name)
-- **`RequestPriority.current()`** — a thread-local accessor your code reads
-  directly without touching the OTel API
-
-Critical requests are also escalated automatically: when their timeout
-budget is exhausted, the corresponding log line is emitted at `WARN`
-instead of `INFO`, so error-budget alerts surface them faster.
-
-## Reading from your code
+Your shedding logic becomes a one-liner:
 
 ```java
 if (RequestPriority.current().filter(p -> p == RequestPriority.LOW).isPresent()) {
@@ -36,20 +19,50 @@ if (RequestPriority.current().filter(p -> p == RequestPriority.LOW).isPresent())
 }
 ```
 
-## Configuration
+Your error budget alerts can be scoped:
+
+```promql
+sum by (service) (rate(pulse_errors_unhandled_total{pulse_priority!="low"}[5m]))
+```
+
+Critical requests are also automatically escalated: when their timeout
+budget is exhausted, the corresponding log line goes out at `WARN` instead
+of `INFO`, so the on-call sees them faster.
+
+## Turn it on
+
+On by default with four tiers (`critical`, `high`, `normal`, `low`). Callers
+just send `Pulse-Priority: critical` (or whichever tier).
+
+To define custom tiers:
 
 ```yaml
 pulse:
   priority:
-    enabled: true
-    inbound-header: Pulse-Priority
-    default-priority: normal
-    propagate-on-baggage: true
-    custom-tiers: []
+    custom-tiers: [platinum, gold, silver, bronze]
 ```
 
-!!! note "Expanded coverage coming"
+## What it adds
 
-    Full reference (custom tier ordering, alert wiring, integration with
-    the [timeout-budget](timeout-budget.md) WARN escalation) lands in a
-    1.0.x patch.
+| Where | Key |
+| --- | --- |
+| MDC | `pulse.priority` |
+| OTel baggage | `pulse.priority` |
+| HTTP / Kafka outbound header | `Pulse-Priority` (configurable) |
+| Thread-local accessor | `RequestPriority.current()` |
+
+## When to skip it
+
+If your platform already has a priority mechanism (Kubernetes
+`PriorityClass`, Envoy priority routing, gRPC metadata you trust):
+
+```yaml
+pulse:
+  priority:
+    enabled: false
+```
+
+---
+
+**Source:** [`io.github.arun0009.pulse.priority`](https://github.com/arun0009/pulse/tree/main/src/main/java/io/github/arun0009/pulse/priority) ·
+**Status:** Stable since 1.0.0

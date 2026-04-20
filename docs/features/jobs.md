@@ -1,43 +1,63 @@
-# Background-job observability
+# Background jobs
 
-> **Status:** Stable · **Config prefix:** `pulse.jobs` ·
-> **Source:** [`io.github.arun0009.pulse.jobs`](https://github.com/arun0009/pulse/tree/main/src/main/java/io/github/arun0009/pulse/jobs)
+`@Scheduled` jobs are the silent killers of Spring services. They run on a
+private thread, log to the same place as everything else, and the first sign
+that one has been failing for a week is when a downstream system breaks
+because the nightly reconciliation never ran.
 
-## Value prop
+**Pulse gives every job RED metrics, an in-flight gauge, and a health
+indicator** that flips DOWN when a job hasn't succeeded inside a
+configurable grace period — so the on-call sees a stuck job before its
+absence breaks something else.
 
-`@Scheduled` jobs are the silent killer of Spring services. They run on a
-private thread, log to the same place as everything else, and the first
-sign that one has been failing for a week is when a downstream system
-breaks because the nightly reconciliation never ran.
+## What you get
 
-Pulse gives every job RED metrics, an in-flight gauge, and a health
-indicator that flips DOWN when a job hasn't succeeded inside a configurable
-grace period.
+```promql
+sum by (job) (rate(pulse_jobs_executions_total{outcome="failure"}[1h]))
+```
 
-## What it does
+A failing job lights up here long before its silence is felt downstream.
 
-For every observed job:
+The `/actuator/health/jobs` indicator flips DOWN when any job hasn't
+succeeded inside its grace period — so Kubernetes (or whatever consumes the
+health probe) can surface it as a real failure, not a buried log line.
 
-- `pulse.jobs.executions{job, outcome}` — counter of `success` / `failure`
-- `pulse.jobs.duration{job, outcome}` — timer
-- `pulse.jobs.in_flight{job}` — gauge (overrun detector)
-- `jobs` health indicator — flips DOWN when a job hasn't succeeded inside
-  `pulse.jobs.failure-grace-period` (default 1 hour)
+## Turn it on
 
-ShedLock-managed jobs are observed automatically because the decorator
-wraps the `Runnable` *before* the scheduler sees it.
+Nothing. Every `@Scheduled` job is observed automatically. ShedLock-managed
+jobs work too — the decorator wraps the `Runnable` *before* the scheduler
+sees it.
 
-## Configuration
+To tune the grace period (default 1 hour):
 
 ```yaml
 pulse:
   jobs:
-    enabled: true
-    failure-grace-period: 1h
-    health-indicator-enabled: true
+    failure-grace-period: 6h
 ```
 
-!!! note "Expanded coverage coming"
+## What it adds
 
-    Full reference (job naming rules, ShedLock integration notes, recommended
-    alert PromQL) lands in a 1.0.x patch.
+| Metric | Type | Tags |
+| --- | --- | --- |
+| `pulse.jobs.executions` | Counter | `job`, `outcome` (`success` / `failure`) |
+| `pulse.jobs.duration` | Timer | `job`, `outcome` |
+| `pulse.jobs.in_flight` | Gauge | `job` (overrun detector) |
+
+Plus the `/actuator/health/jobs` indicator.
+
+## When to skip it
+
+If you already monitor your scheduled jobs through Quartz JMX or a
+job-runner-specific dashboard:
+
+```yaml
+pulse:
+  jobs:
+    enabled: false
+```
+
+---
+
+**Source:** [`io.github.arun0009.pulse.jobs`](https://github.com/arun0009/pulse/tree/main/src/main/java/io/github/arun0009/pulse/jobs) ·
+**Status:** Stable since 1.0.0

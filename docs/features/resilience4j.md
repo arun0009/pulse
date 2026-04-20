@@ -1,43 +1,68 @@
-# Resilience4j auto-instrumentation
+# Resilience4j observability
 
-> **Status:** Stable · **Config prefix:** `pulse.resilience` ·
-> **Source:** [`io.github.arun0009.pulse.resilience`](https://github.com/arun0009/pulse/tree/main/src/main/java/io/github/arun0009/pulse/resilience)
+Resilience4j is what most Spring shops use for circuit breakers, retries, and
+bulkheads. But its event consumers are silent unless you wire them up by
+hand. The result: silent retries, invisible state transitions, and a
+slow-trace investigation that goes nowhere because the breaker opened
+twenty seconds ago and you never knew.
 
-## Value prop
+**Pulse subscribes to every Resilience4j registry automatically.** State
+transitions, retry attempts, and bulkhead rejections become metrics and span
+events with no per-app glue.
 
-Resilience4j is what most Spring shops use for circuit breakers, retries,
-and bulkheads, but its event consumers are silent unless you wire them up
-yourself. The result: silent retries, invisible state transitions, and a
-slow-trace investigation that goes nowhere because the `CircuitBreaker`
-opened twenty seconds ago and you never knew.
+## What you get
 
-Pulse auto-attaches event consumers to every Resilience4j registry. You do
-nothing.
+When the breaker opens, you see it:
 
-## What it does
+```promql
+sum by (name) (rate(pulse_resilience_circuit_breaker_state_transitions_total
+                      {to_state="open"}[5m]))
+```
 
-When a `CircuitBreakerRegistry` / `RetryRegistry` / `BulkheadRegistry` is
-on the classpath, Pulse:
+You also see it on the trace — every state transition becomes a span event,
+so the slow-request investigation that used to dead-end at "the breaker is
+open" now points directly at *when* and *why*.
 
-- Subscribes to event consumers on every registry, including ones added
-  later.
-- Records the events as Micrometer metrics:
-    - `pulse.resilience.circuit_breaker.{state_transitions,state,errors}`
-    - `pulse.resilience.retry.{attempts,exhausted}`
-    - `pulse.resilience.bulkhead.rejected`
-- Adds span events to the active span when state transitions and retry
-  attempts happen — eliminating the silent-retry blind spot.
+## Turn it on
 
-## Configuration
+Nothing. Whenever a `CircuitBreakerRegistry`, `RetryRegistry`, or
+`BulkheadRegistry` is on the classpath, Pulse subscribes to it — including
+to registries created later at runtime.
+
+## What it adds
+
+| Metric | Tags |
+| --- | --- |
+| `pulse.resilience.circuit_breaker.state_transitions` | `name`, `from_state`, `to_state` |
+| `pulse.resilience.circuit_breaker.state` | `name`, `state` |
+| `pulse.resilience.circuit_breaker.errors` | `name`, `kind` |
+| `pulse.resilience.retry.attempts` | `name`, `outcome` |
+| `pulse.resilience.retry.exhausted` | `name` |
+| `pulse.resilience.bulkhead.rejected` | `name` |
+
+Plus a span event on the active span for every state transition and retry
+attempt — eliminating the silent-retry blind spot.
+
+## When to skip it
+
+If you already export Resilience4j metrics through
+`micrometer-registry-prometheus` and don't want duplicate series:
 
 ```yaml
 pulse:
   resilience:
-    enabled: true
-    span-events-enabled: true
+    enabled: false
 ```
 
-!!! note "Expanded coverage coming"
+To keep the metrics but suppress the span events:
 
-    Full reference (registry detection rules, event-payload mapping, sample
-    Grafana panel) lands in a 1.0.x patch.
+```yaml
+pulse:
+  resilience:
+    span-events-enabled: false
+```
+
+---
+
+**Source:** [`io.github.arun0009.pulse.resilience`](https://github.com/arun0009/pulse/tree/main/src/main/java/io/github/arun0009/pulse/resilience) ·
+**Status:** Stable since 1.0.0

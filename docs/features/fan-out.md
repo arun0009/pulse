@@ -1,37 +1,45 @@
-# Request fan-out width
+# Request fan-out
 
-> **Status:** Stable · **Config prefix:** `pulse.dependencies` (shared with
-> [dependency health map](dependencies.md)) ·
-> **Source:** [`io.github.arun0009.pulse.dependencies`](https://github.com/arun0009/pulse/tree/main/src/main/java/io/github/arun0009/pulse/dependencies)
+Some endpoints accidentally call thirty downstream services because of an
+unhelpful loop or a chatty serialiser. The first you find out is when one of
+those downstreams falls over and the noisy endpoint is the suspect.
 
-## Value prop
+**Pulse counts the distinct downstreams per inbound request**, so chatty
+endpoints show up *before* they become chatty incidents.
 
-Some endpoints accidentally call 30 downstream services because of an
-unhelpful loop or a chatty serialiser. The first you find out is when one
-of those downstreams falls over. Pulse counts the distinct downstreams per
-inbound request so you can alert on chatty endpoints *before* they become
-chatty incidents.
+## What you get
 
-## What it does
+```promql
+histogram_quantile(0.95,
+  sum by (endpoint, le) (rate(pulse_request_fan_out_bucket[5m])))
+```
 
-For every inbound request, Pulse counts the distinct logical dependencies
-called during that request and records:
+The 95th-percentile fan-out per endpoint. An unexpected jump means a code
+change just made a previously-tight endpoint chatty — usually before it
+shows up as a downstream incident.
 
-- `pulse.request.fan_out{endpoint}` — distribution summary
+## Turn it on
 
-Combined with [dependency health map](dependencies.md), this gives you both
-"how many downstreams" *and* "how each one is behaving."
+Nothing. Enabled by default alongside the [dependency health
+map](dependencies.md), which it shares the underlying outbound
+classification with.
 
-## Configuration
+## What it adds
+
+| Metric | Type | Tags | Meaning |
+| --- | --- | --- | --- |
+| `pulse.request.fan_out` | Distribution summary | `endpoint` | Distinct logical dependencies called during the request |
+
+## When to skip it
 
 ```yaml
 pulse:
   dependencies:
     fan-out:
-      enabled: true
+      enabled: false
 ```
 
-!!! note "Expanded coverage coming"
+---
 
-    Full reference (dependency-grouping rules, default histogram buckets,
-    recommended alert thresholds) lands in a 1.0.x patch.
+**Source:** [`io.github.arun0009.pulse.dependencies`](https://github.com/arun0009/pulse/tree/main/src/main/java/io/github/arun0009/pulse/dependencies) ·
+**Status:** Stable since 1.0.0

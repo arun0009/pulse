@@ -1,5 +1,9 @@
 # Trace-context guard
 
+> **TL;DR.** `pulse.trace.received` vs `pulse.trace.missing` per route, plus
+> a shipped alert. Find the upstream that's stripping `traceparent` instead
+> of staring at half-empty Jaeger views.
+
 Distributed traces silently lose context because *some* service in the chain
 isn't passing the `traceparent` header along. Today you only notice when half
 of a trace is missing in Jaeger and you have no idea which hop dropped it.

@@ -1,5 +1,9 @@
 # Timeout-budget propagation
 
+> **TL;DR.** The remaining deadline travels with the request across
+> `RestTemplate`, `WebClient`, `OkHttp`, and Kafka. Doomed downstream calls
+> fail fast instead of holding connections through the next retry storm.
+
 The platform default timeout — 30 seconds, set once and forgotten — is what
 every downstream service uses. The original caller may have already given up
 after 2 seconds. The chain doesn't know, holds connections open, and feeds

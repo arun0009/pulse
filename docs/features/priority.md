@@ -1,5 +1,9 @@
 # Request priority
 
+> **TL;DR.** `Pulse-Priority` header propagates end-to-end on MDC, baggage,
+> and outbound calls. Your load shedders can drop the right requests when
+> the system is full.
+
 When the system is overloaded, *some* requests matter more than others —
 checkout > recommendations, paid-tier > free, foreground > background.
 Without a priority signal you load-shed indiscriminately and drop the

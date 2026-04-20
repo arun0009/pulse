@@ -1,5 +1,9 @@
 # Cardinality firewall
 
+> **TL;DR.** Hard cap per `(meter, tag)`. The first 1 000 distinct values
+> pass through; the rest bucket to `OVERFLOW`. One bad tag can't 10× your
+> metrics bill. Default on, ~17 ns/op.
+
 One mistakenly-tagged `userId` or `traceId` can register millions of unique
 metrics overnight and 10× your Datadog/Honeycomb bill. The default Spring Boot
 + Micrometer stack will keep accepting new tag values forever — there is no

@@ -1,5 +1,8 @@
 # Resilience4j observability
 
+> **TL;DR.** Auto-binds every breaker, retry, and bulkhead to Micrometer +
+> span events. State transitions stop being invisible.
+
 Resilience4j is what most Spring shops use for circuit breakers, retries, and
 bulkheads. But its event consumers are silent unless you wire them up by
 hand. The result: silent retries, invisible state transitions, and a

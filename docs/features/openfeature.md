@@ -1,5 +1,9 @@
 # OpenFeature correlation
 
+> **TL;DR.** Stamps every OpenFeature evaluation onto MDC and the active
+> span. *"Did this bug only hit users on the new flag?"* becomes a
+> one-line query.
+
 Feature flags are the most under-instrumented thing in most production
 systems. *"Did the bug only affect users with the new checkout flow on?"*
 should be a one-line query — but only if every flag evaluation lands on the

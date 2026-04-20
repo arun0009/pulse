@@ -1,5 +1,9 @@
 # Background jobs
 
+> **TL;DR.** Every `@Scheduled` job gets RED metrics, an in-flight gauge,
+> and a health check that flips DOWN when a job hasn't succeeded for too
+> long. Stuck nightly jobs page on-call instead of going unnoticed.
+
 `@Scheduled` jobs are the silent killers of Spring services. They run on a
 private thread, log to the same place as everything else, and the first sign
 that one has been failing for a week is when a downstream system breaks

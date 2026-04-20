@@ -1,5 +1,9 @@
 # Stable exception fingerprints
 
+> **TL;DR.** SHA-256 over `(exception type + top frames)` becomes a
+> ten-character fingerprint on the response, the active span, the metric,
+> and the log line. Same bug groups across deploys.
+
 The same bug throws the same exception with a slightly different message
 each time — *"Order 12345 not found"*, *"Order 67890 not found"*, *"Order
 54321 not found"* — and your error tracker shows them as fifty distinct

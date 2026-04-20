@@ -1,5 +1,9 @@
 # Request fan-out
 
+> **TL;DR.** Counts distinct downstreams per inbound request and warns the
+> trace when fan-out crosses your threshold. Catches chatty endpoints
+> before they topple a downstream.
+
 Some endpoints accidentally call thirty downstream services because of an
 unhelpful loop or a chatty serialiser. The first you find out is when one of
 those downstreams falls over and the noisy endpoint is the suspect.

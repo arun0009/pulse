@@ -1,5 +1,9 @@
 # Dependency health map
 
+> **TL;DR.** Caller-side RED metrics per downstream + a health indicator
+> that flips DEGRADED when error rates spike. One PromQL query answers
+> *"which downstream is killing me?"*.
+
 When the system is misbehaving, the question is *"which downstream is killing
 me?"* — and the answer is buried across fifty dashboards. Server-side metrics
 on the downstream don't capture caller-side retries, circuit-breaker fallbacks,

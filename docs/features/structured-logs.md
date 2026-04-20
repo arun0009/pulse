@@ -1,5 +1,9 @@
 # Structured logs
 
+> **TL;DR.** OTel-aligned JSON on every line. Deploy / commit / pod / cloud
+> region stamped automatically. PII masking on by default. Log → trace →
+> metric pivots actually work.
+
 JSON logs are table stakes. JSON logs that line up with what every other
 modern tool expects — that's what makes log → trace → metric pivoting
 actually work. Most teams either build this themselves (badly) or never get

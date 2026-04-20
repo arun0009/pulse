@@ -1,5 +1,9 @@
 # Database (N+1 and slow query)
 
+> **TL;DR.** Statements-per-request counter + slow-query span events,
+> sourced from the Spring 6.2 DB Observation. Catches N+1s in PromQL
+> instead of in a tail-latency post-mortem.
+
 The N+1 query bug is the most common Spring/JPA performance footgun, and
 it's invisible to most observability stacks because each individual
 statement looks fine — it's the *count per request* that matters.

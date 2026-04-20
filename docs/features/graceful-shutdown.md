@@ -1,5 +1,8 @@
 # Graceful drain + OTel flush
 
+> **TL;DR.** Blocks JVM exit until the OTel batch is drained, with a
+> deadline. The last batch of spans before SIGTERM actually arrives.
+
 Rolling deploys silently lose telemetry. The pod gets `SIGTERM`, the JVM
 exits, and the last batch of spans never makes it to the Collector. By the
 time you notice the trace gap, the pod is gone — you can't redeploy it to

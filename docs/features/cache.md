@@ -1,5 +1,9 @@
 # Cache observability (Caffeine)
 
+> **TL;DR.** Forces `recordStats()` on every Caffeine cache and binds them
+> to Micrometer. Hit/miss/eviction metrics are always there, even when
+> someone forgot to enable them.
+
 A cache silently missing 90% of the time is worse than no cache — all the
 latency, none of the savings. Spring Boot's Caffeine integration only
 collects stats if you remembered `recordStats()` on every builder, and most

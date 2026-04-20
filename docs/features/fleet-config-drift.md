@@ -1,5 +1,9 @@
 # Fleet config-drift detection
 
+> **TL;DR.** Hashes the resolved Pulse config tree at boot and exposes it
+> as a metric tag. *"Which pod is on the wrong ConfigMap?"* is a single
+> PromQL query.
+
 In any non-trivial deployment, *some* pods are running the wrong
 configuration — a stale ConfigMap, a partial deploy, a one-pod env-var
 typo. The symptom is "p99 tail latency is up but I can't find the bad

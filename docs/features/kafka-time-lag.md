@@ -1,5 +1,8 @@
 # Kafka time-based consumer lag
 
+> **TL;DR.** `now() − record.timestamp()` per consumed record, in seconds.
+> The only consumer-lag number that matters when your SLO is freshness.
+
 Offset lag is a vanity metric. A consumer that's 500k offsets behind a
 low-volume topic is fine; one that's 10k offsets behind a high-volume topic
 might be eight minutes behind real time. Time lag is the SLO. Offset lag is

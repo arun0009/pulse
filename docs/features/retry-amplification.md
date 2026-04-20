@@ -1,5 +1,8 @@
 # Retry amplification
 
+> **TL;DR.** `Pulse-Retry-Depth` baggage + a metric that fires *before* a
+> three-deep retry chain becomes a 27× incident on the leaf service.
+
 A three-deep retry chain with three retries at each level produces twenty-seven
 attempts on the leaf service. By the time you see the cascade in your
 dashboard, it's already in flight.

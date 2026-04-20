@@ -1,5 +1,9 @@
 # Sampling
 
+> **TL;DR.** One probability knob for in-process head sampling, plus a
+> best-effort *"keep error spans the head sampler would have dropped"*
+> pass. Sane defaults; cheap to ship.
+
 Tail sampling at the Collector is the right answer for production-scale
 trace storage. *In-process* sampling is the right answer for cost on the
 emitter side. Most Spring apps either ship 100% to a saturated Collector

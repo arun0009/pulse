@@ -1,5 +1,9 @@
 # Container-aware memory
 
+> **TL;DR.** cgroup v1/v2 reader (no agent), real container memory metrics,
+> OOM-kill counter, readiness health. The pod gets pulled out of rotation
+> *before* the kernel kills it.
+
 `Runtime.maxMemory()` lies inside containers. The JVM thinks it has the host's
 RAM; the cgroup OOMKiller knows otherwise. The first sign of trouble is the
 pod going `OOMKilled` while your dashboard happily reports 30% memory used.

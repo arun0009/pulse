@@ -1,5 +1,8 @@
 # Continuous-profiling correlation
 
+> **TL;DR.** Stamps Pyroscope / Parca / Datadog Profiler IDs onto every
+> span. One click from a slow trace to the matching flame-graph slice.
+
 Continuous profiling — Pyroscope, Parca, Datadog Profiler — is the third leg
 of observability after traces and logs. The hard part is correlating a slow
 trace with the profile that captured the same time window. Without

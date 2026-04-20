@@ -1,5 +1,9 @@
 # Multi-tenant context
 
+> **TL;DR.** Tenant id from header / JWT claim / subdomain, threaded through
+> MDC, baggage, outbound headers, and (opt-in) metric tags. Now *"slow
+> checkout"* is *"slow checkout for which tenant?"*.
+
 In a multi-tenant SaaS, *"slow checkout"* is meaningless without knowing
 *"slow checkout for which tenant?"* Most teams thread the tenant through by
 hand, drop it in half their log lines, and never tag the metrics that matter.

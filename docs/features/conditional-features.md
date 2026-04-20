@@ -1,5 +1,10 @@
 # Conditional features (`enabled-when`)
 
+> **TL;DR.** A uniform `enabled-when:` block on every Pulse feature. Skip
+> the trace-guard for synthetic monitoring, the cardinality firewall for
+> a trusted internal caller, etc. — without setting `enabled: false`
+> globally.
+
 Some features need a finer toggle than `enabled: true|false`. Synthetic
 monitoring traffic shouldn't trip the trace-context guard. Smoke tests
 don't need PII masking on their fake payloads. A trusted internal admin

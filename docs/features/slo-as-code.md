@@ -1,5 +1,9 @@
 # SLO-as-code
 
+> **TL;DR.** Declare your SLO once in YAML; Pulse renders the multi-burn
+> Prometheus alert *and* exposes live compliance on `/actuator/pulse`.
+> No more dashboard ↔ alert ↔ wiki drift.
+
 You declare your SLOs in a wiki, you build a dashboard for them, you write
 PrometheusRule alerts for them, and the three drift apart inside a quarter.
 The dashboard says 99.92%, the alert says you're burning fast, and nobody

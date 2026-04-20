@@ -1,5 +1,9 @@
 # Wide-event API
 
+> **TL;DR.** One call (`SpanEvents.emit("order.placed", attrs)`) emits a
+> span event, a structured log, and a counter. Three signals, one line of
+> code, consistent across the codebase.
+
 When something interesting happens in business code — *order placed*,
 *payment failed*, *user upgraded* — the right shape is three signals at
 once: a span event so the trace shows it, a structured log so it's

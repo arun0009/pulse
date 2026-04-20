@@ -1,5 +1,9 @@
 # Live diagnostic actuator
 
+> **TL;DR.** `/actuator/pulse` (JSON) and `/actuator/pulse-ui` (zero-dep
+> HTML) show every Pulse setting, the last OTel exporter status, and a
+> dry-run / killswitch toggle. No redeploys to inspect a running pod.
+
 When something looks off, the answer should never be *"redeploy with debug
 logging."* You should be able to ask the running app what it's doing, what
 it's configured with, and what it last sent to the Collector — without

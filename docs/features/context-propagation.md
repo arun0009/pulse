@@ -1,5 +1,9 @@
 # Context propagation
 
+> **TL;DR.** MDC + OTel context restored on every `TaskExecutor`,
+> `TaskScheduler`, and Kafka listener. No `MDC.getCopyOfContextMap()`
+> boilerplate, no half-traces.
+
 `@Async` methods, `@Scheduled` jobs, custom executors, Kafka listeners — every
 one of these is a place where your `traceId`, `requestId`, `userId`, tenant,
 and timeout budget silently disappear. The result is half a beautiful trace

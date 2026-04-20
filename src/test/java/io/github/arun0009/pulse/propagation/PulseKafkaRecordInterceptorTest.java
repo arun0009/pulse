@@ -117,17 +117,12 @@ class PulseKafkaRecordInterceptorTest {
                         true,
                         false,
                         List.of(),
-                        new io.github.arun0009.pulse.autoconfigure.PulseRequestMatcherProperties(
-                                java.util.Map.of(),
-                                java.util.Map.of(),
-                                java.util.Map.of(),
-                                List.of(),
-                                List.of(),
-                                null)),
+                        io.github.arun0009.pulse.autoconfigure.PulseRequestMatcherProperties.empty()),
                 new PulseProperties.Sampling(1.0, true),
                 new PulseProperties.Async(true, false, 8, 32, 100, "pulse-", true),
                 new PulseProperties.Kafka(true, true),
-                new PulseProperties.ExceptionHandler(true),
+                new PulseProperties.ExceptionHandler(
+                        true, io.github.arun0009.pulse.autoconfigure.PulseRequestMatcherProperties.empty()),
                 new PulseProperties.Cardinality(true, 1000, "OVERFLOW", List.of(), List.of()),
                 new PulseProperties.TimeoutBudget(
                         true,
@@ -136,7 +131,8 @@ class PulseKafkaRecordInterceptorTest {
                         Duration.ofSeconds(2),
                         Duration.ofSeconds(30),
                         Duration.ofMillis(50),
-                        Duration.ofMillis(100)),
+                        Duration.ofMillis(100),
+                        io.github.arun0009.pulse.autoconfigure.PulseRequestMatcherProperties.empty()),
                 new PulseProperties.WideEvents(true, true, true, "pulse.events", "event"),
                 new PulseProperties.Logging(true),
                 new PulseProperties.Banner(true),
@@ -146,7 +142,11 @@ class PulseKafkaRecordInterceptorTest {
                 new PulseProperties.Shutdown(
                         true, Duration.ofSeconds(10), new PulseProperties.Shutdown.Drain(true, Duration.ofSeconds(30))),
                 new PulseProperties.Jobs(true, true, Duration.ofHours(1)),
-                new PulseProperties.Db(true, 50, Duration.ofMillis(500)),
+                new PulseProperties.Db(
+                        true,
+                        50,
+                        Duration.ofMillis(500),
+                        io.github.arun0009.pulse.autoconfigure.PulseRequestMatcherProperties.empty()),
                 new PulseProperties.Resilience(true),
                 new PulseProperties.Profiling(true, null),
                 new PulseProperties.Dependencies(
@@ -154,6 +154,7 @@ class PulseKafkaRecordInterceptorTest {
                         java.util.Map.of(),
                         "unknown",
                         20,
+                        io.github.arun0009.pulse.autoconfigure.PulseRequestMatcherProperties.empty(),
                         new PulseProperties.Dependencies.Health(true, List.of(), 0.05, false)),
                 new PulseProperties.Tenant(
                         true,

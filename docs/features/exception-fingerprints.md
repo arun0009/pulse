@@ -64,49 +64,70 @@ two competing schemes:
 
 ```yaml
 pulse:
-  exception:
+  exception-handler:
     enabled: false
 ```
 
-You can also keep it on but suppress the response fields if your API
-contract requires a stricter problem-detail shape:
+When disabled, Pulse's `@RestControllerAdvice` is not registered at all
+and your application's own exception handling takes over.
+
+## Conditional gating
+
+To skip Pulse-specific enrichment (fingerprint, span attribute, metric,
+MDC) for *some* requests — typically internal admin tooling that has its
+own error reporting — without disabling the handler, use
+[`enabled-when`](conditional-features.md):
 
 ```yaml
 pulse:
-  exception:
-    include-fingerprint-in-response: false
-    include-trace-id-in-response: false
+  exception-handler:
+    enabled-when:
+      path-excludes:
+        - /admin
 ```
 
-The metric and the span attribute keep working either way.
+When the matcher rejects, callers still get a baseline RFC 7807
+`ProblemDetail` (so the client doesn't see Spring's default error page),
+but no fingerprint is computed, no metric is incremented, and no span
+attribute is added.
+
+## Custom fingerprint id (`ErrorFingerprintStrategy`)
+
+Bring your own stable error id — Sentry's `event_id`, an in-house
+bug-tracker key — by publishing a single bean. Pulse uses it everywhere
+the fingerprint surfaces (response, span, MDC, metric tag).
+
+```java
+@Bean
+ErrorFingerprintStrategy sentryFingerprint(SentryClient sentry) {
+    return throwable -> {
+        SentryEvent event = sentry.lastEventFor(throwable);
+        return event != null
+                ? event.getEventId()
+                : ExceptionFingerprint.of(throwable);
+    };
+}
+```
+
+Implementations must be cheap (called on every unhandled exception),
+side-effect-free, and must never throw. Strings up to ~32 chars work fine
+on dashboards; longer is allowed but harder to read.
 
 ## Under the hood
 
 Pulse registers a `@RestControllerAdvice` that catches every unhandled
 exception. For each one:
 
-1. Compute `SHA-256(exception.type + top N stack frames)`.
-2. Truncate the hex to ten characters — collision space is `16¹⁰ ≈ 10¹²`,
-   plenty for fingerprint clustering across realistic error volumes.
-3. Surface on the response, span, metric, and log.
+1. Compute the fingerprint via the active `ErrorFingerprintStrategy` —
+   the default hashes `exception.type` + top stack frames with SHA-256
+   and truncates to ten hex characters (collision space `16¹⁰ ≈ 10¹²`).
+2. Stamp it on MDC, the active span, the response body, and the
+   `pulse.errors.unhandled` counter.
 
-The hash uses SHA-256 (not SHA-1) — flagged early by CodeQL during
-hardening — and the message is **not** in the input, so per-record IDs and
-timestamps don't push the same bug into different buckets.
-
-### All the knobs
-
-```yaml
-pulse:
-  exception:
-    enabled: true                          # default
-    fingerprint-length: 10                 # default — hex chars
-    fingerprint-frames: 5                  # default — top stack frames hashed
-    include-fingerprint-in-response: true  # default
-    include-trace-id-in-response: true     # default
-    include-request-id-in-response: true   # default
-    sanitize-message: true                 # strip newlines / control chars
-```
+The default hash uses SHA-256 (not SHA-1, flagged early by CodeQL during
+hardening) and the exception message is **not** in the input, so
+per-record IDs and timestamps don't push the same bug into different
+buckets.
 
 ---
 

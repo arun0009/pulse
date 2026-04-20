@@ -1,6 +1,7 @@
 package io.github.arun0009.pulse.guardrails;
 
 import io.github.arun0009.pulse.autoconfigure.PulseProperties;
+import io.github.arun0009.pulse.core.PulseRequestMatcher;
 import io.opentelemetry.api.baggage.Baggage;
 import io.opentelemetry.context.Context;
 import io.opentelemetry.context.Scope;
@@ -41,9 +42,15 @@ public class TimeoutBudgetFilter extends OncePerRequestFilter implements Ordered
     private static final Logger log = LoggerFactory.getLogger(TimeoutBudgetFilter.class);
 
     private final PulseProperties.TimeoutBudget config;
+    private final PulseRequestMatcher gate;
 
     public TimeoutBudgetFilter(PulseProperties.TimeoutBudget config) {
+        this(config, PulseRequestMatcher.ALWAYS);
+    }
+
+    public TimeoutBudgetFilter(PulseProperties.TimeoutBudget config, PulseRequestMatcher gate) {
         this.config = config;
+        this.gate = gate;
     }
 
     @Override
@@ -54,6 +61,11 @@ public class TimeoutBudgetFilter extends OncePerRequestFilter implements Ordered
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
+
+        if (!gate.matches(request)) {
+            chain.doFilter(request, response);
+            return;
+        }
 
         Optional<Duration> budget = resolveBudget(request);
         if (budget.isEmpty()) {

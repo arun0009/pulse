@@ -27,7 +27,7 @@ public final class DependencyOkHttpInterceptor implements Interceptor {
     public Response intercept(Chain chain) throws IOException {
         Request request = chain.request();
         long start = System.nanoTime();
-        String dep = recorder.resolver().resolveHost(request.url().host());
+        String dep = recorder.classifier().classifyHost(request.url().host());
         String method = request.method();
         try {
             Response response = chain.proceed(request);

@@ -6,6 +6,7 @@ PR that changes the subsystem.
 
 | Note | Subsystem |
 |---|---|
+| [Design principles](principles.md) | All of Pulse — start here. |
 | [Multi-tenant context](multi-tenant-context.md) | [features/multi-tenant.md](../features/multi-tenant.md) |
 
 More design notes will be added as subsystems evolve. If you're proposing a

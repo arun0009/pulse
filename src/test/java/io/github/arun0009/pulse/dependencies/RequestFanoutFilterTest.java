@@ -65,6 +65,7 @@ class RequestFanoutFilterTest {
                         Map.of(),
                         "unknown",
                         threshold,
+                        io.github.arun0009.pulse.autoconfigure.PulseRequestMatcherProperties.empty(),
                         new PulseProperties.Dependencies.Health(true, java.util.List.of(), 0.05, false)));
     }
 }

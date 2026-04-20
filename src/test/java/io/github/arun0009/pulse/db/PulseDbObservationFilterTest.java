@@ -31,7 +31,11 @@ class PulseDbObservationFilterTest {
     @BeforeEach
     void setUp() {
         registry = new SimpleMeterRegistry();
-        config = new PulseProperties.Db(true, 5, Duration.ofMillis(500));
+        config = new PulseProperties.Db(
+                true,
+                5,
+                Duration.ofMillis(500),
+                io.github.arun0009.pulse.autoconfigure.PulseRequestMatcherProperties.empty());
         filter = new PulseDbObservationFilter(registry, config);
     }
 

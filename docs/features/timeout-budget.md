@@ -81,6 +81,26 @@ If you run an API gateway in front, configure it to set `Pulse-Timeout-Ms`
 based on the gateway's own request timeout. Otherwise the first hop uses the
 2-second default and only later hops see the propagated value.
 
+## Conditional gating
+
+To skip the budget filter for *some* requests (synthetic probes, internal
+admin traffic) without disabling the feature, use the shared
+[`enabled-when`](conditional-features.md) block:
+
+```yaml
+pulse:
+  timeout-budget:
+    enabled-when:
+      header-not-equals:
+        x-pulse-synthetic: "true"
+      path-excludes:
+        - /actuator
+```
+
+When the matcher rejects, no budget is established on baggage and
+downstream calls see `TimeoutBudget.current() == Optional.empty()` —
+your code already handles that.
+
 ## Under the hood
 
 Three pieces work together:

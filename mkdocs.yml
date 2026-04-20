@@ -145,4 +145,5 @@ nav:
       - Changelog: release/changelog.md
       - Design notes:
           - design/index.md
+          - Design principles: design/principles.md
           - Multi-tenant context: design/multi-tenant-context.md

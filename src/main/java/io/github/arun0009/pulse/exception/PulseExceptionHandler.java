@@ -1,11 +1,13 @@
 package io.github.arun0009.pulse.exception;
 
 import io.github.arun0009.pulse.core.ContextKeys;
+import io.github.arun0009.pulse.core.PulseRequestMatcher;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.StatusCode;
+import jakarta.servlet.http.HttpServletRequest;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,6 +18,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.context.request.RequestAttributes;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.net.URI;
 
@@ -45,18 +50,31 @@ public class PulseExceptionHandler {
     private static final AttributeKey<String> FINGERPRINT_KEY = AttributeKey.stringKey(FINGERPRINT_SPAN_ATTRIBUTE);
 
     private final @Nullable MeterRegistry registry;
+    private final ErrorFingerprintStrategy fingerprintStrategy;
+    private final PulseRequestMatcher gate;
 
     public PulseExceptionHandler() {
         this(null);
     }
 
     public PulseExceptionHandler(@Nullable MeterRegistry registry) {
+        this(registry, ErrorFingerprintStrategy.DEFAULT, PulseRequestMatcher.ALWAYS);
+    }
+
+    public PulseExceptionHandler(
+            @Nullable MeterRegistry registry, ErrorFingerprintStrategy fingerprintStrategy, PulseRequestMatcher gate) {
         this.registry = registry;
+        this.fingerprintStrategy = fingerprintStrategy;
+        this.gate = gate;
     }
 
     @ExceptionHandler(Exception.class)
     public ProblemDetail handle(Exception ex) {
-        String fingerprint = ExceptionFingerprint.of(ex);
+        if (!shouldHandle()) {
+            return baselineProblem(null);
+        }
+
+        String fingerprint = fingerprintStrategy.fingerprint(ex);
         MDC.put(FINGERPRINT_MDC_KEY, fingerprint);
 
         Span span = Span.current();
@@ -82,6 +100,24 @@ public class PulseExceptionHandler {
                 ex.getMessage(),
                 ex);
 
+        return baselineProblem(fingerprint);
+    }
+
+    private boolean shouldHandle() {
+        if (gate == PulseRequestMatcher.ALWAYS) return true;
+        HttpServletRequest request = currentRequest();
+        // Fail-open: if we can't see the request (e.g. a non-servlet entry point), the feature
+        // still runs. Matching is a conscious opt-in, not a silent kill switch.
+        return request == null || gate.matches(request);
+    }
+
+    private static @Nullable HttpServletRequest currentRequest() {
+        RequestAttributes attrs = RequestContextHolder.getRequestAttributes();
+        if (attrs instanceof ServletRequestAttributes sra) return sra.getRequest();
+        return null;
+    }
+
+    private ProblemDetail baselineProblem(@Nullable String fingerprint) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(
                 HttpStatus.INTERNAL_SERVER_ERROR,
                 "An internal error occurred. Reference: " + MDC.get(ContextKeys.REQUEST_ID));
@@ -89,7 +125,9 @@ public class PulseExceptionHandler {
         problem.setType(URI.create("urn:pulse:error:internal"));
         problem.setProperty("requestId", MDC.get(ContextKeys.REQUEST_ID));
         problem.setProperty("traceId", MDC.get(ContextKeys.TRACE_ID));
-        problem.setProperty("errorFingerprint", fingerprint);
+        if (fingerprint != null) {
+            problem.setProperty("errorFingerprint", fingerprint);
+        }
         return problem;
     }
 }

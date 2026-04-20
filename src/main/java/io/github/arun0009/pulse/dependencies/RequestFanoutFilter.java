@@ -1,6 +1,7 @@
 package io.github.arun0009.pulse.dependencies;
 
 import io.github.arun0009.pulse.autoconfigure.PulseProperties;
+import io.github.arun0009.pulse.core.PulseRequestMatcher;
 import io.github.arun0009.pulse.core.RouteTags;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.DistributionSummary;
@@ -49,15 +50,25 @@ public final class RequestFanoutFilter extends OncePerRequestFilter {
 
     private final MeterRegistry registry;
     private final int fanOutWarnThreshold;
+    private final PulseRequestMatcher gate;
 
     public RequestFanoutFilter(MeterRegistry registry, PulseProperties.Dependencies config) {
+        this(registry, config, PulseRequestMatcher.ALWAYS);
+    }
+
+    public RequestFanoutFilter(MeterRegistry registry, PulseProperties.Dependencies config, PulseRequestMatcher gate) {
         this.registry = registry;
         this.fanOutWarnThreshold = config.fanOutWarnThreshold();
+        this.gate = gate;
     }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
+        if (!gate.matches(request)) {
+            chain.doFilter(request, response);
+            return;
+        }
         RequestFanout.begin();
         try {
             chain.doFilter(request, response);

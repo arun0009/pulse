@@ -53,4 +53,19 @@ public record PulseRequestMatcherProperties(
                 && (pathExcludes == null || pathExcludes.isEmpty())
                 && (bean == null || bean.isBlank());
     }
+
+    /**
+     * Convenience factory for an empty matcher block — equivalent to "no rules configured" so the
+     * owning feature always runs. Useful in tests and in code that constructs property records
+     * by hand.
+     */
+    public static PulseRequestMatcherProperties empty() {
+        return new PulseRequestMatcherProperties(
+                java.util.Map.of(),
+                java.util.Map.of(),
+                java.util.Map.of(),
+                java.util.List.of(),
+                java.util.List.of(),
+                null);
+    }
 }

@@ -7,6 +7,7 @@ import io.github.arun0009.pulse.core.ContextContributor;
 import io.github.arun0009.pulse.core.PulseRequestContextFilter;
 import io.github.arun0009.pulse.core.PulseRequestMatcher;
 import io.github.arun0009.pulse.core.TraceGuardFilter;
+import io.github.arun0009.pulse.exception.ErrorFingerprintStrategy;
 import io.github.arun0009.pulse.exception.PulseExceptionHandler;
 import io.github.arun0009.pulse.guardrails.TimeoutBudgetFilter;
 import io.github.arun0009.pulse.slo.SloRuleGenerator;
@@ -80,8 +81,17 @@ public class PulseWebAutoConfiguration {
             name = "enabled",
             havingValue = "true",
             matchIfMissing = true)
-    public TimeoutBudgetFilter pulseTimeoutBudgetFilter(PulseProperties properties) {
-        return new TimeoutBudgetFilter(properties.timeoutBudget());
+    public TimeoutBudgetFilter pulseTimeoutBudgetFilter(
+            PulseProperties properties, PulseRequestMatcherFactory matcherFactory) {
+        PulseRequestMatcher gate = matcherFactory.build(
+                "timeout-budget", properties.timeoutBudget().enabledWhen());
+        return new TimeoutBudgetFilter(properties.timeoutBudget(), gate);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public ErrorFingerprintStrategy pulseErrorFingerprintStrategy() {
+        return ErrorFingerprintStrategy.DEFAULT;
     }
 
     @Bean
@@ -91,8 +101,14 @@ public class PulseWebAutoConfiguration {
             name = "enabled",
             havingValue = "true",
             matchIfMissing = true)
-    public PulseExceptionHandler pulseExceptionHandler(ObjectProvider<MeterRegistry> registry) {
-        return new PulseExceptionHandler(registry.getIfAvailable());
+    public PulseExceptionHandler pulseExceptionHandler(
+            ObjectProvider<MeterRegistry> registry,
+            ErrorFingerprintStrategy fingerprintStrategy,
+            PulseProperties properties,
+            PulseRequestMatcherFactory matcherFactory) {
+        PulseRequestMatcher gate = matcherFactory.build(
+                "exception-handler", properties.exceptionHandler().enabledWhen());
+        return new PulseExceptionHandler(registry.getIfAvailable(), fingerprintStrategy, gate);
     }
 
     @Bean

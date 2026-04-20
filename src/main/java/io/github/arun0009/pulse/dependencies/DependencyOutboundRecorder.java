@@ -1,11 +1,16 @@
 package io.github.arun0009.pulse.dependencies;
 
 import io.github.arun0009.pulse.autoconfigure.PulseProperties;
+import io.github.arun0009.pulse.core.PulseRequestMatcher;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Tags;
 import io.micrometer.core.instrument.Timer;
+import jakarta.servlet.http.HttpServletRequest;
 import org.jspecify.annotations.Nullable;
+import org.springframework.web.context.request.RequestAttributes;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.time.Duration;
 
@@ -31,20 +36,46 @@ import java.time.Duration;
 public final class DependencyOutboundRecorder {
 
     private final MeterRegistry registry;
+    private final DependencyClassifier classifier;
     private final DependencyResolver resolver;
     private final boolean enabled;
+    private final PulseRequestMatcher gate;
 
     public DependencyOutboundRecorder(
             MeterRegistry registry, DependencyResolver resolver, PulseProperties.Dependencies config) {
+        this(registry, resolver, resolver, config, PulseRequestMatcher.ALWAYS);
+    }
+
+    public DependencyOutboundRecorder(
+            MeterRegistry registry,
+            DependencyClassifier classifier,
+            DependencyResolver resolver,
+            PulseProperties.Dependencies config,
+            PulseRequestMatcher gate) {
         this.registry = registry;
+        this.classifier = classifier;
         this.resolver = resolver;
         this.enabled = config.enabled();
+        this.gate = gate;
     }
 
     public boolean enabled() {
         return enabled;
     }
 
+    /**
+     * Returns the active {@link DependencyClassifier}. Used by every transport interceptor to
+     * resolve the {@code dep} tag value before recording.
+     */
+    public DependencyClassifier classifier() {
+        return classifier;
+    }
+
+    /**
+     * Returns the built-in host-table resolver. Kept for backward compatibility; new code
+     * should prefer {@link #classifier()} so a user-supplied {@link DependencyClassifier} bean
+     * takes effect.
+     */
     public DependencyResolver resolver() {
         return resolver;
     }
@@ -63,6 +94,7 @@ public final class DependencyOutboundRecorder {
     public void record(
             String logicalName, String method, int status, @Nullable Throwable throwable, long elapsedNanos) {
         if (!enabled) return;
+        if (!shouldRecord()) return;
         String statusTag = throwable != null ? "exception" : Integer.toString(status);
         String outcome = outcome(status, throwable);
         Tags tags = Tags.of("dep", logicalName, "method", method, "status", statusTag, "outcome", outcome);
@@ -78,6 +110,21 @@ public final class DependencyOutboundRecorder {
                 .register(registry)
                 .record(Duration.ofNanos(elapsedNanos));
         RequestFanout.record(logicalName);
+    }
+
+    private boolean shouldRecord() {
+        if (gate == PulseRequestMatcher.ALWAYS) return true;
+        HttpServletRequest request = currentRequest();
+        // Outbound calls outside a request scope (scheduled jobs, Kafka consumers) have no
+        // request to match — fail-open so the metric pipeline doesn't go quiet for legitimate
+        // background traffic. Matching is opt-in.
+        return request == null || gate.matches(request);
+    }
+
+    private static @Nullable HttpServletRequest currentRequest() {
+        RequestAttributes attrs = RequestContextHolder.getRequestAttributes();
+        if (attrs instanceof ServletRequestAttributes sra) return sra.getRequest();
+        return null;
     }
 
     private static String outcome(int status, @Nullable Throwable throwable) {

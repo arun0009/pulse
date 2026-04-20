@@ -61,6 +61,25 @@ pulse:
     enabled: false
 ```
 
+## Conditional gating
+
+To suppress N+1 detection for known-chatty admin endpoints (bulk imports,
+batch reconciliation jobs that legitimately fire hundreds of statements)
+without raising the global threshold, use
+[`enabled-when`](conditional-features.md):
+
+```yaml
+pulse:
+  db:
+    enabled-when:
+      path-excludes:
+        - /admin/bulk-import
+        - /admin/reconcile
+```
+
+Requests excluded by the matcher don't open the per-request statement
+scope at all — no `pulse.db.*` metrics, no warning, no trace event.
+
 ---
 
 **Source:** [`io.github.arun0009.pulse.db`](https://github.com/arun0009/pulse/tree/main/src/main/java/io/github/arun0009/pulse/db) ·

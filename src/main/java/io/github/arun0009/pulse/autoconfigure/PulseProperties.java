@@ -149,8 +149,27 @@ public record PulseProperties(
             @DefaultValue("true") boolean propagationEnabled,
             @DefaultValue("true") boolean consumerTimeLagEnabled) {}
 
-    /** RFC 7807 ProblemDetail responses with traceId + requestId surfaced. */
-    public record ExceptionHandler(@DefaultValue("true") boolean enabled) {}
+    /**
+     * RFC 7807 ProblemDetail responses with traceId + requestId surfaced.
+     *
+     * <p>{@link #enabledWhen()} (since 1.1) provides per-request gating: when the matcher returns
+     * {@code false} for the current request, Pulse still produces a baseline ProblemDetail (so the
+     * caller still gets a structured 500), but skips fingerprinting, the MDC stamp, the span
+     * attribute, the metric increment, and the structured WARN log. Use it to keep synthetic
+     * monitoring noise out of the {@code pulse.errors.unhandled} counter without disabling
+     * fingerprinting globally.
+     *
+     * <pre>
+     * pulse:
+     *   exception-handler:
+     *     enabled-when:
+     *       header-not-equals:
+     *         x-pulse-synthetic: "true"
+     * </pre>
+     */
+    public record ExceptionHandler(
+            @DefaultValue("true") boolean enabled,
+            @DefaultValue PulseRequestMatcherProperties enabledWhen) {}
 
     /**
      * Cardinality firewall — caps the number of distinct tag values per meter to prevent
@@ -179,7 +198,8 @@ public record PulseProperties(
             @DefaultValue("2s") Duration defaultBudget,
             @DefaultValue("30s") Duration maximumBudget,
             @DefaultValue("50ms") Duration safetyMargin,
-            @DefaultValue("100ms") Duration minimumBudget) {}
+            @DefaultValue("100ms") Duration minimumBudget,
+            @DefaultValue PulseRequestMatcherProperties enabledWhen) {}
 
     /**
      * Wide-event API ({@link io.github.arun0009.pulse.events.SpanEvents}) — one call attaches
@@ -333,7 +353,8 @@ public record PulseProperties(
     public record Db(
             @DefaultValue("true") boolean enabled,
             @DefaultValue("50") int nPlusOneThreshold,
-            @DefaultValue("500ms") Duration slowQueryThreshold) {}
+            @DefaultValue("500ms") Duration slowQueryThreshold,
+            @DefaultValue PulseRequestMatcherProperties enabledWhen) {}
 
     /**
      * Resilience4j auto-instrumentation. When the application registers a
@@ -399,6 +420,7 @@ public record PulseProperties(
             @DefaultValue Map<String, String> map,
             @DefaultValue("unknown") String defaultName,
             @DefaultValue("20") int fanOutWarnThreshold,
+            @DefaultValue PulseRequestMatcherProperties enabledWhen,
             @DefaultValue Health health) {
 
         /**

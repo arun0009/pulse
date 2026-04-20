@@ -57,6 +57,52 @@ pulse:
       enabled: false
 ```
 
+## Conditional gating
+
+`pulse.dependencies.enabled-when` controls both the per-call RED metrics
+*and* the [request fan-out counter](fan-out.md). Use it to suppress
+metric emission for synthetic probes:
+
+```yaml
+pulse:
+  dependencies:
+    enabled-when:
+      header-not-equals:
+        x-pulse-synthetic: "true"
+```
+
+For background traffic (scheduled jobs, Kafka consumers) where no inbound
+request is bound to the thread, Pulse fails open and still records the
+outbound call — you don't lose visibility on jobs.
+
+## Custom dependency classification (`DependencyClassifier`)
+
+The host-table strategy described above (`pulse.dependencies.map`) covers
+most cases. When it doesn't — wildcard regions, URL-path-aware naming,
+gateway-stamped headers — declare a single bean:
+
+```java
+@Bean
+DependencyClassifier customClassifier(DependencyResolver fallback) {
+    return new DependencyClassifier() {
+        @Override public String classify(URI uri) {
+            if (uri.getPath() != null && uri.getPath().startsWith("/api/v1/payments/")) {
+                return "payment-api-v1";
+            }
+            return fallback.classify(uri); // delegate to the host table
+        }
+        @Override public String classifyHost(String host) {
+            return fallback.classifyHost(host);
+        }
+    };
+}
+```
+
+Pulse routes every transport (RestTemplate, RestClient, WebClient, OkHttp,
+Kafka) through the bean. Implementations must be cheap, thread-safe, and
+must never throw — return the default name on edge cases so cardinality
+stays bounded.
+
 ---
 
 **Source:** [`io.github.arun0009.pulse.dependencies`](https://github.com/arun0009/pulse/tree/main/src/main/java/io/github/arun0009/pulse/dependencies) ·

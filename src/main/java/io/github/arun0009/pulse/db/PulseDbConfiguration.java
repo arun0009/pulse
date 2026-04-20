@@ -1,9 +1,12 @@
 package io.github.arun0009.pulse.db;
 
 import io.github.arun0009.pulse.autoconfigure.PulseProperties;
+import io.github.arun0009.pulse.autoconfigure.PulseRequestMatcherFactory;
+import io.github.arun0009.pulse.core.PulseRequestMatcher;
 import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.servlet.Servlet;
 import org.hibernate.resource.jdbc.spi.StatementInspector;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -50,7 +53,14 @@ public class PulseDbConfiguration {
     @ConditionalOnMissingBean
     @ConditionalOnClass(Servlet.class)
     @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
-    public PulseDbObservationFilter pulseDbObservationFilter(MeterRegistry meterRegistry, PulseProperties properties) {
-        return new PulseDbObservationFilter(meterRegistry, properties.db());
+    public PulseDbObservationFilter pulseDbObservationFilter(
+            MeterRegistry meterRegistry,
+            PulseProperties properties,
+            ObjectProvider<PulseRequestMatcherFactory> matcherFactory) {
+        PulseRequestMatcherFactory factory = matcherFactory.getIfAvailable();
+        PulseRequestMatcher gate = factory == null
+                ? PulseRequestMatcher.ALWAYS
+                : factory.build("db", properties.db().enabledWhen());
+        return new PulseDbObservationFilter(meterRegistry, properties.db(), gate);
     }
 }

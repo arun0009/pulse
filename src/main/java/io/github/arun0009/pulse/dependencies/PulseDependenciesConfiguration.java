@@ -1,6 +1,8 @@
 package io.github.arun0009.pulse.dependencies;
 
 import io.github.arun0009.pulse.autoconfigure.PulseProperties;
+import io.github.arun0009.pulse.autoconfigure.PulseRequestMatcherFactory;
+import io.github.arun0009.pulse.core.PulseRequestMatcher;
 import io.micrometer.core.instrument.MeterRegistry;
 import okhttp3.OkHttpClient;
 import org.springframework.beans.factory.ObjectProvider;
@@ -43,9 +45,26 @@ public class PulseDependenciesConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
+    public DependencyClassifier pulseDependencyClassifier(DependencyResolver resolver) {
+        // Default classifier IS the host-table resolver. Users override the whole strategy by
+        // declaring their own DependencyClassifier @Bean — host-table fallback is theirs to
+        // delegate to or replace.
+        return resolver;
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
     public DependencyOutboundRecorder pulseDependencyOutboundRecorder(
-            MeterRegistry registry, DependencyResolver resolver, PulseProperties properties) {
-        return new DependencyOutboundRecorder(registry, resolver, properties.dependencies());
+            MeterRegistry registry,
+            DependencyClassifier classifier,
+            DependencyResolver resolver,
+            PulseProperties properties,
+            ObjectProvider<PulseRequestMatcherFactory> matcherFactory) {
+        PulseRequestMatcherFactory factory = matcherFactory.getIfAvailable();
+        PulseRequestMatcher gate = factory == null
+                ? PulseRequestMatcher.ALWAYS
+                : factory.build("dependencies", properties.dependencies().enabledWhen());
+        return new DependencyOutboundRecorder(registry, classifier, resolver, properties.dependencies(), gate);
     }
 
     @Bean
@@ -116,9 +135,16 @@ public class PulseDependenciesConfiguration {
     static class FanoutFilterBeans {
         @Bean
         public FilterRegistrationBean<RequestFanoutFilter> pulseRequestFanoutFilterRegistration(
-                MeterRegistry registry, PulseProperties properties) {
+                MeterRegistry registry,
+                PulseProperties properties,
+                ObjectProvider<PulseRequestMatcherFactory> matcherFactory) {
+            PulseRequestMatcherFactory factory = matcherFactory.getIfAvailable();
+            PulseRequestMatcher gate = factory == null
+                    ? PulseRequestMatcher.ALWAYS
+                    : factory.build(
+                            "dependencies.fan-out", properties.dependencies().enabledWhen());
             FilterRegistrationBean<RequestFanoutFilter> reg =
-                    new FilterRegistrationBean<>(new RequestFanoutFilter(registry, properties.dependencies()));
+                    new FilterRegistrationBean<>(new RequestFanoutFilter(registry, properties.dependencies(), gate));
             // Run very late so the thread-local is initialized after auth/MDC filters and
             // closed before request logging. HIGHEST_PRECEDENCE-1 would be wrong because the
             // outbound calls happen inside the controller, which is called by the chain — we

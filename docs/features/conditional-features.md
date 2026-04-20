@@ -131,12 +131,18 @@ startup fails fast — never silently at the first request.
 
 ## Features that support `enabled-when` today
 
-- `pulse.trace-guard.enabled-when` (since 1.1.0)
+| Feature | Property | Scope when matcher rejects |
+| --- | --- | --- |
+| Trace-context guard | `pulse.trace-guard.enabled-when` | Skips missing-context detection for the request. Chain still runs. |
+| Timeout-budget | `pulse.timeout-budget.enabled-when` | No budget established on baggage; downstream sees `Optional.empty()`. |
+| Database (N+1) | `pulse.db.enabled-when` | Per-request statement scope is never opened; no `pulse.db.*` metric for the request. |
+| Dependencies (per-call RED) | `pulse.dependencies.enabled-when` | Outbound `pulse.dependency.*` metrics are not recorded for that inbound request. Outside a request scope (scheduled jobs, Kafka consumers) Pulse fails open and still records. |
+| Fan-out (per-request width) | `pulse.dependencies.enabled-when` *(shared)* | `pulse.request.fan_out{,_high}` and `pulse.request.distinct_dependencies` are not recorded. |
+| Exception fingerprints | `pulse.exception-handler.enabled-when` | Pulse still returns a baseline `ProblemDetail` (so the caller is not left with a Spring default error page) but skips fingerprinting, the MDC stamp, the span attribute, and the `pulse.errors.unhandled` increment. |
 
-The pattern will be adopted incrementally by features where dynamic gating
-is genuinely useful — cardinality firewall, PII masking, timeout-budget,
-sampling. Feature pages list `enabled-when` in their config table when
-support lands.
+Features where `enabled-when` doesn't fit (cardinality firewall, PII
+masking, sampling) use their own native extension points — meter filters,
+log-event masking, and the OpenTelemetry `Sampler` API respectively.
 
 ## What this is not
 

@@ -39,6 +39,12 @@ pulse:
       enabled: false
 ```
 
+## Conditional gating
+
+Fan-out shares `pulse.dependencies.enabled-when` with the per-call RED
+metrics — one block, two consistent skips. See
+[Dependencies → Conditional gating](dependencies.md#conditional-gating).
+
 ---
 
 **Source:** [`io.github.arun0009.pulse.dependencies`](https://github.com/arun0009/pulse/tree/main/src/main/java/io/github/arun0009/pulse/dependencies) ·

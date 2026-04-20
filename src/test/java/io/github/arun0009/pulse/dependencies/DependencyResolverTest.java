@@ -51,6 +51,7 @@ class DependencyResolverTest {
                 map,
                 "unknown",
                 20,
+                io.github.arun0009.pulse.autoconfigure.PulseRequestMatcherProperties.empty(),
                 new PulseProperties.Dependencies.Health(true, java.util.List.of(), 0.05, false)));
     }
 }

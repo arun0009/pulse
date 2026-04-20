@@ -1,6 +1,7 @@
 package io.github.arun0009.pulse.guardrails;
 
 import io.github.arun0009.pulse.autoconfigure.PulseProperties;
+import io.github.arun0009.pulse.autoconfigure.PulseRequestMatcherProperties;
 import jakarta.servlet.FilterChain;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletRequest;
@@ -26,7 +27,8 @@ class TimeoutBudgetFilterTest {
             Duration.ofSeconds(2),
             Duration.ofSeconds(30),
             Duration.ofMillis(50),
-            Duration.ofMillis(100));
+            Duration.ofMillis(100),
+            PulseRequestMatcherProperties.empty());
 
     private final TimeoutBudgetFilter filter = new TimeoutBudgetFilter(CONFIG);
 
@@ -97,7 +99,8 @@ class TimeoutBudgetFilterTest {
                 Duration.ZERO,
                 Duration.ofSeconds(30),
                 Duration.ofMillis(50),
-                Duration.ofMillis(100)));
+                Duration.ofMillis(100),
+                PulseRequestMatcherProperties.empty()));
 
         MockHttpServletRequest request = new MockHttpServletRequest("GET", "/orders");
         AtomicReference<Boolean> observed = new AtomicReference<>();
@@ -120,7 +123,8 @@ class TimeoutBudgetFilterTest {
                 Duration.ZERO,
                 Duration.ofSeconds(30),
                 Duration.ofMillis(50),
-                Duration.ofMillis(100)));
+                Duration.ofMillis(100),
+                PulseRequestMatcherProperties.empty()));
 
         MockHttpServletRequest request = new MockHttpServletRequest("GET", "/orders");
         request.addHeader("Pulse-Timeout-Ms", "1500");

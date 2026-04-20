@@ -1,6 +1,7 @@
 package io.github.arun0009.pulse.db;
 
 import io.github.arun0009.pulse.autoconfigure.PulseProperties;
+import io.github.arun0009.pulse.core.PulseRequestMatcher;
 import io.micrometer.core.instrument.DistributionSummary;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Tags;
@@ -56,10 +57,16 @@ public class PulseDbObservationFilter extends OncePerRequestFilter implements Or
 
     private final MeterRegistry meterRegistry;
     private final PulseProperties.Db config;
+    private final PulseRequestMatcher gate;
 
     public PulseDbObservationFilter(MeterRegistry meterRegistry, PulseProperties.Db config) {
+        this(meterRegistry, config, PulseRequestMatcher.ALWAYS);
+    }
+
+    public PulseDbObservationFilter(MeterRegistry meterRegistry, PulseProperties.Db config, PulseRequestMatcher gate) {
         this.meterRegistry = meterRegistry;
         this.config = config;
+        this.gate = gate;
     }
 
     @Override
@@ -70,6 +77,10 @@ public class PulseDbObservationFilter extends OncePerRequestFilter implements Or
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
+        if (!gate.matches(request)) {
+            chain.doFilter(request, response);
+            return;
+        }
         String endpoint = resolveEndpoint(request);
         DbObservationContext.begin(endpoint);
         try {

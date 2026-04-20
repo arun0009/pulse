@@ -18,6 +18,7 @@ import io.github.arun0009.pulse.health.OtelExporterHealthProperties;
 import io.github.arun0009.pulse.jobs.JobRegistry;
 import io.github.arun0009.pulse.jobs.JobsProperties;
 import io.github.arun0009.pulse.logging.LoggingProperties;
+import io.github.arun0009.pulse.logging.ResourceAttributeResolver;
 import io.github.arun0009.pulse.metrics.HistogramsProperties;
 import io.github.arun0009.pulse.openfeature.OpenFeatureProperties;
 import io.github.arun0009.pulse.priority.PriorityProperties;
@@ -82,11 +83,16 @@ public final class PulseDiagnostics {
     private final String serviceName;
     private final String environment;
     private final String version;
+    private final double samplingProbability;
     private final @Nullable CardinalityFirewall cardinalityFirewall;
     private final @Nullable SloProjector sloProjector;
     private final @Nullable JobRegistry jobRegistry;
     private final @Nullable PulseEnforcementMode enforcementMode;
+    private final @Nullable ResourceAttributeResolver resourceAttributeResolver;
 
+    /**
+     * Convenience constructor for tests. The sampling probability defaults to {@code 1.0}.
+     */
     public PulseDiagnostics(
             AllProperties p,
             String serviceName,
@@ -96,14 +102,50 @@ public final class PulseDiagnostics {
             @Nullable SloProjector sloProjector,
             @Nullable JobRegistry jobRegistry,
             @Nullable PulseEnforcementMode enforcementMode) {
+        this(
+                p,
+                serviceName,
+                environment,
+                version,
+                1.0,
+                cardinalityFirewall,
+                sloProjector,
+                jobRegistry,
+                enforcementMode,
+                null);
+    }
+
+    /**
+     * Production constructor. {@code samplingProbability} is sourced from
+     * {@code management.tracing.sampling.probability} — Pulse defers to Spring Boot's standard
+     * head-sampling property rather than shadowing it with a {@code pulse.*} alias.
+     */
+    public PulseDiagnostics(
+            AllProperties p,
+            String serviceName,
+            String environment,
+            String version,
+            double samplingProbability,
+            @Nullable CardinalityFirewall cardinalityFirewall,
+            @Nullable SloProjector sloProjector,
+            @Nullable JobRegistry jobRegistry,
+            @Nullable PulseEnforcementMode enforcementMode,
+            @Nullable ResourceAttributeResolver resourceAttributeResolver) {
         this.p = p;
         this.serviceName = serviceName;
         this.environment = environment;
         this.version = version;
+        this.samplingProbability = samplingProbability;
         this.cardinalityFirewall = cardinalityFirewall;
         this.sloProjector = sloProjector;
         this.jobRegistry = jobRegistry;
         this.enforcementMode = enforcementMode;
+        this.resourceAttributeResolver = resourceAttributeResolver;
+    }
+
+    /** @return the head sampling probability sourced from {@code management.tracing.sampling.probability}. */
+    public double samplingProbability() {
+        return samplingProbability;
     }
 
     public Map<String, Object> snapshot() {
@@ -165,6 +207,7 @@ public final class PulseDiagnostics {
         runtime.put("cardinalityFirewall", cardinalityRuntime());
         runtime.put("slo", sloRuntime());
         runtime.put("jobs", jobsRuntime());
+        runtime.put("resourceAttributes", resourceAttributesRuntime());
         return runtime;
     }
 
@@ -193,7 +236,15 @@ public final class PulseDiagnostics {
                         Map.of(
                                 "failOnMissing", p.traceGuard().failOnMissing(),
                                 "excludePathPrefixes", p.traceGuard().excludePathPrefixes())));
-        map.put("sampling", Map.of("probability", p.sampling().probability()));
+        map.put(
+                "sampling",
+                Map.of(
+                        "probability",
+                        samplingProbability,
+                        "probabilitySource",
+                        "management.tracing.sampling.probability",
+                        "preferSamplingOnError",
+                        p.sampling().preferSamplingOnError()));
         map.put(
                 "async",
                 entry(
@@ -421,5 +472,22 @@ public final class PulseDiagnostics {
                 "wired", true,
                 "totalOverflowRewrites", cardinalityFirewall.totalOverflowRewrites(),
                 "topOffenders", cardinalityFirewall.topOverflowingTags(10));
+    }
+
+    /**
+     * Snapshot of {@link ResourceAttributeResolver#resolveAll()} — the same map Pulse seeds as
+     * JVM system properties at {@code EnvironmentPostProcessor} time for log layouts, exposed here
+     * so operators can verify host/cloud/k8s detection without grepping startup logs. When no
+     * resolver bean is wired (tests or stripped-down contexts), returns {@code wired=false}.
+     */
+    private Map<String, Object> resourceAttributesRuntime() {
+        if (resourceAttributeResolver == null) {
+            return Map.of("wired", false);
+        }
+        Map<String, Object> root = new LinkedHashMap<>();
+        root.put("wired", true);
+        root.put("resolverClass", resourceAttributeResolver.getClass().getName());
+        root.put("resolved", resourceAttributeResolver.resolveAll());
+        return root;
     }
 }

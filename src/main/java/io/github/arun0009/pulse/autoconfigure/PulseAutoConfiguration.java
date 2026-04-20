@@ -243,20 +243,24 @@ public class PulseAutoConfiguration {
             PulseDiagnostics.AllProperties all,
             @Value("${spring.application.name:unknown-service}") String serviceName,
             @Value("${app.env:unknown-env}") String environment,
+            @Value("${management.tracing.sampling.probability:1.0}") double samplingProbability,
             ObjectProvider<CardinalityFirewall> cardinalityFirewall,
             ObjectProvider<SloProjector> sloProjector,
             ObjectProvider<JobRegistry> jobRegistry,
-            PulseEnforcementMode enforcement) {
+            PulseEnforcementMode enforcement,
+            ObjectProvider<ResourceAttributeResolver> resourceAttributeResolver) {
         String version = getClass().getPackage().getImplementationVersion();
         return new PulseDiagnostics(
                 all,
                 serviceName,
                 environment,
                 version == null ? "dev" : version,
+                samplingProbability,
                 cardinalityFirewall.getIfAvailable(),
                 sloProjector.getIfAvailable(),
                 jobRegistry.getIfAvailable(),
-                enforcement);
+                enforcement,
+                resourceAttributeResolver.getIfAvailable());
     }
 
     /**

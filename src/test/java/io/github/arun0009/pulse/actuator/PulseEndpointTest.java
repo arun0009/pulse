@@ -1,5 +1,6 @@
 package io.github.arun0009.pulse.actuator;
 
+import io.github.arun0009.pulse.logging.ResourceAttributeResolver;
 import io.github.arun0009.pulse.slo.SloRuleGenerator;
 import org.junit.jupiter.api.Test;
 
@@ -27,6 +28,43 @@ class PulseEndpointTest {
         assertThat(runtime).isInstanceOf(Map.class);
         assertThat(effectiveConfigMap).containsKey("pulse");
         assertThat(runtimeMap).containsKey("cardinalityFirewall");
+        assertThat(runtimeMap).containsKey("resourceAttributes");
+    }
+
+    @Test
+    void runtime_resource_attributes_unwired_when_no_resolver_bean() {
+        PulseDiagnostics diagnostics = diagnostics(TestAllProperties.bindEmpty());
+        PulseEndpoint endpoint = new PulseEndpoint(diagnostics, null);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> runtime = (Map<String, Object>) endpoint.read("runtime");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> ra = (Map<String, Object>) runtime.get("resourceAttributes");
+        assertThat(ra.get("wired")).isEqualTo(false);
+    }
+
+    @Test
+    void runtime_resource_attributes_include_resolve_all_when_resolver_wired() {
+        // Subclass so host.name is deterministic — stock resolver prefers OTEL_RESOURCE_ATTRIBUTES
+        // and HOSTNAME/COMPUTERNAME over HostNameProvider.
+        ResourceAttributeResolver resolver = new ResourceAttributeResolver(() -> "ignored") {
+            @Override
+            protected String hostName() {
+                return "diag-test-host";
+            }
+        };
+        PulseDiagnostics.AllProperties props = TestAllProperties.bindEmpty();
+        PulseDiagnostics diag =
+                new PulseDiagnostics(props, "test-svc", "test-env", "0.0.1", 1.0, null, null, null, null, resolver);
+        PulseEndpoint endpoint = new PulseEndpoint(diag, null);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> runtime = (Map<String, Object>) endpoint.read("runtime");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> ra = (Map<String, Object>) runtime.get("resourceAttributes");
+        assertThat(ra.get("wired")).isEqualTo(true);
+        assertThat(ra.get("resolverClass")).isEqualTo(resolver.getClass().getName());
+        @SuppressWarnings("unchecked")
+        Map<String, String> resolved = (Map<String, String>) ra.get("resolved");
+        assertThat(resolved.get("host.name")).isEqualTo("diag-test-host");
     }
 
     @Test

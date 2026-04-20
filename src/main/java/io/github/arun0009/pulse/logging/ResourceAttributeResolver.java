@@ -44,6 +44,14 @@ import java.util.regex.Pattern;
  *     com.acme.observability.AcmeResourceAttributeResolver
  * </pre>
  *
+ * <p>After the context starts, Pulse also exposes a {@code ResourceAttributeResolver} bean named
+ * {@code pulseResourceAttributeResolver} (wrapping the default chain or your
+ * {@link HostNameProvider} bean) so application code and {@link io.github.arun0009.pulse.actuator.PulseDiagnostics}
+ * can call {@link #resolveAll()} at runtime. If you use a {@code spring.factories}-only custom
+ * subclass, publish the <em>same</em> instance (or an equivalent subclass) as a {@code @Bean} so
+ * runtime injection and the EPP stay consistent; {@link org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean}
+ * suppresses Pulse's stock bean when yours is present.
+ *
  * <p>These attributes are <em>per-process</em> (not per-request), so the resolver runs once at
  * startup. The resolved values are written as JVM system properties by
  * {@link PulseLoggingEnvironmentPostProcessor}, where they are then stamped on every log line

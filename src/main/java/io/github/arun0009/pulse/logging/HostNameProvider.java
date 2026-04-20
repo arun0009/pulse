@@ -30,9 +30,14 @@ import org.jspecify.annotations.Nullable;
  *     com.acme.observability.Ec2MetadataHostNameProvider
  * </pre>
  *
- * <p>Pulse also registers the resolved provider as a Spring bean so any runtime code that
- * wants the same value (custom health indicators, scheduled jobs that emit hostname-tagged
- * metrics) can {@code @Autowired} it directly.
+ * <p>Pulse also registers a default implementation as the Spring bean
+ * {@code pulseHostNameProvider} (type {@link HostNameProvider}) so any runtime code that wants
+ * the same value (custom health indicators, scheduled jobs that emit hostname-tagged metrics)
+ * can inject it directly. Override it with your own {@code @Bean} of type
+ * {@link HostNameProvider} — {@link org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean}
+ * suppresses Pulse's default when yours is present. For log layout seeding at
+ * {@code EnvironmentPostProcessor} time (before beans exist), still register the same class in
+ * {@code META-INF/spring.factories} as documented above so EPP and the runtime bean stay aligned.
  *
  * <h2>Contract</h2>
  *

@@ -467,8 +467,8 @@ public class PulseAutoConfiguration {
             name = "otel-exporter-enabled",
             havingValue = "true",
             matchIfMissing = true)
-    public OtelExporterHealthRegistrar pulseOtelExporterHealthRegistrar(ObjectProvider<OpenTelemetrySdk> sdk) {
-        return new OtelExporterHealthRegistrar(sdk.getIfAvailable());
+    public static OtelExporterHealthRegistrar pulseOtelExporterHealthRegistrar() {
+        return new OtelExporterHealthRegistrar();
     }
 
     @Bean
@@ -481,6 +481,6 @@ public class PulseAutoConfiguration {
             matchIfMissing = true)
     public HealthIndicator otelExporterHealthIndicator(
             OtelExporterHealthRegistrar registrar, OtelExporterHealthProperties properties) {
-        return new OtelExporterHealthIndicator(registrar.exporters(), properties);
+        return new OtelExporterHealthIndicator(registrar::exporters, properties);
     }
 }

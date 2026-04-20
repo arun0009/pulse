@@ -1,0 +1,59 @@
+name: Native image smoke
+
+# Catches Pulse changes that would break a Spring Boot 3+ AOT/GraalVM build before they
+# land on main. The job is intentionally a *smoke test*: it builds the showcase edge service
+# (which exercises the full Pulse auto-config tree) as a native image and exits — it does not
+# run the resulting binary. The point is that AOT processing succeeds and the GraalVM compiler
+# can resolve every reachable type.
+#
+# Why this matters: Pulse's auto-config registers reflection hints in PulseRuntimeHints, and
+# any new bean wired through reflection (e.g. a new ObservationHandler, a new SPI loader) needs
+# matching hints. Without this gate, those misses surface only when a downstream user adopts
+# Pulse on Spring Native — a costly debugging loop. The CI job catches them in the PR that
+# introduced them.
+
+on:
+  pull_request:
+    paths:
+      - "src/**"
+      - "pom.xml"
+      - "examples/showcase/**"
+      - ".github/workflows/native-smoke.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: native-smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  native-image:
+    name: GraalVM native image (showcase/edge)
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up GraalVM 21
+        uses: graalvm/setup-graalvm@v1
+        with:
+          java-version: "21"
+          distribution: "graalvm-community"
+          cache: maven
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install Pulse starter to the local Maven repo
+        run: ./mvnw -B -ntp -DskipTests -Dspotless.check.skip=true install
+
+      - name: Build showcase edge as a native image
+        working-directory: examples/showcase
+        # -Pnative is contributed by spring-boot-starter-parent and triggers the AOT plugin
+        # plus the GraalVM native-maven-plugin. -pl edge -am keeps the build to the smallest
+        # graph that exercises the Pulse starter.
+        run: |
+          ../../mvnw -B -ntp -Pnative -DskipTests -pl edge -am \
+            -Dspring-boot.aot.enabled=true \
+            package

@@ -43,7 +43,7 @@ through for the full page. Every feature is on by default and opt-out via
 | [Fleet config-drift detection](fleet-config-drift.md) | Deterministic hash of resolved `pulse.*` tree; alert fires when one deployment has > 1 hash | You only run a single replica |
 | [Live diagnostic actuator](actuator.md) | `/actuator/pulse` (JSON) + `/actuator/pulseui` (HTML) — what's on, off, why | You forbid actuator endpoints in production |
 | [Sampling](sampling.md) | `pulse.sampling.probability` + `prefer-sampling-on-error` upgrades errors past the head sampler | You enforce sampling in the OTel Collector |
-| [Killswitch + dry-run mode](runtime-mode.md) | `POST /actuator/pulse/mode` flips Pulse process-wide between ENFORCING / DRY_RUN / OFF | You're confident every Pulse feature is correctly tuned |
+| [Dry-run / enforcement mode](enforcement-mode.md) | `POST /actuator/pulse/enforcement` flips Pulse process-wide between ENFORCING and DRY_RUN | You're confident every Pulse feature is correctly tuned |
 | [Profile presets](profile-presets.md) | One-line `spring.config.import` for tuned `dev` / `prod` / `test` / `canary` configurations | You manage all configuration centrally |
 | [Configuration validation](configuration-validation.md) | JSR-380 constraints on every `pulse.*` property; typos fail at startup, not 3 AM | You template all config and pre-validate it |
 
@@ -173,9 +173,9 @@ Things every Spring shop eventually builds, badly.
 Adoption-shortcut features that exist purely to make Pulse safer and
 easier to roll out across an existing fleet.
 
-- [Killswitch + dry-run mode](runtime-mode.md) — process-wide three-state
-  lever (`ENFORCING`, `DRY_RUN`, `OFF`); flip via
-  `POST /actuator/pulse/mode` without a redeploy. Roll Pulse out in
+- [Dry-run / enforcement mode](enforcement-mode.md) — process-wide
+  enforce-vs-observe lever (`ENFORCING`, `DRY_RUN`); flip via
+  `POST /actuator/pulse/enforcement` without a redeploy. Roll Pulse out in
   observe-only mode first, flip enforcing once dashboards confirm impact.
 - [Profile presets](profile-presets.md) — one-line `spring.config.import`
   for `dev` / `prod` / `test` / `canary` profiles tuned for that

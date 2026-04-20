@@ -1,21 +1,18 @@
 # Pulse — local-development preset.
 #
-# Activate by adding to your application.yml:
+# Activate by adding "pulse-dev" to your active Spring profiles:
 #
-#     spring.config.import: classpath:META-INF/pulse/dev.yml
+#     spring.profiles.active: dev,pulse-dev
 #
-# Or, profile-style, place this stanza inside a profile:
-#
-#     spring:
-#       config:
-#         activate.on-profile: dev
-#         import: classpath:META-INF/pulse/dev.yml
+# Or — when pulse.profile-presets.auto-apply is true (the default) — Pulse
+# detects "dev" in the active profiles and adds "pulse-dev" automatically,
+# so just SPRING_PROFILES_ACTIVE=dev is enough.
 #
 # Optimised for: high signal, fast feedback, friendly to forgotten headers.
 # Trades: more verbose logs, full sampling, looser cardinality budget.
 
 pulse:
-  runtime:
+  enforcement:
     mode: ENFORCING
 
   # 100% trace sampling — dev volumes are tiny and you want every span.

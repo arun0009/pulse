@@ -3,6 +3,7 @@ package io.github.arun0009.pulse.core;
 import io.github.arun0009.pulse.autoconfigure.PulseProperties;
 import io.github.arun0009.pulse.autoconfigure.PulseRequestMatcherFactory;
 import io.github.arun0009.pulse.autoconfigure.PulseRequestMatcherProperties;
+import io.github.arun0009.pulse.enforcement.PulseEnforcementMode;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import jakarta.servlet.FilterChain;
@@ -40,11 +41,12 @@ class TraceGuardFilterTest {
     private final MeterRegistry registry = new SimpleMeterRegistry();
     private final PulseRequestMatcherFactory matcherFactory =
             new PulseRequestMatcherFactory(new DefaultListableBeanFactory());
+    private final PulseEnforcementMode enforcing = new PulseEnforcementMode(PulseEnforcementMode.Mode.ENFORCING);
 
     @Test
     void without_enabled_when_filter_emits_missing_counter_for_traceless_request() throws Exception {
         TraceGuardFilter filter = new TraceGuardFilter(
-                registry, CONFIG_DEFAULT, matcherFactory.build("trace-guard", CONFIG_DEFAULT.enabledWhen()));
+                registry, CONFIG_DEFAULT, matcherFactory.build("trace-guard", CONFIG_DEFAULT.enabledWhen()), enforcing);
 
         MockHttpServletRequest request = new MockHttpServletRequest("GET", "/orders");
         AtomicBoolean chainInvoked = new AtomicBoolean(false);
@@ -61,7 +63,8 @@ class TraceGuardFilterTest {
         TraceGuardFilter filter = new TraceGuardFilter(
                 registry,
                 CONFIG_SKIP_TEST_CLIENT,
-                matcherFactory.build("trace-guard", CONFIG_SKIP_TEST_CLIENT.enabledWhen()));
+                matcherFactory.build("trace-guard", CONFIG_SKIP_TEST_CLIENT.enabledWhen()),
+                enforcing);
 
         MockHttpServletRequest request = new MockHttpServletRequest("GET", "/orders");
         request.addHeader("client-id", "test-client-id");
@@ -84,7 +87,8 @@ class TraceGuardFilterTest {
         TraceGuardFilter filter = new TraceGuardFilter(
                 registry,
                 CONFIG_SKIP_TEST_CLIENT,
-                matcherFactory.build("trace-guard", CONFIG_SKIP_TEST_CLIENT.enabledWhen()));
+                matcherFactory.build("trace-guard", CONFIG_SKIP_TEST_CLIENT.enabledWhen()),
+                enforcing);
 
         MockHttpServletRequest request = new MockHttpServletRequest("GET", "/orders");
         request.addHeader("client-id", "real-user-42");

@@ -65,6 +65,6 @@ class PulseEndpointTest {
     }
 
     private static PulseDiagnostics diagnostics(PulseProperties props) {
-        return new PulseDiagnostics(props, "test-svc", "test-env", "0.0.1", null, null, null);
+        return new PulseDiagnostics(props, "test-svc", "test-env", "0.0.1", null, null, null, null);
     }
 }

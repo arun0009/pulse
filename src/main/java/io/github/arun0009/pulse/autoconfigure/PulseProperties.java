@@ -1,6 +1,6 @@
 package io.github.arun0009.pulse.autoconfigure;
 
-import io.github.arun0009.pulse.runtime.PulseRuntimeMode;
+import io.github.arun0009.pulse.enforcement.PulseEnforcementMode;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
@@ -69,7 +69,8 @@ public record PulseProperties(
         @DefaultValue @Valid ContainerMemory containerMemory,
         @DefaultValue @Valid OpenFeature openFeature,
         @DefaultValue @Valid Cache cache,
-        @DefaultValue @Valid Runtime runtime) {
+        @DefaultValue @Valid Enforcement enforcement,
+        @DefaultValue @Valid ProfilePresets profilePresets) {
 
     /** MDC enrichment from the inbound HTTP request. */
     public record Context(
@@ -646,15 +647,45 @@ public record PulseProperties(
     }
 
     /**
-     * Process-wide runtime mode. {@link PulseRuntimeMode.Mode#ENFORCING} (default) runs every
-     * Pulse feature normally; {@link PulseRuntimeMode.Mode#DRY_RUN} keeps observation but disables
-     * enforcement; {@link PulseRuntimeMode.Mode#OFF} is the killswitch — every feature
-     * short-circuits as if its individual {@code enabled=false} property had been set.
+     * Process-wide enforce-vs-observe gate. {@link PulseEnforcementMode.Mode#ENFORCING} (default)
+     * runs every Pulse guardrail normally; {@link PulseEnforcementMode.Mode#DRY_RUN} keeps
+     * observation but disables enforcement (trace-context guard never returns 4xx, cardinality
+     * firewall counts overflows but lets the original tag value through, etc.).
+     *
+     * <p>To take a single feature out of the picture entirely, set its own
+     * {@code pulse.<feature>.enabled=false} — the per-feature toggle is the right granularity
+     * for incident response. Pulse intentionally does <em>not</em> ship a third "OFF" mode here;
+     * a global killswitch hid which feature was actually problematic.
      *
      * <p>The mode can be flipped at runtime via
-     * {@code POST /actuator/pulse/mode} with body {@code {"value": "DRY_RUN"}}, which is the
-     * single most useful operational lever Pulse exposes during an incident.
+     * {@code POST /actuator/pulse/enforcement} with body {@code {"value":"DRY_RUN"}}, which is
+     * the single most useful operational lever Pulse exposes during an incident.
      */
-    public record Runtime(
-            @DefaultValue("ENFORCING") @NotNull PulseRuntimeMode.Mode mode) {}
+    public record Enforcement(
+            @DefaultValue("ENFORCING") @NotNull PulseEnforcementMode.Mode mode) {}
+
+    /**
+     * Pulse-shipped profile presets (since 1.1).
+     *
+     * <p>Pulse ships {@code application-pulse-dev.yml}, {@code application-pulse-prod.yml},
+     * {@code application-pulse-test.yml} and {@code application-pulse-canary.yml} as
+     * <em>standard Spring profile files</em>. Activating one is the idiomatic Spring way:
+     *
+     * <pre>
+     * spring.profiles.active: prod,pulse-prod
+     * </pre>
+     *
+     * <p>To remove that one piece of boilerplate Pulse also ships
+     * {@code PulseProfilePresetEnvironmentPostProcessor}: when {@link #autoApply()} is
+     * {@code true} (the default) and Pulse sees {@code dev}, {@code prod}, {@code test} or
+     * {@code canary} in the active profiles without the corresponding {@code pulse-*} profile,
+     * it appends the matching {@code pulse-<env>} profile so the preset gets loaded too.
+     * Set {@code pulse.profile-presets.auto-apply=false} to keep Pulse hands-off.
+     *
+     * <p>{@link #presets()} controls the {@code env -> pulse-profile} mapping. Add or override
+     * mappings to teach Pulse about your own profile names (e.g. {@code stage -> pulse-prod}).
+     */
+    public record ProfilePresets(
+            @DefaultValue("true") boolean autoApply,
+            @DefaultValue Map<String, String> presets) {}
 }

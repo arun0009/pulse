@@ -130,7 +130,7 @@ nav:
           - Diagnostic actuator: features/actuator.md
           - Sampling: features/sampling.md
       - Operational levers:
-          - Killswitch + dry-run mode: features/runtime-mode.md
+          - Dry-run / enforcement mode: features/enforcement-mode.md
           - Profile presets: features/profile-presets.md
           - Configuration validation: features/configuration-validation.md
   - Configuration: configuration.md

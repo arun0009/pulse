@@ -83,6 +83,22 @@
   ],
   "properties": [
     {
+      "name": "pulse.runtime.mode",
+      "type": "io.github.arun0009.pulse.enforcement.PulseEnforcementMode$Mode",
+      "description": "Deprecated alias for pulse.enforcement.mode. Auto-migrated at startup with a one-line WARN log; will be removed in 1.3.",
+      "deprecation": {
+        "level": "warning",
+        "reason": "Renamed to pulse.enforcement.mode in 1.1 (the OFF mode was dropped — use the per-feature pulse.<feature>.enabled toggle instead).",
+        "replacement": "pulse.enforcement.mode"
+      }
+    },
+    {
+      "name": "pulse.enforcement.mode",
+      "type": "io.github.arun0009.pulse.enforcement.PulseEnforcementMode$Mode",
+      "defaultValue": "ENFORCING",
+      "description": "Process-wide enforce-vs-observe gate consulted at the start of every Pulse guardrail. ENFORCING runs each feature normally; DRY_RUN keeps observation but disables enforcement. Mutable at runtime via POST /actuator/pulse/enforcement."
+    },
+    {
       "name": "pulse.sampling.probability",
       "description": "Head-based sampling ratio for root spans (parent decisions are always honoured). 1.0 = sample all (default), 0.1 = 10%, 0.0 = sample none. Set to 0.05–0.1 in high-traffic production services."
     },

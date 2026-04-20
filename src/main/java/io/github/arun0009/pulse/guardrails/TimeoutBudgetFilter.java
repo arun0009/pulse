@@ -2,7 +2,6 @@ package io.github.arun0009.pulse.guardrails;
 
 import io.github.arun0009.pulse.autoconfigure.PulseProperties;
 import io.github.arun0009.pulse.core.PulseRequestMatcher;
-import io.github.arun0009.pulse.runtime.PulseRuntimeMode;
 import io.opentelemetry.api.baggage.Baggage;
 import io.opentelemetry.context.Context;
 import io.opentelemetry.context.Scope;
@@ -44,21 +43,14 @@ public class TimeoutBudgetFilter extends OncePerRequestFilter implements Ordered
 
     private final PulseProperties.TimeoutBudget config;
     private final PulseRequestMatcher gate;
-    private final PulseRuntimeMode runtime;
 
     public TimeoutBudgetFilter(PulseProperties.TimeoutBudget config) {
-        this(config, PulseRequestMatcher.ALWAYS, new PulseRuntimeMode(PulseRuntimeMode.Mode.ENFORCING));
+        this(config, PulseRequestMatcher.ALWAYS);
     }
 
     public TimeoutBudgetFilter(PulseProperties.TimeoutBudget config, PulseRequestMatcher gate) {
-        this(config, gate, new PulseRuntimeMode(PulseRuntimeMode.Mode.ENFORCING));
-    }
-
-    public TimeoutBudgetFilter(
-            PulseProperties.TimeoutBudget config, PulseRequestMatcher gate, PulseRuntimeMode runtime) {
         this.config = config;
         this.gate = gate;
-        this.runtime = runtime;
     }
 
     @Override
@@ -70,7 +62,7 @@ public class TimeoutBudgetFilter extends OncePerRequestFilter implements Ordered
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
 
-        if (runtime.off() || !gate.matches(request)) {
+        if (!gate.matches(request)) {
             chain.doFilter(request, response);
             return;
         }

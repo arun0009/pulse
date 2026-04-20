@@ -1,10 +1,12 @@
 # Pulse — integration / unit test preset.
 #
-# Activate by adding to your test application.yml:
+# Activate by adding "pulse-test" to your test profiles:
 #
-#     spring.config.import: classpath:META-INF/pulse/test.yml
+#     spring.profiles.active: test,pulse-test
 #
-# Or via @TestPropertySource(properties = "spring.config.import=classpath:META-INF/pulse/test.yml").
+# Or — when pulse.profile-presets.auto-apply is true (the default) — Pulse
+# detects "test" in the active profiles and adds "pulse-test" automatically,
+# so just @ActiveProfiles("test") is enough.
 #
 # Optimised for: silence, speed, and reproducibility. Pulse stays loaded so
 # auto-configuration is exercised, but enforcement and noisy diagnostics are off.
@@ -12,7 +14,7 @@
 # trace-guard is off (test clients rarely propagate context).
 
 pulse:
-  runtime:
+  enforcement:
     mode: ENFORCING
 
   # No sampling — keep tests fast and deterministic.

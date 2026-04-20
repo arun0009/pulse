@@ -1,6 +1,7 @@
 package io.github.arun0009.pulse.guardrails;
 
 import io.github.arun0009.pulse.autoconfigure.PulseProperties;
+import io.github.arun0009.pulse.enforcement.PulseEnforcementMode;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.Test;
 
@@ -19,10 +20,14 @@ class CardinalityFirewallTest {
     private static final PulseProperties.Cardinality DEFAULT_CONFIG =
             new PulseProperties.Cardinality(true, 1000, "OVERFLOW", List.of(), List.of());
 
+    private static PulseEnforcementMode enforcing() {
+        return new PulseEnforcementMode(PulseEnforcementMode.Mode.ENFORCING);
+    }
+
     @Test
     void low_cardinality_tags_pass_through_unchanged() {
         SimpleMeterRegistry registry = new SimpleMeterRegistry();
-        registry.config().meterFilter(new CardinalityFirewall(DEFAULT_CONFIG, () -> registry));
+        registry.config().meterFilter(new CardinalityFirewall(DEFAULT_CONFIG, enforcing(), () -> registry));
 
         for (int i = 0; i < 50; i++) {
             registry.counter("orders.placed", "region", "us-east-" + (i % 4)).increment();
@@ -38,7 +43,7 @@ class CardinalityFirewallTest {
         PulseProperties.Cardinality config =
                 new PulseProperties.Cardinality(true, 100, "OVERFLOW", List.of(), List.of());
         SimpleMeterRegistry registry = new SimpleMeterRegistry();
-        registry.config().meterFilter(new CardinalityFirewall(config, () -> registry));
+        registry.config().meterFilter(new CardinalityFirewall(config, enforcing(), () -> registry));
 
         for (int i = 0; i < 250; i++) {
             registry.counter("orders.placed", "userId", "user-" + i).increment();
@@ -76,7 +81,7 @@ class CardinalityFirewallTest {
         PulseProperties.Cardinality config =
                 new PulseProperties.Cardinality(true, 10, "OVERFLOW", List.of(), List.of("business."));
         SimpleMeterRegistry registry = new SimpleMeterRegistry();
-        registry.config().meterFilter(new CardinalityFirewall(config, () -> registry));
+        registry.config().meterFilter(new CardinalityFirewall(config, enforcing(), () -> registry));
 
         for (int i = 0; i < 50; i++) {
             registry.counter("business.events", "id", "evt-" + i).increment();
@@ -95,7 +100,7 @@ class CardinalityFirewallTest {
         PulseProperties.Cardinality config =
                 new PulseProperties.Cardinality(true, 5, "OVERFLOW", List.of("http."), List.of());
         SimpleMeterRegistry registry = new SimpleMeterRegistry();
-        registry.config().meterFilter(new CardinalityFirewall(config, () -> registry));
+        registry.config().meterFilter(new CardinalityFirewall(config, enforcing(), () -> registry));
 
         for (int i = 0; i < 20; i++) {
             registry.counter("http.requests", "uri", "/u/" + i).increment();
@@ -120,7 +125,7 @@ class CardinalityFirewallTest {
     void disabled_firewall_is_a_no_op() {
         PulseProperties.Cardinality off = new PulseProperties.Cardinality(false, 1, "OVERFLOW", List.of(), List.of());
         SimpleMeterRegistry registry = new SimpleMeterRegistry();
-        registry.config().meterFilter(new CardinalityFirewall(off, () -> registry));
+        registry.config().meterFilter(new CardinalityFirewall(off, enforcing(), () -> registry));
 
         for (int i = 0; i < 30; i++) {
             registry.counter("anything", "k", "v-" + i).increment();

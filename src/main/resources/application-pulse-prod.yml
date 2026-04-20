@@ -1,14 +1,18 @@
 # Pulse — production preset.
 #
-# Activate by adding to your application.yml (or profile-specific file):
+# Activate by adding "pulse-prod" to your active Spring profiles:
 #
-#     spring.config.import: classpath:META-INF/pulse/prod.yml
+#     spring.profiles.active: prod,pulse-prod
+#
+# Or — when pulse.profile-presets.auto-apply is true (the default) — Pulse
+# detects "prod" in the active profiles and adds "pulse-prod" automatically,
+# so just SPRING_PROFILES_ACTIVE=prod is enough.
 #
 # Optimised for: low overhead, strict guardrails, paranoid defaults.
 # Trades: 10% trace sampling (set to 1.0 for short bursts during incident response).
 
 pulse:
-  runtime:
+  enforcement:
     mode: ENFORCING
 
   # 10% sampling, but the error-biased sampler still upgrades any erroring span

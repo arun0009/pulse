@@ -1,6 +1,6 @@
 package io.github.arun0009.pulse.test;
 
-import io.github.arun0009.pulse.runtime.PulseRuntimeMode;
+import io.github.arun0009.pulse.enforcement.PulseEnforcementMode;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.sdk.OpenTelemetrySdk;
@@ -8,6 +8,7 @@ import io.opentelemetry.sdk.testing.exporter.InMemorySpanExporter;
 import io.opentelemetry.sdk.trace.SdkTracerProvider;
 import io.opentelemetry.sdk.trace.export.SimpleSpanProcessor;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
@@ -40,10 +41,11 @@ public class PulseTestConfiguration {
     }
 
     @Bean
+    @ConditionalOnMissingBean
     public PulseTestHarness pulseTestHarness(
             InMemorySpanExporter spanExporter,
             MeterRegistry meterRegistry,
-            ObjectProvider<PulseRuntimeMode> runtimeMode) {
-        return new PulseTestHarness(spanExporter, meterRegistry, runtimeMode.getIfAvailable());
+            ObjectProvider<PulseEnforcementMode> enforcementMode) {
+        return new PulseTestHarness(spanExporter, meterRegistry, enforcementMode.getIfAvailable());
     }
 }

@@ -60,6 +60,8 @@ public class CardinalityFirewallBenchmark {
         registry = new SimpleMeterRegistry();
         firewall = new CardinalityFirewall(
                 new PulseProperties.Cardinality(true, maxTagValuesPerMeter, "OVERFLOW", List.of(), List.of()),
+                new io.github.arun0009.pulse.enforcement.PulseEnforcementMode(
+                        io.github.arun0009.pulse.enforcement.PulseEnforcementMode.Mode.ENFORCING),
                 () -> registry);
 
         Meter.Id baseId =

@@ -6,6 +6,7 @@ import io.github.arun0009.pulse.cache.PulseCaffeineConfiguration;
 import io.github.arun0009.pulse.container.PulseContainerMemoryConfiguration;
 import io.github.arun0009.pulse.db.PulseDbConfiguration;
 import io.github.arun0009.pulse.dependencies.PulseDependenciesConfiguration;
+import io.github.arun0009.pulse.enforcement.PulseEnforcementMode;
 import io.github.arun0009.pulse.events.SpanEvents;
 import io.github.arun0009.pulse.fleet.ConfigHashGauge;
 import io.github.arun0009.pulse.fleet.ConfigHasher;
@@ -30,7 +31,6 @@ import io.github.arun0009.pulse.propagation.RestTemplatePropagationConfiguration
 import io.github.arun0009.pulse.propagation.WebClientPropagationConfiguration;
 import io.github.arun0009.pulse.resilience.PulseResilience4jConfiguration;
 import io.github.arun0009.pulse.resilience.PulseRetryAmplificationConfiguration;
-import io.github.arun0009.pulse.runtime.PulseRuntimeMode;
 import io.github.arun0009.pulse.scheduling.ContextPropagatingTaskScheduler;
 import io.github.arun0009.pulse.scheduling.PulseSchedulingConfigurer;
 import io.github.arun0009.pulse.shutdown.InflightRequestCounter;
@@ -111,27 +111,30 @@ import org.springframework.core.env.Environment;
 public class PulseAutoConfiguration {
 
     /**
-     * Process-wide runtime mode. Always created (regardless of {@code pulse.runtime.mode}) so that
-     * the actuator endpoint can flip from OFF -> ENFORCING just as easily as the reverse during an
-     * incident. The constructor seeds the initial mode from {@code pulse.runtime.mode}; subsequent
-     * runtime mutations are made through {@link PulseRuntimeMode#set(PulseRuntimeMode.Mode)} via
-     * {@code POST /actuator/pulse/mode}.
+     * Process-wide enforce-vs-observe gate. Always created (regardless of
+     * {@code pulse.enforcement.mode}) so that the {@code POST /actuator/pulse/enforcement} write
+     * operation can flip between ENFORCING and DRY_RUN during an incident without a redeploy.
+     * The constructor seeds the initial mode from {@code pulse.enforcement.mode}; subsequent
+     * runtime mutations are made through
+     * {@link PulseEnforcementMode#set(PulseEnforcementMode.Mode)}.
      */
     @Bean
     @ConditionalOnMissingBean
-    public PulseRuntimeMode pulseRuntimeMode(PulseProperties properties) {
-        return new PulseRuntimeMode(properties.runtime().mode());
+    public PulseEnforcementMode pulseEnforcementMode(PulseProperties properties) {
+        return new PulseEnforcementMode(properties.enforcement().mode());
     }
 
     @Bean
     @ConditionalOnMissingBean
     @ConditionalOnProperty(prefix = "pulse.cardinality", name = "enabled", havingValue = "true", matchIfMissing = true)
     public CardinalityFirewall pulseCardinalityFirewall(
-            PulseProperties properties, PulseRuntimeMode runtime, ObjectProvider<MeterRegistry> meterRegistryProvider) {
+            PulseProperties properties,
+            PulseEnforcementMode enforcement,
+            ObjectProvider<MeterRegistry> meterRegistryProvider) {
         // ObjectProvider keeps this lazy: Spring Boot's MeterRegistryPostProcessor resolves
         // MeterFilter beans during MeterRegistry construction. Eagerly injecting MeterRegistry
         // here would create a circular bean reference and fail context startup.
-        return new CardinalityFirewall(properties.cardinality(), runtime, meterRegistryProvider::getObject);
+        return new CardinalityFirewall(properties.cardinality(), enforcement, meterRegistryProvider::getObject);
     }
 
     @Bean
@@ -193,7 +196,7 @@ public class PulseAutoConfiguration {
             ObjectProvider<CardinalityFirewall> cardinalityFirewall,
             ObjectProvider<SloProjector> sloProjector,
             ObjectProvider<JobRegistry> jobRegistry,
-            PulseRuntimeMode runtime) {
+            PulseEnforcementMode enforcement) {
         String version = getClass().getPackage().getImplementationVersion();
         return new PulseDiagnostics(
                 properties,
@@ -203,7 +206,7 @@ public class PulseAutoConfiguration {
                 cardinalityFirewall.getIfAvailable(),
                 sloProjector.getIfAvailable(),
                 jobRegistry.getIfAvailable(),
-                runtime);
+                enforcement);
     }
 
     @Bean

@@ -3,7 +3,6 @@ package io.github.arun0009.pulse.logging;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.classic.spi.IThrowableProxy;
 import ch.qos.logback.classic.spi.StackTraceElementProxy;
-import ch.qos.logback.classic.spi.ThrowableProxyUtil;
 import ch.qos.logback.core.encoder.EncoderBase;
 
 import java.nio.charset.StandardCharsets;
@@ -201,10 +200,7 @@ public class PulseLogbackEncoder extends EncoderBase<ILoggingEvent> {
             sb.append(": ").append(throwable.getMessage());
         }
         for (StackTraceElementProxy element : throwable.getStackTraceElementProxyArray()) {
-            sb.append('\n')
-                    .append('\t')
-                    .append(ThrowableProxyUtil.asString(throwable).isEmpty() ? "" : "");
-            sb.append(element.toString());
+            sb.append('\n').append('\t').append(element.toString());
         }
         IThrowableProxy cause = throwable.getCause();
         if (cause != null) {

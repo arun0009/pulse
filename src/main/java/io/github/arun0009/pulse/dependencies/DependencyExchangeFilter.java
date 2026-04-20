@@ -15,7 +15,7 @@ public final class DependencyExchangeFilter {
     public static ExchangeFilterFunction filter(DependencyOutboundRecorder recorder) {
         return (request, next) -> {
             long start = System.nanoTime();
-            String dep = recorder.resolver().resolve(request.url());
+            String dep = recorder.classify(request.url());
             String method = request.method().name();
             return next.exchange(request)
                     .doOnSuccess(response -> {

@@ -1,6 +1,5 @@
 package io.github.arun0009.pulse.db;
 
-import io.github.arun0009.pulse.autoconfigure.PulseProperties;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Tags;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
@@ -25,13 +24,17 @@ import static org.assertj.core.api.Assertions.assertThat;
 class PulseDbObservationFilterTest {
 
     private MeterRegistry registry;
-    private PulseProperties.Db config;
+    private DbProperties config;
     private PulseDbObservationFilter filter;
 
     @BeforeEach
     void setUp() {
         registry = new SimpleMeterRegistry();
-        config = new PulseProperties.Db(true, 5, Duration.ofMillis(500));
+        config = new DbProperties(
+                true,
+                5,
+                Duration.ofMillis(500),
+                io.github.arun0009.pulse.autoconfigure.PulseRequestMatcherProperties.empty());
         filter = new PulseDbObservationFilter(registry, config);
     }
 

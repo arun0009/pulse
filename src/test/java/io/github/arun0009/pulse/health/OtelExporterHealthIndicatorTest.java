@@ -1,6 +1,5 @@
 package io.github.arun0009.pulse.health;
 
-import io.github.arun0009.pulse.autoconfigure.PulseProperties;
 import io.opentelemetry.sdk.common.CompletableResultCode;
 import io.opentelemetry.sdk.trace.data.SpanData;
 import io.opentelemetry.sdk.trace.export.SpanExporter;
@@ -16,8 +15,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class OtelExporterHealthIndicatorTest {
 
-    private static PulseProperties.Health config(Duration staleAfter) {
-        return new PulseProperties.Health(true, staleAfter);
+    private static OtelExporterHealthProperties config(Duration staleAfter) {
+        return new OtelExporterHealthProperties(true, staleAfter);
     }
 
     @Test

@@ -1,13 +1,11 @@
 package io.github.arun0009.pulse.slo;
 
-import io.github.arun0009.pulse.autoconfigure.PulseProperties;
-
 import java.time.Duration;
 import java.util.List;
 import java.util.Locale;
 
 /**
- * Renders {@link PulseProperties.Slo.Objective} declarations into a Prometheus-compatible
+ * Renders {@link SloProperties.Objective} declarations into a Prometheus-compatible
  * {@code PrometheusRule} document — recording rules plus multi-window, multi-burn-rate
  * alerts following the Google SRE workbook pattern.
  *
@@ -42,17 +40,19 @@ public final class SloRuleGenerator {
     private static final Duration FAST_WINDOW = Duration.ofHours(1);
     private static final Duration SLOW_WINDOW = Duration.ofHours(6);
 
-    private final PulseProperties.Slo config;
+    private final SloProperties config;
     private final String serviceName;
 
-    public SloRuleGenerator(PulseProperties.Slo config, String serviceName) {
+    public SloRuleGenerator(SloProperties config, String serviceName) {
         this.config = config;
         this.serviceName = serviceName;
     }
 
     /**
-     * @return a complete PrometheusRule YAML document. If no objectives are declared, returns a
-     *     header-only document (still valid YAML, makes the endpoint always parse cleanly).
+     * Returns a complete PrometheusRule YAML document. If no objectives are declared, returns a
+     * header-only document (still valid YAML, makes the endpoint always parse cleanly).
+     *
+     * @return the rendered YAML document.
      */
     public String render() {
         StringBuilder yaml = new StringBuilder();
@@ -69,20 +69,20 @@ public final class SloRuleGenerator {
         yaml.append("spec:\n");
         yaml.append("  groups:\n");
 
-        List<PulseProperties.Slo.Objective> objectives = config.objectives();
+        List<SloProperties.Objective> objectives = config.objectives();
         if (objectives.isEmpty()) {
             yaml.append("    # No SLOs declared. Add some under pulse.slo.objectives in application.yml.\n");
             yaml.append("    []\n");
             return yaml.toString();
         }
 
-        for (PulseProperties.Slo.Objective o : objectives) {
+        for (SloProperties.Objective o : objectives) {
             renderObjective(yaml, o);
         }
         return yaml.toString();
     }
 
-    private void renderObjective(StringBuilder yaml, PulseProperties.Slo.Objective o) {
+    private void renderObjective(StringBuilder yaml, SloProperties.Objective o) {
         String name = safe(o.name());
         String sli = o.sli().toLowerCase(Locale.ROOT);
         String filterClause = buildFilterClause(o);
@@ -136,7 +136,7 @@ public final class SloRuleGenerator {
     private void renderBurnAlert(
             StringBuilder yaml,
             String name,
-            PulseProperties.Slo.Objective o,
+            SloProperties.Objective o,
             double burnRate,
             Duration window,
             String severity,
@@ -182,7 +182,7 @@ public final class SloRuleGenerator {
                 .append(".\"\n");
     }
 
-    private String buildFilterClause(PulseProperties.Slo.Objective o) {
+    private String buildFilterClause(SloProperties.Objective o) {
         // Always scope to the application; consumers can add more filters in YAML.
         StringBuilder sb =
                 new StringBuilder("application=\"").append(safe(serviceName)).append("\"");

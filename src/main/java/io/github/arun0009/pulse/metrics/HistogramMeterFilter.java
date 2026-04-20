@@ -1,6 +1,5 @@
 package io.github.arun0009.pulse.metrics;
 
-import io.github.arun0009.pulse.autoconfigure.PulseProperties;
 import io.micrometer.core.instrument.Meter;
 import io.micrometer.core.instrument.config.MeterFilter;
 import io.micrometer.core.instrument.distribution.DistributionStatisticConfig;
@@ -15,9 +14,9 @@ import java.util.List;
  */
 public final class HistogramMeterFilter implements MeterFilter {
 
-    private final PulseProperties.Histograms config;
+    private final HistogramsProperties config;
 
-    public HistogramMeterFilter(PulseProperties.Histograms config) {
+    public HistogramMeterFilter(HistogramsProperties config) {
         this.config = config;
     }
 

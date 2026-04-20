@@ -29,14 +29,11 @@ public final class TimeoutBudgetOutboundInterceptor implements ClientHttpRequest
 
     private static final Logger log = LoggerFactory.getLogger(TimeoutBudgetOutboundInterceptor.class);
 
-    private final io.github.arun0009.pulse.autoconfigure.PulseProperties.TimeoutBudget config;
+    private final TimeoutBudgetProperties config;
     private final TimeoutBudgetOutbound budgetHelper;
     private final String transport;
 
-    public TimeoutBudgetOutboundInterceptor(
-            io.github.arun0009.pulse.autoconfigure.PulseProperties.TimeoutBudget config,
-            MeterRegistry registry,
-            String transport) {
+    public TimeoutBudgetOutboundInterceptor(TimeoutBudgetProperties config, MeterRegistry registry, String transport) {
         this.config = config;
         this.budgetHelper = new TimeoutBudgetOutbound(registry);
         this.transport = transport;

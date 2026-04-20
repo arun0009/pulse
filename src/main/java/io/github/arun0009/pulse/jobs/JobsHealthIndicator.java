@@ -1,6 +1,5 @@
 package io.github.arun0009.pulse.jobs;
 
-import io.github.arun0009.pulse.autoconfigure.PulseProperties;
 import org.springframework.boot.health.contributor.Health;
 import org.springframework.boot.health.contributor.HealthIndicator;
 import org.springframework.boot.health.contributor.Status;
@@ -14,7 +13,7 @@ import java.util.Map;
  * Reports the health of every observed scheduled job.
  *
  * <p>For each job in {@link JobRegistry}, the indicator computes age-since-last-success and
- * compares it against {@link PulseProperties.Jobs#failureGracePeriod()} — a flat upper bound on
+ * compares it against {@link JobsProperties#failureGracePeriod()} — a flat upper bound on
  * how long a job is permitted to go between successful runs before it is considered stuck. Pulse
  * deliberately does <em>not</em> try to introspect cron expressions or fixed-rate intervals from
  * Spring's {@code ScheduledTaskHolder}: that data is fragmented across cron / fixed-rate /
@@ -41,9 +40,9 @@ import java.util.Map;
 public final class JobsHealthIndicator implements HealthIndicator {
 
     private final JobRegistry registry;
-    private final PulseProperties.Jobs config;
+    private final JobsProperties config;
 
-    public JobsHealthIndicator(JobRegistry registry, PulseProperties.Jobs config) {
+    public JobsHealthIndicator(JobRegistry registry, JobsProperties config) {
         this.registry = registry;
         this.config = config;
     }

@@ -150,7 +150,7 @@ public final class ConfigHasher {
         if (value instanceof Collection<?> col) {
             int i = 0;
             for (Object item : col) {
-                renderInto(prefix + "[" + (i++) + "]", item, lines);
+                renderInto(prefix + "[" + i++ + "]", item, lines);
             }
             return;
         }

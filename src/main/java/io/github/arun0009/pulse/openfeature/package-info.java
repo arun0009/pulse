@@ -4,5 +4,7 @@
  * {@code feature_flag} span event so logs and traces explain why each request branched the way
  * it did.
  */
-@org.jspecify.annotations.NullMarked
+@NullMarked
 package io.github.arun0009.pulse.openfeature;
+
+import org.jspecify.annotations.NullMarked;

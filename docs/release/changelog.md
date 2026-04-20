@@ -136,7 +136,8 @@ fork — just Spring Boot auto-configuration on top of OpenTelemetry and Microme
 	the JVM (no JNI, no agent) and exposes `pulse.container.memory.used`,
 	`pulse.container.memory.limit`, `pulse.container.memory.headroom_ratio` as gauges plus
 	`pulse.container.memory.oom_kills` as a counter. `ContainerMemoryHealthIndicator`
-	flips `DEGRADED` below `pulse.container.memory.warning-headroom-ratio` (default 0.15).
+	flips **`OUT_OF_SERVICE`** below `pulse.container-memory.headroom-critical-ratio`
+	(default 0.10).
 	New alert rules `PulseContainerMemoryLowHeadroom` and `PulseContainerMemoryOomKill`.
 - **Kafka time-based consumer lag** — the `RecordInterceptor` records
 	`now() − record.timestamp()` per consumed record, exposed as

@@ -1,8 +1,11 @@
 package io.github.arun0009.pulse.propagation;
 
-import io.github.arun0009.pulse.autoconfigure.PulseProperties;
 import io.github.arun0009.pulse.core.ContextKeys;
+import io.github.arun0009.pulse.core.ContextProperties;
 import io.github.arun0009.pulse.guardrails.TimeoutBudget;
+import io.github.arun0009.pulse.guardrails.TimeoutBudgetProperties;
+import io.github.arun0009.pulse.priority.PriorityProperties;
+import io.github.arun0009.pulse.resilience.RetryProperties;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -22,7 +25,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class PulseKafkaRecordInterceptorTest {
 
-    private final PulseKafkaRecordInterceptor interceptor = new PulseKafkaRecordInterceptor(defaultProperties());
+    private final PulseKafkaRecordInterceptor interceptor = new PulseKafkaRecordInterceptor(
+            defaultContext(), defaultRetry(), defaultPriority(), defaultTimeoutBudget());
 
     @AfterEach
     void cleanup() {
@@ -103,61 +107,28 @@ class PulseKafkaRecordInterceptorTest {
         return new ConsumerRecord<>("orders", 0, 0L, "key", "value");
     }
 
-    private static PulseProperties defaultProperties() {
-        return new PulseProperties(
-                new PulseProperties.Context(
-                        true,
-                        "X-Request-ID",
-                        "X-Correlation-ID",
-                        "X-User-ID",
-                        "Pulse-Tenant-Id",
-                        "Idempotency-Key",
-                        List.of()),
-                new PulseProperties.TraceGuard(true, false, List.of()),
-                new PulseProperties.Sampling(1.0, true),
-                new PulseProperties.Async(true, false, 8, 32, 100, "pulse-", true),
-                new PulseProperties.Kafka(true, true),
-                new PulseProperties.ExceptionHandler(true),
-                new PulseProperties.Cardinality(true, 1000, "OVERFLOW", List.of(), List.of()),
-                new PulseProperties.TimeoutBudget(
-                        true,
-                        "Pulse-Timeout-Ms",
-                        "Pulse-Timeout-Ms",
-                        Duration.ofSeconds(2),
-                        Duration.ofSeconds(30),
-                        Duration.ofMillis(50),
-                        Duration.ofMillis(100)),
-                new PulseProperties.WideEvents(true, true, true, "pulse.events", "event"),
-                new PulseProperties.Logging(true),
-                new PulseProperties.Banner(true),
-                new PulseProperties.Histograms(true, List.of(), List.of()),
-                new PulseProperties.Slo(true, List.of()),
-                new PulseProperties.Health(true, Duration.ofMinutes(5)),
-                new PulseProperties.Shutdown(
-                        true, Duration.ofSeconds(10), new PulseProperties.Shutdown.Drain(true, Duration.ofSeconds(30))),
-                new PulseProperties.Jobs(true, true, Duration.ofHours(1)),
-                new PulseProperties.Db(true, 50, Duration.ofMillis(500)),
-                new PulseProperties.Resilience(true),
-                new PulseProperties.Profiling(true, null),
-                new PulseProperties.Dependencies(
-                        true,
-                        java.util.Map.of(),
-                        "unknown",
-                        20,
-                        new PulseProperties.Dependencies.Health(true, List.of(), 0.05, false)),
-                new PulseProperties.Tenant(
-                        true,
-                        new PulseProperties.Tenant.Header(true, "Pulse-Tenant-Id"),
-                        new PulseProperties.Tenant.Jwt(false, "tenant_id"),
-                        new PulseProperties.Tenant.Subdomain(false, 0),
-                        100,
-                        "__overflow__",
-                        "unknown",
-                        List.of()),
-                new PulseProperties.Retry(true, "Pulse-Retry-Depth", 3),
-                new PulseProperties.Priority(true, "Pulse-Priority", "normal", true, List.of()),
-                new PulseProperties.ContainerMemory(true, true, 0.10, "/sys/fs/cgroup"),
-                new PulseProperties.OpenFeature(true),
-                new PulseProperties.Cache(new PulseProperties.Cache.Caffeine(true)));
+    static ContextProperties defaultContext() {
+        return new ContextProperties(
+                true, "X-Request-ID", "X-Correlation-ID", "X-User-ID", "Pulse-Tenant-Id", "Idempotency-Key", List.of());
+    }
+
+    static RetryProperties defaultRetry() {
+        return new RetryProperties(true, "Pulse-Retry-Depth", 3);
+    }
+
+    static PriorityProperties defaultPriority() {
+        return new PriorityProperties(true, "Pulse-Priority", "normal", true, List.of());
+    }
+
+    static TimeoutBudgetProperties defaultTimeoutBudget() {
+        return new TimeoutBudgetProperties(
+                true,
+                "Pulse-Timeout-Ms",
+                "Pulse-Timeout-Ms",
+                Duration.ofSeconds(2),
+                Duration.ofSeconds(30),
+                Duration.ofMillis(50),
+                Duration.ofMillis(100),
+                io.github.arun0009.pulse.autoconfigure.PulseRequestMatcherProperties.empty());
     }
 }

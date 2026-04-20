@@ -7,7 +7,6 @@ import org.springframework.scheduling.Trigger;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Date;
 import java.util.concurrent.ScheduledFuture;
 
 /**
@@ -18,10 +17,12 @@ import java.util.concurrent.ScheduledFuture;
  * <p>Wraps each scheduling method instead of the underlying executor because Spring's
  * {@code TaskScheduler} contract does not expose a {@code TaskDecorator} hook the way
  * {@code TaskExecutor} does.
+ *
+ * <p>We do not override the {@code Date}- / {@code long}-millis default methods on
+ * {@link TaskScheduler} — those defaults forward to the {@link Instant} / {@link Duration}
+ * overloads above, which keeps context propagation correct without calling deprecated APIs on
+ * the delegate.
  */
-// Spring's TaskScheduler interface still defines the Date-based overloads; we must implement
-// them as long as the interface declares them, even though Spring marks them @Deprecated.
-@SuppressWarnings("deprecation")
 public final class ContextPropagatingTaskScheduler implements TaskScheduler {
 
     private final TaskScheduler delegate;
@@ -68,31 +69,6 @@ public final class ContextPropagatingTaskScheduler implements TaskScheduler {
 
     @Override
     public ScheduledFuture<?> scheduleWithFixedDelay(@NonNull Runnable task, @NonNull Duration delay) {
-        return delegate.scheduleWithFixedDelay(wrap(task), delay);
-    }
-
-    @Override
-    public ScheduledFuture<?> schedule(@NonNull Runnable task, @NonNull Date startTime) {
-        return delegate.schedule(wrap(task), startTime);
-    }
-
-    @Override
-    public ScheduledFuture<?> scheduleAtFixedRate(@NonNull Runnable task, @NonNull Date startTime, long period) {
-        return delegate.scheduleAtFixedRate(wrap(task), startTime, period);
-    }
-
-    @Override
-    public ScheduledFuture<?> scheduleAtFixedRate(@NonNull Runnable task, long period) {
-        return delegate.scheduleAtFixedRate(wrap(task), period);
-    }
-
-    @Override
-    public ScheduledFuture<?> scheduleWithFixedDelay(@NonNull Runnable task, @NonNull Date startTime, long delay) {
-        return delegate.scheduleWithFixedDelay(wrap(task), startTime, delay);
-    }
-
-    @Override
-    public ScheduledFuture<?> scheduleWithFixedDelay(@NonNull Runnable task, long delay) {
         return delegate.scheduleWithFixedDelay(wrap(task), delay);
     }
 }

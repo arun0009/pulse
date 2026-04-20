@@ -1,6 +1,5 @@
 package io.github.arun0009.pulse.dependencies;
 
-import io.github.arun0009.pulse.autoconfigure.PulseProperties;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.Test;
 
@@ -84,12 +83,13 @@ class DependencyOutboundRecorderTest {
     }
 
     private DependencyOutboundRecorder build(boolean enabled) {
-        PulseProperties.Dependencies cfg = new PulseProperties.Dependencies(
+        DependenciesProperties cfg = new DependenciesProperties(
                 enabled,
                 Map.of(),
                 "unknown",
                 20,
-                new PulseProperties.Dependencies.Health(true, java.util.List.of(), 0.05, false));
+                io.github.arun0009.pulse.autoconfigure.PulseRequestMatcherProperties.empty(),
+                new DependenciesProperties.Health(true, java.util.List.of(), 0.05, false));
         return new DependencyOutboundRecorder(registry, new DependencyResolver(cfg), cfg);
     }
 }

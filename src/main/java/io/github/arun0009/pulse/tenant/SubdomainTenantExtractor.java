@@ -35,7 +35,7 @@ public final class SubdomainTenantExtractor implements TenantExtractor, Ordered 
         if (host == null || host.isEmpty()) return Optional.empty();
         int colon = host.indexOf(':');
         if (colon >= 0) host = host.substring(0, colon);
-        String[] labels = host.split("\\.");
+        String[] labels = host.split("\\.", -1);
         if (index < 0 || index >= labels.length) return Optional.empty();
         String label = labels[index];
         return label.isEmpty() ? Optional.empty() : Optional.of(label);

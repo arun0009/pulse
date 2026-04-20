@@ -1,7 +1,13 @@
 package io.github.arun0009.pulse.events;
 
-import io.github.arun0009.pulse.autoconfigure.PulseProperties;
+import io.github.arun0009.pulse.events.internal.PulseEventCounterObservationHandler;
+import io.github.arun0009.pulse.events.internal.PulseEventLoggingObservationHandler;
+import io.github.arun0009.pulse.events.internal.PulseEventSpanObservationHandler;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import io.micrometer.observation.ObservationHandler;
+import io.micrometer.observation.ObservationRegistry;
+import io.micrometer.tracing.otel.bridge.OtelCurrentTraceContext;
+import io.micrometer.tracing.otel.bridge.OtelTracer;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.context.Scope;
@@ -23,14 +29,21 @@ import static org.assertj.core.api.Assertions.assertThat;
  * The wide-event API is the README's most strategic claim — one call must produce a span event AND
  * a counter increment AND a structured log line. These tests cover the first two end-to-end (the
  * log goes through Log4j2 and is exercised in the integration test).
+ *
+ * <p>Post-Phase 4e, SpanEvents is implemented on top of three {@link ObservationHandler}
+ * instances (counter / span / log). The tests pass {@link ObservationRegistry#NOOP} so the
+ * handlers are invoked via SpanEvents' NOOP-fallback path — exactly mirroring the signal fan-out
+ * that the Observation pipeline would produce in production with a real registry, without
+ * dragging {@code ObservationAutoConfiguration} into unit tests.
  */
 class SpanEventsTest {
 
-    private static final PulseProperties.WideEvents DEFAULT_CONFIG =
-            new PulseProperties.WideEvents(true, true, true, "pulse.events", "event");
+    private static final WideEventsProperties DEFAULT_CONFIG =
+            new WideEventsProperties(true, true, true, "pulse.events", "event");
 
     private InMemorySpanExporter exporter;
     private Tracer tracer;
+    private io.micrometer.tracing.Tracer micrometerTracer;
     private SimpleMeterRegistry registry;
     private SpanEvents events;
 
@@ -41,8 +54,20 @@ class SpanEventsTest {
                 .addSpanProcessor(SimpleSpanProcessor.create(exporter))
                 .build();
         tracer = OpenTelemetrySdk.builder().setTracerProvider(provider).build().getTracer("pulse-test");
+        // Bridge the OTel SDK to a Micrometer Tracer, mirroring what Spring Boot does at runtime,
+        // so the span handler (which talks to Micrometer's Tracer API) sees the same active span
+        // the test makes current via OTel's Scope.
+        micrometerTracer = new OtelTracer(tracer, new OtelCurrentTraceContext(), e -> {});
         registry = new SimpleMeterRegistry();
-        events = new SpanEvents(registry, DEFAULT_CONFIG);
+        events = buildSpanEvents(DEFAULT_CONFIG);
+    }
+
+    private SpanEvents buildSpanEvents(WideEventsProperties config) {
+        List<ObservationHandler<PulseEventContext>> builtIns = List.of(
+                new PulseEventCounterObservationHandler(registry, config),
+                new PulseEventSpanObservationHandler(micrometerTracer),
+                new PulseEventLoggingObservationHandler(config));
+        return new SpanEvents(config, ObservationRegistry.NOOP, builtIns);
     }
 
     @Test
@@ -61,15 +86,21 @@ class SpanEventsTest {
 
         List<SpanData> spans = exporter.getFinishedSpanItems();
         assertThat(spans).hasSize(1);
-        List<EventData> spanEvents = spans.get(0).getEvents();
-        assertThat(spanEvents).hasSize(1);
+        SpanData recorded = spans.get(0);
 
-        EventData event = spanEvents.get(0);
-        assertThat(event.getName()).isEqualTo("order.placed");
-        assertThat(event.getAttributes().asMap())
+        List<EventData> spanEvents = recorded.getEvents();
+        assertThat(spanEvents).hasSize(1);
+        assertThat(spanEvents.get(0).getName()).isEqualTo("order.placed");
+
+        // Attributes land as span tags rather than event attributes because Micrometer's Span
+        // interface has no event(name, attributes) overload (see PulseEventSpanObservationHandler
+        // javadoc). The assertions below verify the tag-fallback path; applications that want
+        // strict event-attribute scoping can register their own ObservationHandler that unwraps
+        // to the OTel Span and uses addEvent(name, Attributes).
+        assertThat(recorded.getAttributes().asMap())
                 .extractingByKey(io.opentelemetry.api.common.AttributeKey.stringKey("orderId"))
                 .isEqualTo("ord-123");
-        assertThat(event.getAttributes().asMap())
+        assertThat(recorded.getAttributes().asMap())
                 .extractingByKey(io.opentelemetry.api.common.AttributeKey.doubleKey("amount"))
                 .isEqualTo(49.99);
 
@@ -106,8 +137,7 @@ class SpanEventsTest {
 
     @Test
     void disabled_subsystem_emits_nothing() {
-        SpanEvents disabled =
-                new SpanEvents(registry, new PulseProperties.WideEvents(false, true, true, "pulse.events", "event"));
+        SpanEvents disabled = buildSpanEvents(new WideEventsProperties(false, true, true, "pulse.events", "event"));
         Span span = tracer.spanBuilder("X").startSpan();
         try (Scope ignored = span.makeCurrent()) {
             disabled.emit("never.fired");
@@ -120,8 +150,7 @@ class SpanEventsTest {
 
     @Test
     void counter_disabled_still_records_span_event() {
-        SpanEvents noCounter =
-                new SpanEvents(registry, new PulseProperties.WideEvents(true, false, true, "pulse.events", "event"));
+        SpanEvents noCounter = buildSpanEvents(new WideEventsProperties(true, false, true, "pulse.events", "event"));
         Span span = tracer.spanBuilder("X").startSpan();
         try (Scope ignored = span.makeCurrent()) {
             noCounter.emit("trace.only");

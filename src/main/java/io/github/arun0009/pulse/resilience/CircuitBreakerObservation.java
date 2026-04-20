@@ -1,5 +1,6 @@
 package io.github.arun0009.pulse.resilience;
 
+import io.github.arun0009.pulse.tracing.internal.PulseSpans;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import io.github.resilience4j.circuitbreaker.event.CircuitBreakerEvent;
@@ -9,8 +10,8 @@ import io.github.resilience4j.circuitbreaker.event.CircuitBreakerOnStateTransiti
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Tags;
-import io.opentelemetry.api.trace.Span;
-import io.opentelemetry.api.trace.SpanContext;
+import io.micrometer.tracing.Span;
+import io.micrometer.tracing.Tracer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.SmartInitializingSingleton;
@@ -53,13 +54,19 @@ public final class CircuitBreakerObservation implements SmartInitializingSinglet
 
     private final CircuitBreakerRegistry registry;
     private final MeterRegistry meterRegistry;
+    private final Tracer tracer;
 
     /** Tracks breakers we've already wired so we don't double-subscribe on lazy creation events. */
     private final ConcurrentMap<String, Boolean> wired = new ConcurrentHashMap<>();
 
     public CircuitBreakerObservation(CircuitBreakerRegistry registry, MeterRegistry meterRegistry) {
+        this(registry, meterRegistry, Tracer.NOOP);
+    }
+
+    public CircuitBreakerObservation(CircuitBreakerRegistry registry, MeterRegistry meterRegistry, Tracer tracer) {
         this.registry = registry;
         this.meterRegistry = meterRegistry;
+        this.tracer = tracer == null ? Tracer.NOOP : tracer;
     }
 
     @Override
@@ -101,13 +108,12 @@ public final class CircuitBreakerObservation implements SmartInitializingSinglet
                         Tags.of("name", name, "from", from, "to", to))
                 .increment();
 
-        Span span = Span.current();
-        SpanContext spanContext = span.getSpanContext();
-        if (spanContext.isValid()) {
-            span.addEvent("pulse.resilience.circuit_breaker.state_transition");
-            span.setAttribute("pulse.resilience.circuit_breaker.name", name);
-            span.setAttribute("pulse.resilience.circuit_breaker.from", from);
-            span.setAttribute("pulse.resilience.circuit_breaker.to", to);
+        Span span = PulseSpans.recordable(tracer);
+        if (span != null) {
+            span.event("pulse.resilience.circuit_breaker.state_transition");
+            span.tag("pulse.resilience.circuit_breaker.name", name);
+            span.tag("pulse.resilience.circuit_breaker.from", from);
+            span.tag("pulse.resilience.circuit_breaker.to", to);
         }
 
         log.warn("circuit breaker {} transitioned {} -> {}", name, from, to);

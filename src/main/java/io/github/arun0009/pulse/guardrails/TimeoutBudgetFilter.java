@@ -1,6 +1,7 @@
 package io.github.arun0009.pulse.guardrails;
 
-import io.github.arun0009.pulse.autoconfigure.PulseProperties;
+import io.github.arun0009.pulse.core.PulseRequestContextFilter;
+import io.github.arun0009.pulse.core.PulseRequestMatcher;
 import io.opentelemetry.api.baggage.Baggage;
 import io.opentelemetry.context.Context;
 import io.opentelemetry.context.Scope;
@@ -29,21 +30,33 @@ import java.util.Optional;
  *   <li>Otherwise, fall back to the configured default budget.
  * </ol>
  *
- * <p>Floors the budget at {@link PulseProperties.TimeoutBudget#minimumBudget()} and applies {@link
- * PulseProperties.TimeoutBudget#safetyMargin()} so the inbound work has a small buffer before the
- * upstream caller cancels. Inbound values above {@link PulseProperties.TimeoutBudget#maximumBudget()}
+ * <p>Floors the budget at {@link TimeoutBudgetProperties#minimumBudget()} and applies {@link
+ * TimeoutBudgetProperties#safetyMargin()} so the inbound work has a small buffer before the
+ * upstream caller cancels. Inbound values above {@link TimeoutBudgetProperties#maximumBudget()}
  * are clamped before the margin is applied.
  */
 public class TimeoutBudgetFilter extends OncePerRequestFilter implements Ordered {
 
-    public static final int ORDER = Ordered.HIGHEST_PRECEDENCE + 50;
+    /**
+     * Anchored to {@link PulseRequestContextFilter#ORDER} so the MDC keys and request id are
+     * populated before TimeoutBudget emits any WARN. Running before RequestContext would strip
+     * the request/trace ids from every deadline-breach log line, defeating the "every log
+     * correlates" guarantee Pulse sells.
+     */
+    public static final int ORDER = PulseRequestContextFilter.ORDER + 10;
 
     private static final Logger log = LoggerFactory.getLogger(TimeoutBudgetFilter.class);
 
-    private final PulseProperties.TimeoutBudget config;
+    private final TimeoutBudgetProperties config;
+    private final PulseRequestMatcher gate;
 
-    public TimeoutBudgetFilter(PulseProperties.TimeoutBudget config) {
+    public TimeoutBudgetFilter(TimeoutBudgetProperties config) {
+        this(config, PulseRequestMatcher.ALWAYS);
+    }
+
+    public TimeoutBudgetFilter(TimeoutBudgetProperties config, PulseRequestMatcher gate) {
         this.config = config;
+        this.gate = gate;
     }
 
     @Override
@@ -54,6 +67,11 @@ public class TimeoutBudgetFilter extends OncePerRequestFilter implements Ordered
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
+
+        if (!gate.matches(request)) {
+            chain.doFilter(request, response);
+            return;
+        }
 
         Optional<Duration> budget = resolveBudget(request);
         if (budget.isEmpty()) {

@@ -1,5 +1,6 @@
 package io.github.arun0009.pulse.test;
 
+import io.github.arun0009.pulse.enforcement.PulseEnforcementMode;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.opentelemetry.sdk.testing.exporter.InMemorySpanExporter;
 import io.opentelemetry.sdk.trace.data.EventData;
@@ -22,10 +23,26 @@ public class PulseTestHarness {
 
     private final InMemorySpanExporter spanExporter;
     private final MeterRegistry meterRegistry;
+    private final @Nullable PulseEnforcementMode enforcementMode;
 
-    public PulseTestHarness(InMemorySpanExporter spanExporter, MeterRegistry meterRegistry) {
+    public PulseTestHarness(
+            InMemorySpanExporter spanExporter,
+            MeterRegistry meterRegistry,
+            @Nullable PulseEnforcementMode enforcementMode) {
         this.spanExporter = spanExporter;
         this.meterRegistry = meterRegistry;
+        this.enforcementMode = enforcementMode;
+    }
+
+    /**
+     * The active {@link PulseEnforcementMode} for the test context — handy in conjunction with
+     * {@link PulseDryRun} when you want to assert the slice is genuinely in {@code DRY_RUN} or
+     * to flip it for a single test method.
+     *
+     * @return the enforcement mode if Pulse's bean is in scope, otherwise empty.
+     */
+    public Optional<PulseEnforcementMode> enforcementMode() {
+        return Optional.ofNullable(enforcementMode);
     }
 
     /** Drops captured spans and metric values — call from {@code @BeforeEach} for isolation. */

@@ -1,11 +1,12 @@
 package io.github.arun0009.pulse.db;
 
-import io.github.arun0009.pulse.autoconfigure.PulseProperties;
+import io.github.arun0009.pulse.core.PulseRequestMatcher;
+import io.github.arun0009.pulse.tracing.internal.PulseSpans;
 import io.micrometer.core.instrument.DistributionSummary;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Tags;
-import io.opentelemetry.api.trace.Span;
-import io.opentelemetry.api.trace.SpanContext;
+import io.micrometer.tracing.Span;
+import io.micrometer.tracing.Tracer;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -55,11 +56,24 @@ public class PulseDbObservationFilter extends OncePerRequestFilter implements Or
     private static final Logger log = LoggerFactory.getLogger("pulse.db.n-plus-one");
 
     private final MeterRegistry meterRegistry;
-    private final PulseProperties.Db config;
+    private final DbProperties config;
+    private final PulseRequestMatcher gate;
+    private final Tracer tracer;
 
-    public PulseDbObservationFilter(MeterRegistry meterRegistry, PulseProperties.Db config) {
+    public PulseDbObservationFilter(MeterRegistry meterRegistry, DbProperties config) {
+        this(meterRegistry, config, PulseRequestMatcher.ALWAYS, Tracer.NOOP);
+    }
+
+    public PulseDbObservationFilter(MeterRegistry meterRegistry, DbProperties config, PulseRequestMatcher gate) {
+        this(meterRegistry, config, gate, Tracer.NOOP);
+    }
+
+    public PulseDbObservationFilter(
+            MeterRegistry meterRegistry, DbProperties config, PulseRequestMatcher gate, Tracer tracer) {
         this.meterRegistry = meterRegistry;
         this.config = config;
+        this.gate = gate;
+        this.tracer = tracer == null ? Tracer.NOOP : tracer;
     }
 
     @Override
@@ -70,6 +84,10 @@ public class PulseDbObservationFilter extends OncePerRequestFilter implements Or
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
+        if (!gate.matches(request)) {
+            chain.doFilter(request, response);
+            return;
+        }
         String endpoint = resolveEndpoint(request);
         DbObservationContext.begin(endpoint);
         try {
@@ -101,12 +119,15 @@ public class PulseDbObservationFilter extends OncePerRequestFilter implements Or
                 .counter("pulse.db.n_plus_one.suspect", Tags.of("endpoint", endpoint))
                 .increment();
 
-        Span span = Span.current();
-        SpanContext spanContext = span.getSpanContext();
-        if (spanContext.isValid()) {
-            span.addEvent("pulse.db.n_plus_one.suspect");
-            span.setAttribute("pulse.db.statements", snap.statementCount());
-            span.setAttribute("pulse.db.endpoint", endpoint);
+        Span span = PulseSpans.recordable(tracer);
+        if (span != null) {
+            // TODO(phase 4e): per-event attributes — Micrometer's Span has no addEvent(name, attrs)
+            // overload, so the attributes land on the parent span instead of the event. The
+            // Observation refactor will move this to a PulseDbObservationContext where handlers
+            // can attach event-scoped attributes.
+            span.event("pulse.db.n_plus_one.suspect");
+            span.tag("pulse.db.statements", snap.statementCount());
+            span.tag("pulse.db.endpoint", endpoint);
         }
 
         // Single structured WARN line. Pulse's JSON layout will add trace_id/span_id/service so
@@ -143,7 +164,7 @@ public class PulseDbObservationFilter extends OncePerRequestFilter implements Or
      */
     private static String sanitize(String path) {
         if (path == null || path.isEmpty()) return "/";
-        String[] parts = path.split("/");
+        String[] parts = path.split("/", -1);
         StringBuilder sb = new StringBuilder(path.length());
         for (String part : parts) {
             if (part.isEmpty()) {

@@ -6,5 +6,7 @@
  * that counts distinct hashes per service surfaces stale ConfigMaps, partial deploys, and
  * env-var typos before they become outages.
  */
-@org.jspecify.annotations.NullMarked
+@NullMarked
 package io.github.arun0009.pulse.fleet;
+
+import org.jspecify.annotations.NullMarked;

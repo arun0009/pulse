@@ -1,6 +1,6 @@
 package io.github.arun0009.pulse.guardrails;
 
-import io.github.arun0009.pulse.autoconfigure.PulseProperties;
+import io.github.arun0009.pulse.enforcement.PulseEnforcementMode;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Meter;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -23,7 +23,7 @@ import java.util.function.Supplier;
  * The Pulse cardinality firewall.
  *
  * <p>For each meter, tracks the distinct values seen for each tag key. Once a tag key exceeds
- * {@link PulseProperties.Cardinality#maxTagValuesPerMeter()}, any further values are rewritten to a
+ * {@link CardinalityProperties#maxTagValuesPerMeter()}, any further values are rewritten to a
  * single {@code OVERFLOW} bucket. A one-time WARN log line fires for the offending {@code
  * meter:tag} combination so operators learn about the runaway tag without log spam.
  *
@@ -39,10 +39,10 @@ import java.util.function.Supplier;
  * <p>Scope:
  *
  * <ul>
- *   <li>If {@link PulseProperties.Cardinality#meterPrefixesToProtect()} is empty, all meters are
+ *   <li>If {@link CardinalityProperties#meterPrefixesToProtect()} is empty, all meters are
  *       protected.
  *   <li>Meters whose name starts with any prefix in {@link
- *       PulseProperties.Cardinality#exemptMeterPrefixes()} are skipped (useful for genuinely
+ *       CardinalityProperties#exemptMeterPrefixes()} are skipped (useful for genuinely
  *       high-cardinality business meters you've reasoned about).
  * </ul>
  *
@@ -53,14 +53,15 @@ import java.util.function.Supplier;
  * With the default {@code maxTagValuesPerMeter=1000}, ten protected meters with five tag keys
  * each at saturation costs roughly 3 MB. Services with very large meter inventories or memory
  * constraints should lower {@code maxTagValuesPerMeter} or use
- * {@link PulseProperties.Cardinality#meterPrefixesToProtect()} to opt only the high-risk meters
+ * {@link CardinalityProperties#meterPrefixesToProtect()} to opt only the high-risk meters
  * into protection.
  */
 public final class CardinalityFirewall implements MeterFilter {
 
     private static final Logger log = LoggerFactory.getLogger(CardinalityFirewall.class);
 
-    private final PulseProperties.Cardinality config;
+    private final CardinalityProperties config;
+    private final PulseEnforcementMode enforcement;
     private final Supplier<MeterRegistry> registrySupplier;
 
     /** Cached after first resolve — Spring's {@code ObjectProvider} returns the same singleton. */
@@ -78,13 +79,19 @@ public final class CardinalityFirewall implements MeterFilter {
 
     /**
      * @param config firewall configuration
+     * @param enforcement process-wide enforce-vs-observe gate. When {@code DRY_RUN} the firewall
+     *     still counts overflow rewrites and warns on the offender, but returns the original tag
+     *     value so the metric pipeline observes what would have been clamped — a low-risk way to
+     *     roll the firewall into an existing fleet.
      * @param registrySupplier lazy accessor for the {@link MeterRegistry} the overflow diagnostic
      *     counter will be registered against. <strong>Must be lazy</strong> — the firewall is itself
      *     a {@link MeterFilter} resolved <em>during</em> registry construction by Spring Boot's
      *     {@code MeterRegistryPostProcessor}, so eager resolution causes a circular bean reference.
      */
-    public CardinalityFirewall(PulseProperties.Cardinality config, Supplier<MeterRegistry> registrySupplier) {
+    public CardinalityFirewall(
+            CardinalityProperties config, PulseEnforcementMode enforcement, Supplier<MeterRegistry> registrySupplier) {
         this.config = config;
+        this.enforcement = enforcement;
         this.registrySupplier = registrySupplier;
     }
 
@@ -103,6 +110,7 @@ public final class CardinalityFirewall implements MeterFilter {
             return id;
         }
 
+        boolean dryRun = enforcement.dryRun();
         Iterable<Tag> originalTags = id.getTagsAsIterable();
         List<Tag> rewritten = null;
         ConcurrentHashMap<String, Set<String>> tagsForMeter =
@@ -117,9 +125,12 @@ public final class CardinalityFirewall implements MeterFilter {
                 values.add(tag.getValue());
                 mappedValue = tag.getValue();
             } else {
-                mappedValue = config.overflowValue();
+                // Even in dry-run we record the would-have-clamped event so the operator can see
+                // the impact in pulse.cardinality.overflow before flipping ENFORCING. The tag
+                // value itself is left unchanged so the underlying metric is still correct.
                 warnOnce(id.getName(), tag.getKey());
                 countOverflow(id.getName(), tag.getKey());
+                mappedValue = dryRun ? tag.getValue() : config.overflowValue();
             }
 
             if (!mappedValue.equals(tag.getValue())) {

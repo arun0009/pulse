@@ -1,8 +1,15 @@
 package io.github.arun0009.pulse.bench;
 
-import io.github.arun0009.pulse.autoconfigure.PulseProperties;
+import io.github.arun0009.pulse.events.PulseEventContext;
 import io.github.arun0009.pulse.events.SpanEvents;
+import io.github.arun0009.pulse.events.WideEventsProperties;
+import io.github.arun0009.pulse.events.internal.PulseEventCounterObservationHandler;
+import io.github.arun0009.pulse.events.internal.PulseEventLoggingObservationHandler;
+import io.github.arun0009.pulse.events.internal.PulseEventSpanObservationHandler;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import io.micrometer.observation.ObservationHandler;
+import io.micrometer.observation.ObservationRegistry;
+import io.micrometer.tracing.Tracer;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
@@ -14,6 +21,7 @@ import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.Warmup;
 
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -41,14 +49,23 @@ public class SpanEventsBenchmark {
     @Setup
     public void setup() {
         SimpleMeterRegistry registry = new SimpleMeterRegistry();
-        events = new SpanEvents(registry, new PulseProperties.WideEvents(true, true, false, "pulse.events", "event"));
-        eventsCounterOff =
-                new SpanEvents(registry, new PulseProperties.WideEvents(true, false, false, "pulse.events", "event"));
+        WideEventsProperties countersOn = new WideEventsProperties(true, true, false, "pulse.events", "event");
+        WideEventsProperties countersOff = new WideEventsProperties(true, false, false, "pulse.events", "event");
+        events = new SpanEvents(countersOn, ObservationRegistry.NOOP, builtIns(registry, countersOn));
+        eventsCounterOff = new SpanEvents(countersOff, ObservationRegistry.NOOP, builtIns(registry, countersOff));
         attrs = Map.of(
                 "orderId", "ord-12345",
                 "amount", 4995L,
                 "currency", "USD",
                 "tier", "gold");
+    }
+
+    private static List<ObservationHandler<PulseEventContext>> builtIns(
+            SimpleMeterRegistry registry, WideEventsProperties config) {
+        return List.of(
+                new PulseEventCounterObservationHandler(registry, config),
+                new PulseEventSpanObservationHandler(Tracer.NOOP),
+                new PulseEventLoggingObservationHandler(config));
     }
 
     @Benchmark

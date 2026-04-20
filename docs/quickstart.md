@@ -4,7 +4,7 @@ Three steps. No agent. No bytecode weaving. No custom runtime.
 
 ## 1. Add the dependency
 
-Pulse is published on
+Pulse is on
 [Maven Central](https://central.sonatype.com/artifact/io.github.arun0009/pulse-spring-boot-starter).
 
 === "Maven"
@@ -13,20 +13,20 @@ Pulse is published on
     <dependency>
       <groupId>io.github.arun0009</groupId>
       <artifactId>pulse-spring-boot-starter</artifactId>
-      <version>1.0.0</version>
+      <version>2.0.0</version>
     </dependency>
     ```
 
 === "Gradle (Kotlin DSL)"
 
     ```kotlin
-    implementation("io.github.arun0009:pulse-spring-boot-starter:1.0.0")
+    implementation("io.github.arun0009:pulse-spring-boot-starter:2.0.0")
     ```
 
 === "Gradle (Groovy DSL)"
 
     ```groovy
-    implementation 'io.github.arun0009:pulse-spring-boot-starter:1.0.0'
+    implementation 'io.github.arun0009:pulse-spring-boot-starter:2.0.0'
     ```
 
 ??? note "Logback users — opt out of Log4j2"
@@ -51,13 +51,13 @@ Pulse is published on
     </dependency>
     ```
 
-    Pulse's `logback-spring.xml` produces the *exact same* JSON shape as the
-    Log4j2 path — same OTel semconv field set, same PII masking, same resource
+    Pulse's `logback-spring.xml` produces the **exact same** JSON shape as
+    the Log4j2 path. Same field set, same PII masking, same resource
     attributes. Dashboards work unchanged.
 
 ## 2. Point at your OTel Collector
 
-Skip this if you already have OTLP environment variables wired:
+Skip this if you already have OTLP env vars set:
 
 ```bash
 export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
@@ -65,8 +65,8 @@ export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
 
 ??? tip "Don't have a Collector yet?"
 
-    Pulse ships a single-command local stack — Collector, Prometheus, Grafana,
-    Jaeger, and Loki, all wired up:
+    Pulse ships a single-command local stack — Collector, Prometheus,
+    Grafana, Jaeger, and Loki, all wired up:
 
     ```bash
     docker compose -f deploy/local-stack/docker-compose.yml up -d
@@ -74,21 +74,19 @@ export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
 
     Details on the [local stack page](operations/dashboards.md).
 
-## 3. Start your app and verify the pipeline
+## 3. Start your app and verify
 
 The exact command depends on your build (`./mvnw spring-boot:run`,
 `./gradlew bootRun`, etc.). Once it's up, ask the actuator whether spans are
-landing — substitute the management endpoint port (default `8080`):
+landing — substitute your management port (default `8080`):
 
 ```bash
 $ curl -s localhost:8080/actuator/health/otelExporter
 {"status":"UP","details":{"lastSuccessAgeMs":1230,"totalSuccess":14}}
 ```
 
-`jq` is not required — Pulse already returns sorted, single-line JSON.
-
-That's it. Every Pulse subsystem is on by default, every default is
-opinionated, and the diagnostic UI tells you what won.
+That's it. Every Pulse feature is on by default with sensible production
+defaults, and the diagnostic UI tells you exactly what's running.
 
 ## What now?
 
@@ -99,29 +97,28 @@ opinionated, and the diagnostic UI tells you what won.
     ---
 
     Open `/actuator/pulseui` in your browser for a single-page summary of
-    every Pulse subsystem — what's on, what's off, which configuration won.
+    every Pulse feature — what's on, what's off, which configuration won.
 
 -   :material-school-outline:{ .lg .middle } **Learn the model**
 
     ---
 
-    The [Concepts](concepts.md) page explains how Pulse threads context
-    through Spring, OTel, MDC, baggage, and outbound clients.
+    [Concepts](concepts.md) explains how Pulse threads context through
+    Spring, OTel, MDC, baggage, and outbound clients.
 
 -   :material-view-grid-outline:{ .lg .middle } **Browse features**
 
     ---
 
-    The [feature catalogue](features/index.md) groups all 25 subsystems by
+    The [feature catalogue](features/index.md) groups all 25 features by
     use case, with config keys and links to runbooks.
 
 -   :material-tune-vertical:{ .lg .middle } **Tune for production**
 
     ---
 
-    The [configuration reference](configuration.md) covers sampling, budgets,
-    and SLO objectives. The
-    [production checklist](operations/production-checklist.md) is the cutover
-    bar.
+    The [configuration reference](configuration.md) covers sampling,
+    budgets, and SLO objectives. The [production
+    checklist](operations/production-checklist.md) is the cutover bar.
 
 </div>

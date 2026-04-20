@@ -7,7 +7,7 @@ import org.jspecify.annotations.Nullable;
 /**
  * Registers {@link TenantObservationFilter} on the application's
  * {@link ObservationRegistry} when one is available. Pulled out of
- * {@link PulseTenantConfiguration} so the registration runs as a {@link PostConstruct} after
+ * {@link io.github.arun0009.pulse.tenant.internal.PulseTenantConfiguration} so the registration runs as a {@link PostConstruct} after
  * Spring Boot's {@code ObservationAutoConfiguration} has finished initializing the registry.
  */
 public final class TenantObservationRegistrar {

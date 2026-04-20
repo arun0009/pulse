@@ -52,7 +52,11 @@ import static org.awaitility.Awaitility.await;
         classes = {OtlpExportIT.TestApp.class, OtlpExportIT.OtelTestConfig.class})
 @Testcontainers
 @TestPropertySource(
-        properties = {"spring.application.name=pulse-otlp-it", "app.env=it", "pulse.sampling.probability=1.0"})
+        properties = {
+            "spring.application.name=pulse-otlp-it",
+            "app.env=it",
+            "management.tracing.sampling.probability=1.0"
+        })
 class OtlpExportIT {
 
     @Container

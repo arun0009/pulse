@@ -1,123 +1,27 @@
-# Structured logs (OTel-aligned)
+# Structured logs
 
-> **Status:** Stable · **Config prefix:** `pulse.logging` ·
-> **Source:** [`log4j2-spring.xml`](https://github.com/arun0009/pulse/blob/main/src/main/resources/log4j2-spring.xml),
-> [`PiiMaskingConverter.java`](https://github.com/arun0009/pulse/blob/main/src/main/java/io/github/arun0009/pulse/logging/PiiMaskingConverter.java) ·
-> **Runbook:** see the [trace-context-missing](../runbooks/trace-context-missing.md) for log-side debugging
+> **TL;DR.** OTel-aligned JSON on every line. Deploy / commit / pod / cloud
+> region stamped automatically. PII masking on by default. Log → trace →
+> metric pivots actually work.
 
-## Value prop
+JSON logs are table stakes. JSON logs that line up with what every other
+modern tool expects — that's what makes log → trace → metric pivoting
+actually work. Most teams either build this themselves (badly) or never get
+around to it and end up grepping plain text at 3 AM.
 
-JSON logs are table stakes. **JSON logs that line up with OpenTelemetry
-semantic conventions** mean OTel-native sinks (Datadog, Honeycomb, Grafana
-derived fields, the Collector's `transform` processor) work without manual
-relabeling — and a single Loki/LogQL filter answers questions like *"5xx
-rate per AZ"* or *"slow checkout requests on node-7 in `us-east-1a`"* with
-zero per-app glue.
+**Pulse ships the layout, the deploy/commit/pod/region stamping, and the PII
+masking.** Add the starter and every log line in your app — including the
+ones that fire before Spring is fully up — comes out in the right shape.
 
-Pulse ships the layout, the resource resolution, and the PII masking. You
-do nothing.
+## What you get
 
-## What it does
-
-The bundled `log4j2-spring.xml` (and `logback-spring.xml` if you opt into
-Logback) emits a single JSON shape on every line — including the
-pre-Spring-Boot lines from background threads — with **OpenTelemetry
-semantic-convention names**.
-
-| OTel semconv field | What it tells you |
-|---|---|
-| `trace_id` / `span_id` | Trace correlation (OTel logs data model) |
-| `service.name` / `service.version` | Which service, which build |
-| `deployment.environment` | `prod` / `staging` / `dev` |
-| `vcs.ref.head.revision` | The exact commit hash that produced this line |
-| `host.name` / `container.id` | Where the JVM is running |
-| `k8s.pod.name` / `k8s.namespace.name` / `k8s.node.name` | Kubernetes context |
-| `cloud.provider` / `cloud.region` / `cloud.availability_zone` | AWS / GCP / Azure context |
-| `http.request.id` / `user.id` | Per-request correlation |
-| `pulse.tenant.id` / `pulse.priority` | Pulse multi-tenancy / criticality |
-| `timeout_remaining_ms` | Time left on the propagated budget |
-
-Pulse resolves the resource attributes **once at startup** (parsing
-`OTEL_RESOURCE_ATTRIBUTES`, `/proc/self/cgroup`, K8s downward-API env vars,
-cloud-provider env vars) and seeds JVM system properties so every thread's
-logs carry them with no per-request cost.
-
-## Where do `service.version` and `vcs.ref.head.revision` come from?
-
-Pulse reads whichever source is present at runtime, in priority order:
-
-1. JVM args (`-Dpulse.app.version=…`)
-2. Classpath `META-INF/build-info.properties` + `git.properties` (the
-   build-once-deploy-many path)
-3. `OTEL_RESOURCE_ATTRIBUTES`
-4. Common CI env vars (`GITHUB_SHA`, `CI_COMMIT_SHA`, …)
-5. Boot JAR `Implementation-Version`
-6. `"unknown"`
-
-The build-once-deploy-many path wires the
-[`spring-boot-maven-plugin` `build-info` goal](https://docs.spring.io/spring-boot/maven-plugin/build-info.html)
-plus
-[`git-commit-id-maven-plugin`](https://github.com/git-commit-id/git-commit-id-maven-plugin)
-in your `pom.xml`. Values then travel inside the JAR through Artifactory
-and Docker — no deploy-time configuration required.
-
-## PII masking
-
-The `PiiMaskingConverter` runs on every log event before it reaches the
-appender, redacting:
-
-- Email addresses
-- US Social Security Numbers
-- Credit-card numbers (Luhn-validated)
-- `Bearer` and `Basic` Authorization tokens
-- JSON properties named `password`, `secret`, `token`, `apikey` (any case)
-
-**On by default**, because off-by-default safety is not safety. To disable
-(e.g., in a development profile):
-
-```yaml
-pulse:
-  logging:
-    pii-masking-enabled: false
-```
-
-The full pattern set is in
-[`PiiMaskingConverter.java`](https://github.com/arun0009/pulse/blob/main/src/main/java/io/github/arun0009/pulse/logging/PiiMaskingConverter.java)
-and additional patterns can be configured via Log4j2 plugin parameters if
-you have domain-specific PII shapes.
-
-## What if I'm on Logback?
-
-Pulse defaults to Log4j2 (Spring Boot's higher-throughput logging backend),
-but supports Logback via opt-in. See the [Logback section in Quick start](../quickstart.md#1-add-the-dependency).
-
-The Logback path uses `PulseLogbackEncoder` and produces the **exact same
-JSON shape** as the Log4j2 path — same OTel semconv field set, same PII
-masking, same resource attributes. Dashboards built on the Log4j2 path
-work unchanged.
-
-## Configuration
-
-```yaml
-pulse:
-  logging:
-    pii-masking-enabled: true            # default
-```
-
-That's the entire surface. Everything else lives in the bundled
-`log4j2-spring.xml` (or `logback-spring.xml`); override via standard Spring
-Boot mechanisms (`logging.config`) if you need to.
-
-## Examples
-
-### Sample log line
+Every log line, including pre-Spring-Boot startup lines from background
+threads, looks like this:
 
 ```json
 {
   "@timestamp": "2026-04-18T15:23:11.482Z",
   "level": "INFO",
-  "thread": "http-nio-8080-exec-3",
-  "logger": "com.acme.orders.OrderService",
   "message": "placing order",
   "trace_id": "4c1f9b8a4e2d6f0b8c3a1e7d5b9a2c6f",
   "span_id": "9b8a4e2d6f0b8c3a",
@@ -127,7 +31,6 @@ Boot mechanisms (`logging.config`) if you need to.
   "vcs.ref.head.revision": "8c3a1e7d5b9a2c6f4c1f9b8a4e2d6f0b8c3a1e7d",
   "k8s.pod.name": "order-service-7d4b9c-fk2lp",
   "k8s.namespace.name": "checkout",
-  "k8s.node.name": "ip-10-0-1-42",
   "cloud.region": "us-east-1",
   "cloud.availability_zone": "us-east-1a",
   "http.request.id": "01HKGY9F7P3W2X4QV1B5KJN8MZ",
@@ -135,16 +38,103 @@ Boot mechanisms (`logging.config`) if you need to.
 }
 ```
 
-### LogQL one-liner — slow requests in one AZ
+Same `trace_id` is on the matching span and on the matching metric — pivoting
+between Loki, Jaeger, and Prometheus is now `trace_id=…` instead of an
+internal investigation. One LogQL query answers questions like *"slow
+checkout requests on `us-east-1a` only"* without per-app glue:
 
 ```
 {service_name="order-service"} | json | cloud_availability_zone="us-east-1a" | duration_ms > 1000
 ```
 
-## When to turn it off
+## Turn it on
 
-You don't. The layout itself is not optional in any meaningful sense — if
-you don't want it, override `logging.config` to point to your own file.
-The only knob worth toggling is `pii-masking-enabled`, and the only valid
-reason to turn it off is "I'm running in a sealed dev environment with
-synthetic data and the masked outputs make debugging harder."
+Nothing. The log layout, the field set, the resource discovery, and the PII
+masking are all on by default once you add the starter.
+
+The only knob most people touch is the PII masking, and only to *disable* it
+in a sealed dev environment:
+
+```yaml
+pulse:
+  logging:
+    pii-masking-enabled: false
+```
+
+## What it adds
+
+The field set follows OpenTelemetry's [semantic
+conventions](https://opentelemetry.io/docs/specs/semconv/) so OTel-native
+sinks accept it without remapping:
+
+| Field | Where it comes from |
+| --- | --- |
+| `trace_id`, `span_id` | The active OTel span (correlation across signals) |
+| `service.name`, `service.version` | `spring.application.name` + `build-info.properties` |
+| `deployment.environment` | `app.env` property |
+| `vcs.ref.head.revision` | `git.properties` (or `OTEL_RESOURCE_ATTRIBUTES`, or `GITHUB_SHA`) |
+| `host.name`, `container.id` | OS / cgroup detection at startup |
+| `k8s.pod.name`, `k8s.namespace.name`, `k8s.node.name` | Kubernetes downward-API env vars |
+| `cloud.provider`, `cloud.region`, `cloud.availability_zone` | AWS / GCP / Azure env vars |
+| `http.request.id`, `user.id`, `pulse.tenant.id` | Pulse's request filter |
+| `timeout_remaining_ms` | The active timeout budget |
+
+All resource fields are resolved **once at startup** and cached, so there is
+no per-line cost.
+
+### PII masking
+
+On by default. Redacts:
+
+- Email addresses
+- US Social Security numbers
+- Credit-card numbers (Luhn-validated)
+- `Bearer` and `Basic` Authorization tokens
+- JSON properties named `password`, `secret`, `token`, `apikey` (any case)
+
+If you have domain-specific PII shapes, add patterns via standard Log4j2
+plugin parameters.
+
+## When to skip it
+
+You don't, really. The layout is JSON; if you don't want it, override
+`logging.config` to point to your own file. Pulse only owns the field set
+and the masking; everything else flows through standard Spring Boot
+configuration.
+
+The only legitimate reason to disable masking is "I'm running in a sealed
+dev environment with synthetic data and the masked outputs make debugging
+harder."
+
+## Logback users
+
+Pulse defaults to Log4j2 (Spring Boot's higher-throughput logging backend)
+but supports Logback via opt-in — see the [quick start](../quickstart.md#1-add-the-dependency)
+for the dependency exclusion. The Logback path produces the **exact same**
+JSON shape as the Log4j2 path. Dashboards work unchanged either way.
+
+## Where do `service.version` and the git revision come from?
+
+Pulse reads whichever source is present at runtime, in this order:
+
+1. JVM args (`-Dpulse.app.version=…`)
+2. Classpath `META-INF/build-info.properties` + `git.properties` — the path
+   most teams want, because the values travel inside the JAR through your
+   registry and Docker image with no deploy-time configuration
+3. `OTEL_RESOURCE_ATTRIBUTES` env var
+4. Common CI env vars (`GITHUB_SHA`, `CI_COMMIT_SHA`, …)
+5. Boot JAR `Implementation-Version`
+6. Falls back to `"unknown"`
+
+To wire option 2, add the
+[`spring-boot-maven-plugin` `build-info` goal](https://docs.spring.io/spring-boot/maven-plugin/build-info.html)
+and the
+[`git-commit-id-maven-plugin`](https://github.com/git-commit-id/git-commit-id-maven-plugin)
+to your `pom.xml`. No code changes.
+
+---
+
+**Source:** [`log4j2-spring.xml`](https://github.com/arun0009/pulse/blob/main/src/main/resources/log4j2-spring.xml) ·
+[`PiiMaskingConverter.java`](https://github.com/arun0009/pulse/blob/main/src/main/java/io/github/arun0009/pulse/logging/PiiMaskingConverter.java) ·
+**Runbook:** [Trace context missing](../runbooks/trace-context-missing.md) ·
+**Status:** Stable since 1.0.0

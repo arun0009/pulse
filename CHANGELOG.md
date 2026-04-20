@@ -5,6 +5,75 @@ All notable changes to Pulse are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 and follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format.
 
+## [2.0.0] — 2026-04-20
+
+### Breaking changes
+
+- **Monolithic `PulseProperties` split into 27 per-feature `@ConfigurationProperties` records.**
+	Import `SamplingProperties`, `CardinalityProperties`, etc. directly instead of
+	`PulseProperties.Sampling`. YAML paths (`pulse.*`) are unchanged.
+- **`pulse.sampling.probability` removed.** Use Spring Boot's
+	`management.tracing.sampling.probability` instead. `pulse.sampling.prefer-sampling-on-error`
+	remains.
+- **`DependencyClassifier` and `ErrorFingerprintStrategy` are now chain-of-responsibility.**
+	Implementations return `@Nullable String` (null delegates to the next link). Register with
+	`@Order`; first non-null wins.
+- **`Span.current()` replaced with Micrometer `Tracer.currentSpan()` throughout.** Pulse no
+	longer calls the OpenTelemetry SDK directly — all tracing goes through Micrometer's
+	abstraction layer.
+- **OTel SDK reflection eliminated.** `OtelExporterHealthRegistrar` is now a `BeanPostProcessor`
+	that wraps `SpanExporter` beans. `PulseProfilingSpanProcessor` is published as a bean
+	collected by Boot's tracing auto-config. No `setAccessible` or `getDeclaredField` calls
+	remain.
+- **SpanEvents backed by Micrometer Observation API.** `emit()` now opens an `Observation` so
+	any registered `ObservationHandler<PulseEventContext>` participates. The counter, span event,
+	and log still fire as before.
+- **Auto-configuration split into 22 classes.** Each feature has its own `@AutoConfiguration`
+	in a `.internal` package. All appear individually in `/actuator/conditions`.
+- **API/internal package boundary enforced.** Classes under `.internal` packages are explicitly
+	unstable and may change in minor releases. Public types outside `.internal` are the stable
+	2.x contract.
+- **Servlet filter order fixed.** RequestContext → TimeoutBudget → Tenant/Priority/Retry →
+	TraceGuard. Verify custom filters still interleave correctly.
+
+### Added
+
+- **Enforcement mode** — global DRY_RUN / ENFORCING gate. DRY_RUN keeps all metrics, span
+	events, and logs but disables enforcement (trace guard won't reject, cardinality firewall
+	won't rewrite). Runtime-writable via `POST /actuator/pulse/enforcement`.
+- **Profile presets** — `application-pulse-{dev,prod,test,canary}.yml` auto-applied via
+	Spring profile mapping. Sensible defaults per environment (dev: 100% sampling; prod: 10%
+	with error-bias; test: deterministic, no noise; canary: DRY_RUN + 100% sampling).
+- **Enabled-when request matchers** — per-request gating on any Pulse feature via declarative
+	YAML (`header-equals`, `path-matches`, `path-excludes`) or `bean:` reference.
+- **`@PulseDryRun` test slice** — wires Pulse in DRY_RUN mode for asserting observation-only
+	behaviour.
+- **JSR-380 validation on each `*Properties` record** — catches misconfiguration at startup
+	(probability in [0,1], positive cardinality cap, etc.).
+- **`DependencyClassifier` SPI** — chain-of-responsibility for outbound call classification.
+- **`ErrorFingerprintStrategy` SPI** — chain-of-responsibility for pluggable error grouping.
+- **`HostNameProvider` SPI** — replace `InetAddress.getLocalHost()` with custom resolution.
+- **`ResourceAttributeResolver` promoted to public SPI** — subclass to extend OTel resource
+	detection.
+- **Apache HttpClient 5 propagation** — context + timeout budget forwarded on HC5 calls.
+- **`docs/spi.md`** — catalogue of all Pulse SPIs with copy-paste examples.
+- **`docs/api-stability.md`** — explicit 2.x stability contract.
+- **Native-image CI smoke test** — GraalVM native build of the showcase app on every PR.
+
+### Fixed (Spring Boot 4 + docs)
+
+- **`@AutoConfigureAfter`** now references real Spring Boot 4.0.5 auto-configuration classes
+	(`OpenTelemetrySdkAutoConfiguration`, `OpenTelemetryTracingAutoConfiguration`); ordering
+	relative to Micrometer/OpenTelemetry is reliable again.
+- **Chain composites** — `pulseDependencyClassifier` and `pulseErrorFingerprintStrategy` are
+	skipped when a bean with the same name is already defined (full replacement escape hatch).
+- **IDE metadata** — `additional-spring-configuration-metadata.json` group `type` fields point at
+	the actual per-feature `*Properties` classes (not a removed aggregate), plus
+	`pulse.enforcement` group.
+- **Documentation** — aligned configuration prefixes, Kafka gauge tags, container-memory health
+	semantics, MDC vs baggage keys for priority, and SPI copy (`pulse.dependencies.map`) with the
+	implementation.
+
 ## [1.0.0] — 2026-04-19
 
 First public release. Pulse 1.0 freezes the `pulse.*` configuration surface, the metric

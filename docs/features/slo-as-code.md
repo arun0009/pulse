@@ -1,23 +1,26 @@
 # SLO-as-code
 
-> **Status:** Stable · **Config prefix:** `pulse.slo` ·
-> **Source:** [`SloRuleGenerator.java`](https://github.com/arun0009/pulse/blob/main/src/main/java/io/github/arun0009/pulse/slo/SloRuleGenerator.java) ·
-> **Runbook:** [Error-budget burn](../runbooks/error-budget-burn.md)
+> **TL;DR.** Declare your SLO once in YAML; Pulse renders the multi-burn
+> Prometheus alert *and* exposes live compliance on `/actuator/pulse`.
+> No more dashboard ↔ alert ↔ wiki drift.
 
-## Value prop
+You declare your SLOs in a wiki, you build a dashboard for them, you write
+PrometheusRule alerts for them, and the three drift apart inside a quarter.
+The dashboard says 99.92%, the alert says you're burning fast, and nobody
+trusts either.
 
-You declare your SLOs once in `application.yml`. Pulse renders them as a
-multi-window, multi-burn-rate `PrometheusRule` (the Google SRE workbook
-pattern) and projects live compliance into the actuator. No more "the
-dashboard says 99.92% but the alert says we're burning fast" — there's one
-source of truth.
+**Pulse makes the YAML the single source of truth.** You declare the
+objective once. Pulse renders it as a multi-window, multi-burn-rate
+`PrometheusRule` (the Google SRE workbook pattern) *and* projects live
+compliance into the actuator. Same source, three views, one number.
 
-## What it does
+## What you get
+
+Declare the objective:
 
 ```yaml
 pulse:
   slo:
-    enabled: true
     objectives:
       - name: orders-availability
         sli: availability
@@ -28,29 +31,51 @@ pulse:
         threshold: 500ms
 ```
 
-`/actuator/pulse/slo` returns a complete `PrometheusRule` YAML document —
-recording rules + multi-window burn-rate alerts — ready to apply:
+Get the rule file ready to apply:
 
 ```bash
 curl -s localhost:8080/actuator/pulse/slo | kubectl apply -f -
 ```
 
-`/actuator/pulse/runtime` reports live in-process projection so you can
-spot-check compliance without round-tripping through Prometheus.
+Get live in-process compliance for spot-checks without a Prometheus round-trip:
 
-Two SLI flavours ship out of the box:
+```bash
+curl -s localhost:8080/actuator/pulse/runtime | jq .slo
+```
 
-- `availability` — fraction of non-5xx responses on `http.server.requests`
-- `latency` — fraction of responses below `threshold`
+## Turn it on
 
-## Gating
+It's on by default; you just declare objectives. Two SLI flavours ship out
+of the box:
 
-Both `SloRuleGenerator` and the live projector are gated by
-`pulse.slo.enabled` (default `true`). When disabled,
-`/actuator/pulse/slo` returns a sentinel `# SLO subsystem disabled` payload
-so dashboards don't break with a 500.
+| `sli` | Definition |
+| --- | --- |
+| `availability` | Fraction of non-5xx responses on `http.server.requests` |
+| `latency` | Fraction of responses below `threshold` |
 
-!!! note "Expanded coverage coming"
+## What it adds
 
-    Full reference (custom SLI types via SPI, multi-window thresholds,
-    recommended Grafana panel) lands in a 1.0.x patch.
+| Endpoint | Returns |
+| --- | --- |
+| `/actuator/pulse/slo` | Full `PrometheusRule` YAML (recording rules + multi-window burn-rate alerts) |
+| `/actuator/pulse/runtime` | Live in-process compliance projection per objective |
+
+## When to skip it
+
+If you maintain SLO YAML separately (Sloth, Pyrra, hand-written rules) and
+don't want a parallel source:
+
+```yaml
+pulse:
+  slo:
+    enabled: false
+```
+
+When disabled, `/actuator/pulse/slo` returns a sentinel
+`# SLO subsystem disabled` payload so dashboards don't break with a 500.
+
+---
+
+**Source:** [`SloRuleGenerator.java`](https://github.com/arun0009/pulse/blob/main/src/main/java/io/github/arun0009/pulse/slo/SloRuleGenerator.java) ·
+**Runbook:** [Error-budget burn](../runbooks/error-budget-burn.md) ·
+**Status:** Stable since 1.0.0

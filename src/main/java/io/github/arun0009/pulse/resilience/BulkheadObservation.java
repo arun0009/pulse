@@ -1,13 +1,13 @@
 package io.github.arun0009.pulse.resilience;
 
+import io.github.arun0009.pulse.tracing.internal.PulseSpans;
 import io.github.resilience4j.bulkhead.Bulkhead;
 import io.github.resilience4j.bulkhead.BulkheadRegistry;
 import io.github.resilience4j.bulkhead.event.BulkheadOnCallRejectedEvent;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Tags;
-import io.opentelemetry.api.common.AttributeKey;
-import io.opentelemetry.api.common.Attributes;
-import io.opentelemetry.api.trace.Span;
+import io.micrometer.tracing.Span;
+import io.micrometer.tracing.Tracer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.SmartInitializingSingleton;
@@ -31,11 +31,17 @@ public final class BulkheadObservation implements SmartInitializingSingleton {
 
     private final BulkheadRegistry registry;
     private final MeterRegistry meterRegistry;
+    private final Tracer tracer;
     private final ConcurrentMap<String, Boolean> wired = new ConcurrentHashMap<>();
 
     public BulkheadObservation(BulkheadRegistry registry, MeterRegistry meterRegistry) {
+        this(registry, meterRegistry, Tracer.NOOP);
+    }
+
+    public BulkheadObservation(BulkheadRegistry registry, MeterRegistry meterRegistry, Tracer tracer) {
         this.registry = registry;
         this.meterRegistry = meterRegistry;
+        this.tracer = tracer == null ? Tracer.NOOP : tracer;
     }
 
     @Override
@@ -54,11 +60,12 @@ public final class BulkheadObservation implements SmartInitializingSingleton {
                 .counter("pulse.resilience.bulkhead.rejected", Tags.of("name", event.getBulkheadName()))
                 .increment();
 
-        Span span = Span.current();
-        if (span.getSpanContext().isValid()) {
-            span.addEvent(
-                    "pulse.resilience.bulkhead.rejected",
-                    Attributes.of(AttributeKey.stringKey("pulse.resilience.bulkhead.name"), event.getBulkheadName()));
+        Span span = PulseSpans.recordable(tracer);
+        if (span != null) {
+            // TODO(phase 4e): per-event attributes — Micrometer's Span has no addEvent(name, attrs)
+            // overload, so the bulkhead name lands as a span tag instead of an event attribute.
+            span.event("pulse.resilience.bulkhead.rejected");
+            span.tag("pulse.resilience.bulkhead.name", event.getBulkheadName());
         }
 
         log.warn("bulkhead {} rejected a call (capacity exhausted)", event.getBulkheadName());

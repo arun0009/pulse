@@ -1,6 +1,5 @@
 package io.github.arun0009.pulse.dependencies;
 
-import io.github.arun0009.pulse.autoconfigure.PulseProperties;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Meter;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -53,7 +52,7 @@ public final class DependencyHealthIndicator implements HealthIndicator {
     private final double errorRateThreshold;
     private final boolean reportDown;
 
-    public DependencyHealthIndicator(MeterRegistry registry, PulseProperties.Dependencies.Health config) {
+    public DependencyHealthIndicator(MeterRegistry registry, DependenciesProperties.Health config) {
         this.registry = registry;
         this.critical = List.copyOf(config.critical());
         this.errorRateThreshold = config.errorRateThreshold();

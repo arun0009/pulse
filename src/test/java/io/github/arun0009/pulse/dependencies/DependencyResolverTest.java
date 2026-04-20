@@ -1,6 +1,5 @@
 package io.github.arun0009.pulse.dependencies;
 
-import io.github.arun0009.pulse.autoconfigure.PulseProperties;
 import org.junit.jupiter.api.Test;
 
 import java.net.URI;
@@ -46,11 +45,12 @@ class DependencyResolverTest {
     }
 
     private static DependencyResolver build(Map<String, String> map) {
-        return new DependencyResolver(new PulseProperties.Dependencies(
+        return new DependencyResolver(new DependenciesProperties(
                 true,
                 map,
                 "unknown",
                 20,
-                new PulseProperties.Dependencies.Health(true, java.util.List.of(), 0.05, false)));
+                io.github.arun0009.pulse.autoconfigure.PulseRequestMatcherProperties.empty(),
+                new DependenciesProperties.Health(true, java.util.List.of(), 0.05, false)));
     }
 }

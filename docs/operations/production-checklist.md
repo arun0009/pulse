@@ -25,8 +25,10 @@ Each item is one of:
 
 ## Sampling
 
-- **MUST** Set `pulse.sampling.probability` to a sustainable rate. `1.0` is fine for low-traffic
-  services; for >1k req/s reduce to `0.05`–`0.1` and rely on `prefer-sampling-on-error`.
+- **MUST** Set `management.tracing.sampling.probability` to a sustainable rate (Pulse defers to
+  Spring Boot's standard property — it does not have its own knob). `1.0` is fine for low-traffic
+  services; for >1k req/s reduce to `0.05`–`0.1` and rely on
+  `pulse.sampling.prefer-sampling-on-error` (default `true`) to keep error spans.
 - **SHOULD** Document the sampling rate in your service README so on-call understands trace coverage.
 
 ## Cardinality firewall

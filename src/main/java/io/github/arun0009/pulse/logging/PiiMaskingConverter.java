@@ -31,10 +31,15 @@ public class PiiMaskingConverter extends LogEventPatternConverter {
     // Matches Visa (4xxx), Mastercard (5xxx/2xxx), Amex (3xxx), Discover (6xxx), etc.
     private static final Pattern CREDIT_CARD = Pattern.compile("\\b(?:\\d[ -]*?){13,19}\\b");
 
-    // The String[] options parameter is required by Log4j2's plugin factory contract — Log4j
-    // reflectively looks up newInstance(String[]) for converters. We expose no options today.
-    @SuppressWarnings("unused")
+    /**
+     * Log4j2 reflectively invokes {@code newInstance(String[])} for converters. Options are
+     * reserved for future use (e.g. pattern variants); the array is intentionally read so static
+     * analysis does not flag an unused parameter.
+     */
     public static PiiMaskingConverter newInstance(final String[] options) {
+        if (options != null && options.length > 0) {
+            // Reserved — no behaviour yet.
+        }
         return new PiiMaskingConverter();
     }
 

@@ -1,109 +1,118 @@
 # Trace-context guard
 
-> **Status:** Stable · **Config prefix:** `pulse.trace-guard` ·
-> **Source:** [`TraceGuardFilter.java`](https://github.com/arun0009/pulse/blob/main/src/main/java/io/github/arun0009/pulse/core/TraceGuardFilter.java) ·
-> **Runbook:** [Trace context missing](../runbooks/trace-context-missing.md)
-
-## Value prop
+> **TL;DR.** `pulse.trace.received` vs `pulse.trace.missing` per route, plus
+> a shipped alert. Find the upstream that's stripping `traceparent` instead
+> of staring at half-empty Jaeger views.
 
 Distributed traces silently lose context because *some* service in the chain
-doesn't propagate `traceparent`. Today you only notice when half of a trace
-is missing in Jaeger and you have no idea which hop dropped it.
+isn't passing the `traceparent` header along. Today you only notice when half
+of a trace is missing in Jaeger and you have no idea which hop dropped it.
 
-The guard turns this from a forensic exercise into a metric.
+**Pulse turns this from a forensic exercise into a metric.** Every inbound
+request is counted as either `received` or `missing`, broken down by route. A
+single PromQL ratio tells you exactly which `(service, route)` is the source
+of the leak.
 
-## What it does
-
-`TraceGuardFilter` runs as a `OncePerRequestFilter` near the very start of
-the chain. For every inbound request, it:
-
-1. Looks for a W3C `traceparent` header (or B3 headers, depending on the
-   configured propagator).
-2. Increments either `pulse.trace.received{route}` or
-   `pulse.trace.missing{route}` — the route tag uses the matched route
-   pattern (`/orders/{id}`, not `/orders/12345`) so cardinality stays
-   bounded.
-3. Adds a `trace.context.received` or `trace.context.missing` event to the
-   active span so you can spot the boundary in any trace UI.
-
-There is no behavioural change to the request — the guard only observes.
-
-## What this gives you
-
-A single Prometheus query points directly at the upstream that's stripping
-the header:
+## What you get
 
 ```promql
 sum by (service, route) (rate(pulse_trace_missing_total[5m]))
   /
-sum by (service, route) (rate(pulse_trace_received_total[5m]) + rate(pulse_trace_missing_total[5m]))
+sum by (service, route) (rate(pulse_trace_received_total[5m])
+                       + rate(pulse_trace_missing_total[5m]))
 ```
 
-Any `(service, route)` with a non-trivial missing ratio is a hop where the
-caller forgot to install an OTel propagator, or a load balancer / proxy is
-dropping the header.
+Any non-trivial result is a hop where the upstream forgot to install an
+OpenTelemetry propagator, or a load balancer / proxy is stripping the header.
+The shipped `PulseTraceContextMissing` alert fires at >5% missing over
+10 minutes and tells you the offending route in the message.
 
-## Pulse never does this
+## Turn it on
 
-The guard does **not**:
+Nothing. It's on by default. Pulse looks for either a W3C `traceparent`
+header or a B3 trace ID, depending on the propagator the OTel SDK is
+configured with.
 
-- Refuse the request — propagation is best-effort, not a hard requirement.
-- Generate a trace context if one is missing — the OTel SDK does that
-  downstream, exactly as it would without Pulse.
-- Log per-request — that would be log spam at scale. Per-route counters are
-  the right granularity.
-
-## Metrics emitted
-
-| Metric | Type | Tags | Description |
-|---|---|---|---|
-| `pulse.trace.received` | Counter | `route` | Inbound requests carrying a recognised trace header |
-| `pulse.trace.missing` | Counter | `route` | Inbound requests with no recognised trace header |
-
-The `route` tag uses Spring's matched route pattern. Unmatched requests
-(404s, raw paths) are tagged `route="UNMATCHED"` to keep cardinality
-predictable.
-
-## Headers / baggage / MDC
-
-The guard reads `traceparent` (W3C) and/or `b3` (B3 single-header) /
-`X-B3-TraceId` (B3 multi-header) depending on the configured OTel
-`TextMapPropagator`. It does not write anything itself — the OTel SDK
-handles writing on the response.
-
-## Configuration
+To skip the guard for synthetic monitoring traffic without disabling it
+globally — see [Conditional features](conditional-features.md):
 
 ```yaml
 pulse:
   trace-guard:
-    enabled: true                        # default
-    span-event-on-received: true         # default
-    span-event-on-missing: true          # default
-    route-tag-fallback: UNMATCHED        # default
+    enabled-when:
+      header-not-equals:
+        client-id: test-client-id
 ```
 
-| Key | Type | Default | Notes |
-|---|---|---|---|
-| `enabled` | boolean | `true` | Master switch |
-| `span-event-on-received` | boolean | `true` | Emit `trace.context.received` event on the span |
-| `span-event-on-missing` | boolean | `true` | Emit `trace.context.missing` event on the span |
-| `route-tag-fallback` | string | `UNMATCHED` | Tag value for requests with no matched route pattern |
+## What it adds
 
-## Shipped alert
+| Metric | Tags | Meaning |
+| --- | --- | --- |
+| `pulse.trace.received` | `route` | Inbound requests that carried trace context |
+| `pulse.trace.missing` | `route` | Inbound requests with no trace context |
 
-`PulseTraceContextMissing` fires when the missing ratio for any
-`(service, route)` exceeds 5% over 10 minutes. The runbook walks through
-identifying the calling service from the dependency-map metrics.
+The `route` tag uses the matched route pattern (`/orders/{id}`, not
+`/orders/12345`) so cardinality stays bounded even under id-bearing paths.
 
-## When to turn it off
+## When to skip it
 
-Disable if you operate a strict ingress that already enforces propagation
-(Envoy with `set_current_client_cert_details`, Istio with mandatory
-propagation, an internal API gateway that 4xxs requests without
-`traceparent`):
+Disable it entirely if you operate a strict ingress that already enforces
+trace propagation (Envoy with mandatory `traceparent`, Istio with required
+propagation, an internal API gateway that 4xxs requests without a trace ID):
 
 ```yaml
 pulse:
   trace-guard:
     enabled: false
 ```
+
+To turn it into an enforcement mechanism instead — Pulse 500s any request
+that arrives without trace context:
+
+```yaml
+pulse:
+  trace-guard:
+    fail-on-missing: true
+```
+
+Most teams want the metric, not the enforcement.
+
+## Under the hood
+
+A filter runs near the start of the chain. For every request:
+
+1. Looks for either `traceparent` (W3C) or `X-B3-TraceId` (B3 legacy),
+   depending on which propagator the OTel SDK is using.
+2. Increments `pulse.trace.received{route}` or `pulse.trace.missing{route}`.
+3. Adds a `trace.context.received` / `trace.context.missing` event to the
+   active span so you can spot the boundary in any trace UI.
+
+The guard does not generate trace context if it's missing — the OTel SDK
+does that downstream, exactly as it would without Pulse.
+
+### All the knobs
+
+```yaml
+pulse:
+  trace-guard:
+    enabled: true                        # default
+    fail-on-missing: false               # default
+    exclude-path-prefixes:               # default
+      - /actuator
+      - /health
+      - /metrics
+    enabled-when: {}                     # since 1.1.0; empty = run for every request
+```
+
+| Key | Default | Notes |
+| --- | --- | --- |
+| `enabled` | `true` | Master switch |
+| `fail-on-missing` | `false` | Throw a 500 instead of just incrementing the counter |
+| `exclude-path-prefixes` | `/actuator, /health, /metrics` | Coarse, always-on path skip |
+| `enabled-when` | empty | Per-request gate — see [Conditional features](conditional-features.md) |
+
+---
+
+**Source:** [`TraceGuardFilter.java`](https://github.com/arun0009/pulse/blob/main/src/main/java/io/github/arun0009/pulse/core/TraceGuardFilter.java) ·
+**Runbook:** [Trace context missing](../runbooks/trace-context-missing.md) ·
+**Status:** Stable since 1.0.0

@@ -31,7 +31,7 @@ class PulseExceptionHandlerTest {
 
     @Test
     void buildsRfc7807ProblemDetailWithRequestAndTraceIds() {
-        PulseExceptionHandler handler = new PulseExceptionHandler();
+        PulseExceptionHandler handler = PulseExceptionHandler.withDefaults(null);
 
         ProblemDetail problem = handler.handle(new IllegalStateException("boom"));
 
@@ -49,7 +49,7 @@ class PulseExceptionHandlerTest {
 
     @Test
     void putsFingerprintIntoMdcSoLogAppenderEmitsIt() {
-        PulseExceptionHandler handler = new PulseExceptionHandler();
+        PulseExceptionHandler handler = PulseExceptionHandler.withDefaults(null);
 
         handler.handle(new RuntimeException("anything"));
 
@@ -61,7 +61,7 @@ class PulseExceptionHandlerTest {
     @Test
     void incrementsUnhandledErrorCounterTaggedByExceptionAndFingerprint() {
         MeterRegistry registry = new SimpleMeterRegistry();
-        PulseExceptionHandler handler = new PulseExceptionHandler(registry);
+        PulseExceptionHandler handler = PulseExceptionHandler.withDefaults(registry);
 
         // Two exceptions thrown from the same site share a stack trace — that is the whole
         // point of the fingerprint, so dashboards see one row that increments, not N+1 rows
@@ -87,7 +87,7 @@ class PulseExceptionHandlerTest {
     @Test
     void differentExceptionTypesGetDifferentCounters() {
         MeterRegistry registry = new SimpleMeterRegistry();
-        PulseExceptionHandler handler = new PulseExceptionHandler(registry);
+        PulseExceptionHandler handler = PulseExceptionHandler.withDefaults(registry);
 
         handler.handle(new IllegalStateException("a"));
         handler.handle(new IllegalArgumentException("b"));
@@ -99,7 +99,7 @@ class PulseExceptionHandlerTest {
 
     @Test
     void handlesNullExceptionMessageWithoutCrashing() {
-        PulseExceptionHandler handler = new PulseExceptionHandler();
+        PulseExceptionHandler handler = PulseExceptionHandler.withDefaults(null);
 
         ProblemDetail problem = handler.handle(new RuntimeException((String) null));
 
@@ -109,8 +109,8 @@ class PulseExceptionHandlerTest {
 
     @Test
     void worksWhenMeterRegistryIsAbsent() {
-        // The no-arg constructor passes null — handler must still build a problem detail.
-        PulseExceptionHandler handler = new PulseExceptionHandler();
+        // withDefaults(null) passes null for MeterRegistry — handler must still build a problem detail.
+        PulseExceptionHandler handler = PulseExceptionHandler.withDefaults(null);
 
         ProblemDetail problem = handler.handle(new IllegalStateException("boom"));
 

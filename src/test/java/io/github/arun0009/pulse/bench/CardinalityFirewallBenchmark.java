@@ -1,7 +1,7 @@
 package io.github.arun0009.pulse.bench;
 
-import io.github.arun0009.pulse.autoconfigure.PulseProperties;
 import io.github.arun0009.pulse.guardrails.CardinalityFirewall;
+import io.github.arun0009.pulse.guardrails.CardinalityProperties;
 import io.micrometer.core.instrument.Meter;
 import io.micrometer.core.instrument.Tag;
 import io.micrometer.core.instrument.Tags;
@@ -59,7 +59,9 @@ public class CardinalityFirewallBenchmark {
     public void setup() {
         registry = new SimpleMeterRegistry();
         firewall = new CardinalityFirewall(
-                new PulseProperties.Cardinality(true, maxTagValuesPerMeter, "OVERFLOW", List.of(), List.of()),
+                new CardinalityProperties(true, maxTagValuesPerMeter, "OVERFLOW", List.of(), List.of()),
+                new io.github.arun0009.pulse.enforcement.PulseEnforcementMode(
+                        io.github.arun0009.pulse.enforcement.PulseEnforcementMode.Mode.ENFORCING),
                 () -> registry);
 
         Meter.Id baseId =

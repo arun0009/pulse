@@ -25,41 +25,42 @@ hide:
 
 ## Why Pulse?
 
-Spring Boot + the OpenTelemetry Java agent + Micrometer + Log4j2/Logback get
-you a long way. Pulse fills in the **boring, unglamorous things that decide
-whether observability actually works at 3 AM** — the ones you eventually build
-yourself, badly, in every Spring shop.
+Spring Boot, the OpenTelemetry Java agent, Micrometer, and Log4j2 get you a
+long way. But you'll still write — or wish you'd written — the boring,
+unglamorous things that decide whether observability actually works at 3 AM.
+
+Pulse is those things, in one starter, with sensible defaults.
 
 <div class="pulse-cards" markdown>
 
 <div class="pulse-card" markdown>
 ### :material-shield-lock-outline: Cardinality firewall
-One bad tag can't 100× your metrics bill. Hard cap per `(meter, tag)` with
-overflow bucket + alert. ~17 ns/op on the hot path.
+One mistakenly-tagged `userId` can't 100× your metrics bill. Hard cap per
+metric+tag with a one-line alert. Costs ~17 ns per call.
 
 [Read more →](features/cardinality-firewall.md)
 </div>
 
 <div class="pulse-card" markdown>
 ### :material-timer-sand: Timeout-budget propagation
-The deadline travels with the request — across `RestTemplate`, `WebClient`,
-`OkHttp`, Kafka. No service in the chain works on a stale deadline.
+The deadline travels with the request. Every hop sees the time remaining and
+fails fast instead of holding doomed connections open.
 
 [Read more →](features/timeout-budget.md)
 </div>
 
 <div class="pulse-card" markdown>
 ### :material-merge: Context that survives async
-`@Async`, `@Scheduled`, executors, Kafka — `traceId`, `requestId`, `userId`,
-budget, tenant all arrive on the worker thread automatically.
+`@Async`, `@Scheduled`, custom executors, Kafka — `traceId`, `requestId`,
+`userId`, tenant, budget all arrive on the worker thread automatically.
 
 [Read more →](features/context-propagation.md)
 </div>
 
 <div class="pulse-card" markdown>
 ### :material-magnify-scan: Trace-context guard
-Find the upstream that's stripping `traceparent`. Every request is counted as
-`received` or `missing`, with a shipped alert that points at the offender.
+A single PromQL query points at the upstream that's stripping `traceparent`.
+Shipped alert tells you the route in the message.
 
 [Read more →](features/trace-context-guard.md)
 </div>
@@ -74,22 +75,23 @@ stamped automatically. PII masking on by default.
 
 <div class="pulse-card" markdown>
 ### :material-fingerprint: Stable exception fingerprints
-The same bug groups across deploys — even when the message contains an order
-id. Surfaced on the response, the active span, and as a metric.
+The same bug groups across deploys, even when the message contains an order
+ID. On the response, the active span, the metric, and the log line.
 
 [Read more →](features/exception-fingerprints.md)
 </div>
 
 </div>
 
-## And 19 more subsystems
+## And 19 more features
 
-Below the fold sits another layer for teams running distributed systems at
-scale — dependency health map, retry-amplification detection, multi-tenant
-context, container-aware memory, Kafka time-based lag, SLO-as-code, N+1
-detection, Resilience4j auto-instrumentation, and more.
+Beyond the day-one essentials, Pulse ships another nineteen features for
+distributed systems and production-grade Spring shops — dependency health
+map, retry-amplification detection, multi-tenant context, container-aware
+memory, Kafka time-based lag, SLO-as-code, N+1 query detection,
+Resilience4j observability, and more.
 
-Each is enabled by default and opt-out via `pulse.<subsystem>.enabled=false`.
+Each is on by default and opt-out with `pulse.<feature>.enabled=false`.
 You pay for what you turn on.
 
 [See the full feature catalogue →](features/index.md){ .md-button }
@@ -111,7 +113,7 @@ You pay for what you turn on.
 
 ## Status
 
-Pulse is **1.0** and published on Maven Central.
+Pulse is **2.0** and published on Maven Central.
 
 - [Changelog](release/changelog.md) — what's in each release
 - [Source on GitHub](https://github.com/arun0009/pulse) — issues, discussions, PRs

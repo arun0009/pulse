@@ -1,0 +1,66 @@
+# Pulse — integration / unit test preset.
+#
+# Activate by adding "pulse-test" to your test profiles:
+#
+#     spring.profiles.active: test,pulse-test
+#
+# Or — when pulse.profile-presets.auto-apply is true (the default) — Pulse
+# detects "test" in the active profiles and adds "pulse-test" automatically,
+# so just @ActiveProfiles("test") is enough.
+#
+# Optimised for: silence, speed, and reproducibility. Pulse stays loaded so
+# auto-configuration is exercised, but enforcement and noisy diagnostics are off.
+# Trades: cardinality firewall is disabled (test data is noisy by design),
+# trace-guard is off (test clients rarely propagate context).
+
+pulse:
+  enforcement:
+    mode: ENFORCING
+
+  # Tests don't want the in-process error-bias wrapper either — keeps the
+  # number of spans deterministic regardless of error paths.
+  sampling:
+    prefer-sampling-on-error: false
+
+  # Tests routinely call endpoints without traceparent. Don't fail them.
+  trace-guard:
+    enabled: false
+
+  # Tests often use random ids as tag values — let them through.
+  cardinality:
+    enabled: false
+
+  # No implicit timeout in tests — slow assertions and breakpoints must work.
+  timeout-budget:
+    enabled: false
+
+  # Quiet startup.
+  banner:
+    enabled: false
+
+  # Wide-event counter off — tests rarely assert on it and it adds noise to
+  # /actuator/metrics snapshots.
+  wide-events:
+    enabled: true
+    counter-enabled: false
+    log-enabled: false
+
+  # Job + db diagnostics off — most tests don't run real schedulers or hit a DB.
+  jobs:
+    enabled: false
+  db:
+    enabled: false
+
+  # Dependencies + tenant + retry depth all off — keeps test metrics clean.
+  dependencies:
+    enabled: false
+  tenant:
+    enabled: false
+  retry:
+    enabled: false
+
+# No sampling — keep tests fast and deterministic. Standard Boot property.
+management:
+  tracing:
+    sampling:
+      probability: 0.0

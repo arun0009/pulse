@@ -96,9 +96,15 @@ extra:
 nav:
   - Home: index.md
   - Quick start: quickstart.md
-  - Concepts: concepts.md
+  - Concepts:
+      - Overview: concepts.md
+      - Web stack (Servlet-only): web-stack.md
+      - Extending Pulse (SPIs): spi.md
+      - API stability: api-stability.md
   - Features:
       - features/index.md
+      - Cross-cutting:
+          - Conditional features (enabled-when): features/conditional-features.md
       - Day-one drivers:
           - Cardinality firewall: features/cardinality-firewall.md
           - Timeout budget: features/timeout-budget.md
@@ -127,6 +133,10 @@ nav:
           - Fleet config drift: features/fleet-config-drift.md
           - Diagnostic actuator: features/actuator.md
           - Sampling: features/sampling.md
+      - Operational levers:
+          - Dry-run / enforcement mode: features/enforcement-mode.md
+          - Profile presets: features/profile-presets.md
+          - Configuration validation: features/configuration-validation.md
   - Configuration: configuration.md
   - Operations:
       - Dashboards: operations/dashboards.md
@@ -141,6 +151,8 @@ nav:
       - HikariCP saturation: runbooks/hikaricp-saturation.md
   - Reference:
       - Changelog: release/changelog.md
+      - Spring Initializr listing: release/spring-initializr-listing.md
       - Design notes:
           - design/index.md
+          - Design principles: design/principles.md
           - Multi-tenant context: design/multi-tenant-context.md

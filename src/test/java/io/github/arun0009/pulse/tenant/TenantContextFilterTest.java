@@ -1,6 +1,5 @@
 package io.github.arun0009.pulse.tenant;
 
-import io.github.arun0009.pulse.autoconfigure.PulseProperties;
 import io.github.arun0009.pulse.core.ContextKeys;
 import io.opentelemetry.api.baggage.Baggage;
 import jakarta.servlet.FilterChain;
@@ -16,11 +15,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class TenantContextFilterTest {
 
-    private static final PulseProperties.Tenant CONFIG = new PulseProperties.Tenant(
+    private static final TenantProperties CONFIG = new TenantProperties(
             true,
-            new PulseProperties.Tenant.Header(true, "Pulse-Tenant-Id"),
-            new PulseProperties.Tenant.Jwt(false, "tenant_id"),
-            new PulseProperties.Tenant.Subdomain(false, 0),
+            new TenantProperties.Header(true, "Pulse-Tenant-Id"),
+            new TenantProperties.Jwt(false, "tenant_id"),
+            new TenantProperties.Subdomain(false, 0),
             100,
             "__overflow__",
             "unknown",

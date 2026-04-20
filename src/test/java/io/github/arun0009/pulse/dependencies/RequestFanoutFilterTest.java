@@ -1,6 +1,5 @@
 package io.github.arun0009.pulse.dependencies;
 
-import io.github.arun0009.pulse.autoconfigure.PulseProperties;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import jakarta.servlet.FilterChain;
 import org.junit.jupiter.api.Test;
@@ -60,11 +59,12 @@ class RequestFanoutFilterTest {
     private RequestFanoutFilter newFilter(int threshold) {
         return new RequestFanoutFilter(
                 registry,
-                new PulseProperties.Dependencies(
+                new DependenciesProperties(
                         true,
                         Map.of(),
                         "unknown",
                         threshold,
-                        new PulseProperties.Dependencies.Health(true, java.util.List.of(), 0.05, false)));
+                        io.github.arun0009.pulse.autoconfigure.PulseRequestMatcherProperties.empty(),
+                        new DependenciesProperties.Health(true, java.util.List.of(), 0.05, false)));
     }
 }

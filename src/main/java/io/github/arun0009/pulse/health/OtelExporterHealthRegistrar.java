@@ -1,140 +1,58 @@
 package io.github.arun0009.pulse.health;
 
-import io.opentelemetry.sdk.OpenTelemetrySdk;
-import io.opentelemetry.sdk.trace.SdkTracerProvider;
 import io.opentelemetry.sdk.trace.export.SpanExporter;
-import org.jspecify.annotations.Nullable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.SmartInitializingSingleton;
+import org.springframework.beans.factory.config.BeanPostProcessor;
 
-import java.lang.reflect.Field;
-import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
- * Discovers the configured OpenTelemetry {@link SpanExporter}(s) on the registered
- * {@link OpenTelemetrySdk} and wraps each one with a {@link LastSuccessSpanExporter} so the
- * {@link OtelExporterHealthIndicator} has signal to report on.
+ * Wraps every {@link SpanExporter} bean in the application context with a
+ * {@link LastSuccessSpanExporter} so the {@link OtelExporterHealthIndicator} has signal to
+ * report on.
  *
- * <p>The OTel SDK does not expose its registered exporters through a public API; this class
- * therefore uses targeted reflection on the {@code BatchSpanProcessor}'s {@code spanExporter}
- * field. The reflection is best-effort and gracefully degrades to a no-op when a future SDK
- * version changes the field name — in which case the health indicator simply reports
- * {@code UNKNOWN}, never failing startup.
+ * <p>Implemented as a {@link BeanPostProcessor} rather than poking inside the OTel SDK with
+ * reflection. Spring Boot's tracing auto-configuration ({@code OpenTelemetryTracingAutoConfiguration}
+ * and {@code OtlpAutoConfiguration}) publishes each exporter as a regular bean and then assembles
+ * the {@code SpanProcessor} pipeline from those beans — by intercepting the beans during
+ * post-processing we replace them with our wrapper before the SDK ever sees them. The result is
+ * the same observability outcome (last-success/last-failure tracking) without any
+ * setAccessible/getDeclaredField calls.
  *
- * <p>Why reflection: the only other option is asking users to bean-define their exporter, which
- * defeats Pulse's "zero-config" promise. The reflection target is stable across all OTel SDK
- * 1.x releases so far. If the upstream SDK ever exposes a public accessor, this class collapses
- * to a one-line bean lookup.
+ * <p>The wrapper itself is a {@link LastSuccessSpanExporter}, which is itself a {@link
+ * SpanExporter}, so the BPP is idempotent: an already-wrapped instance is never wrapped again.
+ *
+ * <p>This bean is intentionally argument-free so Spring can register it as an infrastructure
+ * BPP without having to instantiate any other beans first — important because BPPs must be
+ * available before the regular bean creation phase begins.
  */
-public final class OtelExporterHealthRegistrar implements SmartInitializingSingleton {
+public final class OtelExporterHealthRegistrar implements BeanPostProcessor {
 
-    private static final Logger log = LoggerFactory.getLogger(OtelExporterHealthRegistrar.class);
-
-    private final @Nullable OpenTelemetrySdk sdk;
-    private final List<LastSuccessSpanExporter> tracked = new ArrayList<>();
-
-    public OtelExporterHealthRegistrar(@Nullable OpenTelemetrySdk sdk) {
-        this.sdk = sdk;
-    }
+    private final List<LastSuccessSpanExporter> tracked = new CopyOnWriteArrayList<>();
 
     @Override
-    public void afterSingletonsInstantiated() {
-        if (sdk == null) {
-            log.debug("Pulse: no OpenTelemetrySdk bean found; OTel exporter health indicator will report UNKNOWN");
-            return;
-        }
-        SdkTracerProvider tracerProvider = sdk.getSdkTracerProvider();
-        try {
-            Object activeProcessor = readField(tracerProvider, "activeSpanProcessor");
-            collectExportersRecursive(activeProcessor);
-        } catch (ReflectiveOperationException | RuntimeException e) {
-            log.debug(
-                    "Pulse: could not introspect OTel SpanProcessor for exporter wrapping ({}). "
-                            + "Health indicator will report UNKNOWN.",
-                    e.getMessage());
-        }
-    }
-
-    private void collectExportersRecursive(@Nullable Object processor) throws ReflectiveOperationException {
-        if (processor == null) return;
-        // Composite span processor — recurse into children
-        Object children = tryReadField(processor, "spanProcessors");
-        if (children instanceof java.util.Collection<?> collection) {
-            for (Object child : collection) {
-                collectExportersRecursive(child);
+    public Object postProcessAfterInitialization(Object bean, String beanName) {
+        if (bean instanceof LastSuccessSpanExporter alreadyWrapped) {
+            if (!tracked.contains(alreadyWrapped)) {
+                tracked.add(alreadyWrapped);
             }
-            return;
+            return bean;
         }
-        // BatchSpanProcessor — wrap the underlying exporter
-        Object worker = tryReadField(processor, "worker");
-        if (worker != null) {
-            Object exporter = tryReadField(worker, "spanExporter");
-            if (exporter instanceof SpanExporter spanExporter) {
-                wrapAndReplace(processor, worker, spanExporter);
-            }
-        }
-    }
-
-    private void wrapAndReplace(Object processor, Object worker, SpanExporter exporter) {
-        if (exporter instanceof LastSuccessSpanExporter alreadyWrapped) {
-            tracked.add(alreadyWrapped);
-            return;
-        }
-        LastSuccessSpanExporter wrapped = new LastSuccessSpanExporter(exporter);
-        try {
-            writeField(worker, "spanExporter", wrapped);
+        if (bean instanceof SpanExporter spanExporter) {
+            LastSuccessSpanExporter wrapped = new LastSuccessSpanExporter(spanExporter);
             tracked.add(wrapped);
-        } catch (ReflectiveOperationException e) {
-            log.debug("Pulse: could not install LastSuccessSpanExporter on processor {}", processor, e);
+            return wrapped;
         }
+        return bean;
     }
 
+    /**
+     * Returns an immutable snapshot of every wrapped exporter observed so far. Safe to call from
+     * any thread; the underlying list is copy-on-write.
+     *
+     * @return the wrapped exporters tracked by this registrar.
+     */
     public List<LastSuccessSpanExporter> exporters() {
         return List.copyOf(tracked);
-    }
-
-    private static Object readField(Object target, String name) throws ReflectiveOperationException {
-        Field f = findField(target.getClass(), name);
-        if (f == null) {
-            throw new NoSuchFieldException(name + " on " + target.getClass().getName());
-        }
-        f.setAccessible(true);
-        Object value = f.get(target);
-        if (value == null) throw new IllegalStateException("field " + name + " was null");
-        return value;
-    }
-
-    private static @Nullable Object tryReadField(Object target, String name) {
-        Field f = findField(target.getClass(), name);
-        if (f == null) return null;
-        try {
-            f.setAccessible(true);
-            return f.get(target);
-        } catch (ReflectiveOperationException | RuntimeException e) {
-            return null;
-        }
-    }
-
-    private static void writeField(Object target, String name, Object value) throws ReflectiveOperationException {
-        Field f = findField(target.getClass(), name);
-        if (f == null) {
-            throw new NoSuchFieldException(name + " on " + target.getClass().getName());
-        }
-        f.setAccessible(true);
-        f.set(target, value);
-    }
-
-    private static @Nullable Field findField(Class<?> cls, String name) {
-        Class<?> current = cls;
-        while (current != null && current != Object.class) {
-            try {
-                return current.getDeclaredField(name);
-            } catch (NoSuchFieldException ignored) {
-                current = current.getSuperclass();
-            }
-        }
-        return null;
     }
 }

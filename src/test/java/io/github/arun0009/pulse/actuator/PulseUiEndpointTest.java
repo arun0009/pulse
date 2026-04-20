@@ -1,13 +1,7 @@
 package io.github.arun0009.pulse.actuator;
 
-import io.github.arun0009.pulse.autoconfigure.PulseProperties;
 import io.github.arun0009.pulse.slo.SloRuleGenerator;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.context.properties.bind.Bindable;
-import org.springframework.boot.context.properties.bind.Binder;
-import org.springframework.boot.context.properties.source.MapConfigurationPropertySource;
-
-import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -18,8 +12,9 @@ class PulseUiEndpointTest {
         // The whole point of this endpoint is "open it in your browser, no other tools needed."
         // If it stops being self-contained (e.g. picks up an external CDN), or stops listing a
         // subsystem, this fails.
-        PulseProperties props = bindEmpty();
-        PulseDiagnostics diag = new PulseDiagnostics(props, "test-svc", "test-env", "0.0.1", null, null, null);
+        PulseDiagnostics.AllProperties props = TestAllProperties.bindEmpty();
+        PulseDiagnostics diag =
+                new PulseDiagnostics(props, "test-svc", "test-env", "0.0.1", 1.0, null, null, null, null, null);
         PulseUiEndpoint endpoint = new PulseUiEndpoint(diag, new SloRuleGenerator(props.slo(), "test-svc"));
 
         String html = endpoint.html();
@@ -40,11 +35,6 @@ class PulseUiEndpointTest {
                 .contains("kafka")
                 .contains("slo");
         assertThat(html).contains("class=\"pill on\"").contains("class=\"pill off\"");
-        assertThat(html).contains("apiVersion: monitoring.coreos.com/v1"); // SLO YAML embedded
-    }
-
-    private static PulseProperties bindEmpty() {
-        return new Binder(new MapConfigurationPropertySource(Map.of()))
-                .bindOrCreate("pulse", Bindable.of(PulseProperties.class));
+        assertThat(html).contains("apiVersion: monitoring.coreos.com/v1");
     }
 }

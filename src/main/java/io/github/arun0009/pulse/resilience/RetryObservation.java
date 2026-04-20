@@ -1,13 +1,14 @@
 package io.github.arun0009.pulse.resilience;
 
+import io.github.arun0009.pulse.tracing.internal.PulseSpans;
 import io.github.resilience4j.retry.Retry;
 import io.github.resilience4j.retry.RetryRegistry;
 import io.github.resilience4j.retry.event.RetryOnErrorEvent;
 import io.github.resilience4j.retry.event.RetryOnRetryEvent;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Tags;
-import io.opentelemetry.api.trace.Span;
-import io.opentelemetry.api.trace.SpanContext;
+import io.micrometer.tracing.Span;
+import io.micrometer.tracing.Tracer;
 import org.slf4j.MDC;
 import org.springframework.beans.factory.SmartInitializingSingleton;
 
@@ -38,11 +39,17 @@ public final class RetryObservation implements SmartInitializingSingleton {
 
     private final RetryRegistry registry;
     private final MeterRegistry meterRegistry;
+    private final Tracer tracer;
     private final ConcurrentMap<String, Boolean> wired = new ConcurrentHashMap<>();
 
     public RetryObservation(RetryRegistry registry, MeterRegistry meterRegistry) {
+        this(registry, meterRegistry, Tracer.NOOP);
+    }
+
+    public RetryObservation(RetryRegistry registry, MeterRegistry meterRegistry, Tracer tracer) {
         this.registry = registry;
         this.meterRegistry = meterRegistry;
+        this.tracer = tracer == null ? Tracer.NOOP : tracer;
     }
 
     @Override
@@ -64,13 +71,12 @@ public final class RetryObservation implements SmartInitializingSingleton {
         int depth = RetryDepthContext.increment();
         MDC.put(RetryDepthFilter.MDC_KEY, Integer.toString(depth));
 
-        Span span = Span.current();
-        SpanContext spanContext = span.getSpanContext();
-        if (spanContext.isValid()) {
-            span.addEvent("pulse.resilience.retry.attempt");
-            span.setAttribute("pulse.resilience.retry.name", event.getName());
-            span.setAttribute("pulse.resilience.retry.attempt_number", event.getNumberOfRetryAttempts());
-            span.setAttribute("pulse.retry.depth", depth);
+        Span span = PulseSpans.recordable(tracer);
+        if (span != null) {
+            span.event("pulse.resilience.retry.attempt");
+            span.tag("pulse.resilience.retry.name", event.getName());
+            span.tag("pulse.resilience.retry.attempt_number", event.getNumberOfRetryAttempts());
+            span.tag("pulse.retry.depth", depth);
         }
     }
 

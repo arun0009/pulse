@@ -1,42 +1,70 @@
 # Graceful drain + OTel flush
 
-> **Status:** Stable · **Config prefix:** `pulse.shutdown` ·
-> **Source:** [`io.github.arun0009.pulse.shutdown`](https://github.com/arun0009/pulse/tree/main/src/main/java/io/github/arun0009/pulse/shutdown)
-
-## Value prop
+> **TL;DR.** Blocks JVM exit until the OTel batch is drained, with a
+> deadline. The last batch of spans before SIGTERM actually arrives.
 
 Rolling deploys silently lose telemetry. The pod gets `SIGTERM`, the JVM
-exits, and the last span batch never makes it to the Collector. By the
-time you see the trace gap, the pod is gone. Pulse blocks JVM exit until
-the OTel batch is drained, with a configurable timeout, and instruments
-the readiness drain itself.
+exits, and the last batch of spans never makes it to the Collector. By the
+time you notice the trace gap, the pod is gone — you can't redeploy it to
+recover the data.
 
-## What it does
+**Pulse blocks JVM exit until the OTel batch is drained**, with a
+configurable timeout, and instruments the drain itself so the drain
+*also* makes it to the Collector.
 
-- `pulse.shutdown.inflight` (gauge) — proves the readiness probe is
-  draining (i.e., new requests stop, in-flight requests count down to 0).
-- `pulse.shutdown.drain.duration` (timer) — how long the drain actually
-  took.
-- `pulse.shutdown.dropped` (counter) — requests still in flight when the
-  drain window expires.
-- `PulseDrainObservabilityLifecycle` runs as a `SmartLifecycle` just
-  *before* the OTel flush, so the drain itself produces telemetry that
-  reaches the Collector.
-- The OTel `BatchSpanProcessor` flush blocks until either drained or
-  `pulse.shutdown.otel-flush-timeout` (default `10s`) expires.
+## What you get
 
-## Configuration
+The drain is observable, end-to-end:
+
+| Metric | Meaning |
+| --- | --- |
+| `pulse.shutdown.inflight` (gauge) | Proves the readiness probe is draining (in-flight count goes to 0) |
+| `pulse.shutdown.drain.duration` (timer) | How long each drain took |
+| `pulse.shutdown.dropped` (counter) | Requests still in flight when the drain window expired |
+
+If `pulse.shutdown.dropped` is non-zero, your
+`terminationGracePeriodSeconds` is too short or your drain is hanging.
+Either way it's now a signal, not a mystery.
+
+## Turn it on
+
+Nothing. On by default. Defaults are conservative — 10 seconds for the OTel
+flush, 30 seconds for the request drain.
+
+To tune:
 
 ```yaml
 pulse:
   shutdown:
-    enabled: true
-    otel-flush-timeout: 10s
-    drain-timeout: 30s
+    otel-flush-enabled: true   # default
+    otel-flush-timeout: 15s
+    drain:
+      enabled: true            # default
+      timeout: 60s
 ```
 
-!!! note "Expanded coverage coming"
+## Recommended Kubernetes config
 
-    Full reference (interaction with Spring Boot's
-    `lifecycle.timeout-per-shutdown-phase`, recommended Kubernetes
-    `terminationGracePeriodSeconds`) lands in a 1.0.x patch.
+For Pulse's drain to fit cleanly inside the pod lifecycle, set
+`terminationGracePeriodSeconds` to comfortably exceed
+`drain.timeout + otel-flush-timeout`. With Pulse defaults, **60 seconds** is
+a safe value.
+
+## When to skip it
+
+If you already have a sidecar (Envoy, Istio) handling drain and an OTel
+Collector running locally on the pod that you trust to flush, opt out
+per-feature — there is no single global `pulse.shutdown.enabled` switch:
+
+```yaml
+pulse:
+  shutdown:
+    otel-flush-enabled: false
+    drain:
+      enabled: false
+```
+
+---
+
+**Source:** [`io.github.arun0009.pulse.shutdown`](https://github.com/arun0009/pulse/tree/main/src/main/java/io/github/arun0009/pulse/shutdown) ·
+**Status:** Stable since 1.0.0

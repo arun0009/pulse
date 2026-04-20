@@ -1,7 +1,7 @@
 package io.github.arun0009.pulse.cache;
 
 import com.github.benmanes.caffeine.cache.Caffeine;
-import io.github.arun0009.pulse.cache.PulseCaffeineConfiguration.PulseCaffeineCacheCustomizer;
+import io.github.arun0009.pulse.cache.internal.PulseCaffeineConfiguration.PulseCaffeineCacheCustomizer;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.Test;
 import org.springframework.cache.caffeine.CaffeineCache;

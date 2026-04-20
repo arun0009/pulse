@@ -2,6 +2,7 @@ package io.github.arun0009.pulse.priority;
 
 import org.jspecify.annotations.Nullable;
 
+import java.util.Locale;
 import java.util.Optional;
 
 /**
@@ -54,7 +55,7 @@ public enum RequestPriority {
     /** Normalizes a header value or MDC string to a tier; returns {@code defaultValue} for nulls or unknowns. */
     public static RequestPriority parseOrDefault(@Nullable String value, RequestPriority defaultValue) {
         if (value == null || value.isBlank()) return defaultValue;
-        String trimmed = value.trim().toLowerCase();
+        String trimmed = value.trim().toLowerCase(Locale.ROOT);
         for (RequestPriority p : values()) {
             if (p.wireValue.equals(trimmed)) return p;
         }

@@ -2,89 +2,179 @@
   "groups": [
     {
       "name": "pulse",
-      "type": "io.github.arun0009.pulse.autoconfigure.PulseProperties",
-      "description": "Pulse — production-correctness layer for Spring Boot. All subsystems are opt-out via these properties; defaults are tuned for production."
+      "description": "Pulse — production-correctness layer for Spring Boot. Configuration is split into per-feature @ConfigurationProperties records (nested groups); there is no single root pulse.* class."
     },
     {
       "name": "pulse.context",
-      "type": "io.github.arun0009.pulse.autoconfigure.PulseProperties$Context",
+      "type": "io.github.arun0009.pulse.core.ContextProperties",
       "description": "Maps inbound HTTP headers to MDC keys so every log line and span carries request/correlation/user/tenant identity. Customize header names per your edge convention."
     },
     {
       "name": "pulse.trace-guard",
-      "type": "io.github.arun0009.pulse.autoconfigure.PulseProperties$TraceGuard",
-      "description": "Detects inbound requests that arrive without W3C traceparent or B3 headers and emits the pulse.trace.missing counter. Set fail-on-missing=true at the edge of your network to bounce uninstrumented callers with HTTP 400."
+      "type": "io.github.arun0009.pulse.core.TraceGuardProperties",
+      "description": "Detects inbound requests that arrive without W3C traceparent or B3 headers and emits the pulse.trace.missing counter. Set fail-on-missing=true at the edge of your network to bounce uninstrumented callers (Pulse throws a ServletException, which Spring Boot translates to HTTP 500 by default; configure your error handling if you need a different status)."
     },
     {
       "name": "pulse.sampling",
-      "type": "io.github.arun0009.pulse.autoconfigure.PulseProperties$Sampling",
+      "type": "io.github.arun0009.pulse.guardrails.SamplingProperties",
       "description": "OpenTelemetry trace sampler. Default ParentBased(TraceIdRatioBased) keeps parent decisions and applies a head-based ratio for root spans. prefer-sampling-on-error layers a best-effort error sampler so spans flagged ERROR are always kept."
     },
     {
       "name": "pulse.async",
-      "type": "io.github.arun0009.pulse.autoconfigure.PulseProperties$Async",
+      "type": "io.github.arun0009.pulse.async.AsyncProperties",
       "description": "Propagates MDC + OTel context across @Async, @Scheduled, and TaskExecutor hops. Pulse exposes a TaskDecorator bean by default so Spring Boot's auto-configured executor inherits propagation without override; flip dedicated-executor=true if you want an isolated pulseDedicatedExecutor."
     },
     {
       "name": "pulse.kafka",
-      "type": "io.github.arun0009.pulse.autoconfigure.PulseProperties$Kafka",
+      "type": "io.github.arun0009.pulse.propagation.KafkaPropagationProperties",
       "description": "Wires Pulse's producer + consumer interceptors into Spring Kafka so MDC and timeout-budget travel with every record. Auto-activated when spring-kafka is on the classpath."
     },
     {
       "name": "pulse.exception-handler",
-      "type": "io.github.arun0009.pulse.autoconfigure.PulseProperties$ExceptionHandler",
+      "type": "io.github.arun0009.pulse.exception.ExceptionHandlerProperties",
       "description": "Global @RestControllerAdvice that returns RFC 7807 ProblemDetail responses with traceId, requestId, and a stable errorFingerprint. The fingerprint also lands on the active span and an unhandled-error counter."
     },
     {
       "name": "pulse.cardinality",
-      "type": "io.github.arun0009.pulse.autoconfigure.PulseProperties$Cardinality",
+      "type": "io.github.arun0009.pulse.guardrails.CardinalityProperties",
       "description": "Caps distinct tag values per meter to prevent runaway tag explosions. Excess values bucket to overflow-value; pulse.cardinality.overflow counter records every clamp so dashboards and alerts can spot the offender."
     },
     {
       "name": "pulse.timeout-budget",
-      "type": "io.github.arun0009.pulse.autoconfigure.PulseProperties$TimeoutBudget",
+      "type": "io.github.arun0009.pulse.guardrails.TimeoutBudgetProperties",
       "description": "End-to-end deadline propagation. Inbound header is clamped to maximum-budget; the remaining budget at egress is propagated as outbound-header, minus safety-margin to give downstream a chance to respond before the parent times out."
     },
     {
       "name": "pulse.wide-events",
-      "type": "io.github.arun0009.pulse.autoconfigure.PulseProperties$WideEvents",
+      "type": "io.github.arun0009.pulse.events.WideEventsProperties",
       "description": "SpanEvents API — one call writes a span event, a structured log line, and (optionally) a bounded counter. The counter is tagged only by event name to keep cardinality predictable while the span and log carry the rich attributes."
     },
     {
       "name": "pulse.logging",
-      "type": "io.github.arun0009.pulse.autoconfigure.PulseProperties$Logging",
+      "type": "io.github.arun0009.pulse.logging.LoggingProperties",
       "description": "Pulse logging integration. The bundled JSON layout always emits traceId, spanId, app.version, and build.commit; pii-masking-enabled toggles automatic redaction of emails, SSNs, credit cards, Bearer tokens, and JSON secret fields."
     },
     {
       "name": "pulse.banner",
-      "type": "io.github.arun0009.pulse.autoconfigure.PulseProperties$Banner",
+      "type": "io.github.arun0009.pulse.startup.BannerProperties",
       "description": "Startup banner that prints the active Pulse subsystems, their effective settings, and the actuator endpoint location. Set to false if you ship logs to a system that doesn't tolerate multi-line entries."
     },
     {
       "name": "pulse.histograms",
-      "type": "io.github.arun0009.pulse.autoconfigure.PulseProperties$Histograms",
+      "type": "io.github.arun0009.pulse.metrics.HistogramsProperties",
       "description": "Enables percentile histograms on Spring Boot's standard meters with SLO-aligned bucket boundaries. The default buckets cover the typical web request range; tune slo-buckets to your service's latency profile."
     },
     {
       "name": "pulse.slo",
-      "type": "io.github.arun0009.pulse.autoconfigure.PulseProperties$Slo",
+      "type": "io.github.arun0009.pulse.slo.SloProperties",
       "description": "SLO-as-code. Declare objectives once and Pulse renders a Kubernetes PrometheusRule (recording rules + multi-window burn-rate alerts) at /actuator/pulse/slo, ready to kubectl apply -f -."
     },
     {
       "name": "pulse.health",
-      "type": "io.github.arun0009.pulse.autoconfigure.PulseProperties$Health",
-      "description": "Pulse-supplied Spring Boot HealthIndicators. The OTel exporter indicator reports a degraded state when no span has been successfully exported within otel-exporter-stale-after — useful for catching collector outages that would otherwise be silent."
+      "type": "io.github.arun0009.pulse.health.OtelExporterHealthProperties",
+      "description": "Pulse's OTel-exporter HealthIndicator. Reports a degraded state when no span has been successfully exported within otel-exporter-stale-after — useful for catching collector outages that would otherwise be silent. Distinct from pulse.dependencies.health which covers downstream-service RED health."
     },
     {
       "name": "pulse.shutdown",
-      "type": "io.github.arun0009.pulse.autoconfigure.PulseProperties$Shutdown",
-      "description": "JVM shutdown lifecycle. otel-flush-enabled blocks shutdown for up to otel-flush-timeout so the BatchSpanProcessor can drain queued spans — without this the last few hundred spans before a rolling deploy are lost."
+      "type": "io.github.arun0009.pulse.shutdown.ShutdownProperties",
+      "description": "JVM shutdown lifecycle. otel-flush-enabled blocks shutdown for up to otel-flush-timeout so the BatchSpanProcessor can drain queued spans — without this the last few hundred spans before a rolling deploy are lost. drain.enabled observes server.shutdown=graceful draining and emits structured before/after metrics."
+    },
+    {
+      "name": "pulse.jobs",
+      "type": "io.github.arun0009.pulse.autoconfigure.PulseProperties$Jobs",
+      "description": "Background-job observability. Wraps every @Scheduled method (and any TaskScheduler Runnable) with pulse.jobs.executions/duration/in_flight meters and exposes a jobs HealthIndicator that flips DOWN when a registered job has not succeeded within failure-grace-period."
+    },
+    {
+      "name": "pulse.db",
+      "type": "io.github.arun0009.pulse.db.DbProperties",
+      "description": "Database observability. Wires a Hibernate StatementInspector that counts prepared statements per request, emits pulse.db.statements_per_request{endpoint}, and fires pulse.db.n_plus_one.suspect + a WARN log with traceId when any request exceeds n-plus-one-threshold. Slow queries flow through Hibernate's SQL_SLOW logger, automatically JSON-correlated with the originating trace."
+    },
+    {
+      "name": "pulse.resilience",
+      "type": "io.github.arun0009.pulse.resilience.ResilienceProperties",
+      "description": "Resilience4j auto-instrumentation. Attaches event consumers to CircuitBreakerRegistry, RetryRegistry, and BulkheadRegistry that turn state transitions, retries, and rejections into counters + span events + structured logs. Each observer is independently gated on its registry being present."
+    },
+    {
+      "name": "pulse.profiling",
+      "type": "io.github.arun0009.pulse.profiling.ProfilingProperties",
+      "description": "Continuous-profiling correlation. Stamps profile.id + pyroscope.profile_id on every span using the trace id, enabling one-click flame-graph links. Setting pyroscope-url adds a per-trace pulse.profile.url attribute on root spans. Pulse never starts a profiler — it detects the existing -javaagent:pyroscope.jar and surfaces it in /actuator/pulse."
+    },
+    {
+      "name": "pulse.dependencies",
+      "type": "io.github.arun0009.pulse.dependencies.DependenciesProperties",
+      "description": "Dependency health map. Tags every outbound HTTP + Kafka call with a logical pulse.dependency derived from the host → name table and emits per-dependency RED signals (requests, latency, fan_out, distinct_dependencies). Cardinality is bounded by your dependency count, not your endpoint count."
+    },
+    {
+      "name": "pulse.dependencies.health",
+      "type": "io.github.arun0009.pulse.dependencies.DependenciesProperties$Health",
+      "description": "Topology-aware dependency HealthIndicator. Infers downstream state from pulse.dependency.requests/latency meters (never calls the downstream directly) and reports DEGRADED when a critical dependency exceeds error-rate-threshold. down=true escalates to OUT_OF_SERVICE so Kubernetes readiness flips."
+    },
+    {
+      "name": "pulse.tenant",
+      "type": "io.github.arun0009.pulse.tenant.TenantProperties",
+      "description": "Multi-tenant context. Extracts tenant id (header / JWT claim / subdomain), propagates it on MDC + OTel baggage + outbound headers, and optionally tags the meters named in tag-meters. max-tag-cardinality is a tenant-specific cap that sits on top of pulse.cardinality.max-tag-values-per-meter."
+    },
+    {
+      "name": "pulse.retry",
+      "type": "io.github.arun0009.pulse.resilience.RetryProperties",
+      "description": "Retry amplification detection. Propagates a hop counter through the call chain so Pulse can spot 'A retries 3x → B retries 3x → C takes 9x traffic' cascades before they become outages. Fires pulse.retry.amplification + a WARN + a span event when inbound depth exceeds amplification-threshold."
+    },
+    {
+      "name": "pulse.priority",
+      "type": "io.github.arun0009.pulse.priority.PriorityProperties",
+      "description": "Request criticality propagation (critical / high / normal / low / background). Mirrors the value onto MDC + OTel baggage + outbound headers. tag-meters lets you stamp priority on selected meters without the cardinality firewall coupling — the five-tier vocabulary is bounded by design."
+    },
+    {
+      "name": "pulse.container-memory",
+      "type": "io.github.arun0009.pulse.container.ContainerMemoryProperties",
+      "description": "Container (cgroup) memory observability. Reads cgroup v1/v2 memory.usage + memory.max and exposes pulse.container.memory.used/limit/headroom_ratio/oom_kills — the signals actually needed to diagnose OOMKilled-with-healthy-heap mysteries. No-op on macOS / Windows / non-cgroup hosts so the same starter works on laptops and in Kubernetes."
+    },
+    {
+      "name": "pulse.open-feature",
+      "type": "io.github.arun0009.pulse.openfeature.OpenFeatureProperties",
+      "description": "OpenFeature integration. Registers Pulse's MDC hook (flag values flow onto MDC + span events) and — if dev.openfeature.contrib.hooks:otel is on the classpath — the OTel-semconv hook, without requiring the consumer to wire either manually."
+    },
+    {
+      "name": "pulse.cache",
+      "type": "io.github.arun0009.pulse.cache.CacheProperties",
+      "description": "Cache observability. Binds every CaffeineCacheManager bean to Micrometer (cache.gets/puts/evictions/hit_ratio). Pulse never mutates the operator's Caffeine spec; if recordStats() is missing, the bind still happens (meters report zero) and a one-time WARN is logged."
+    },
+    {
+      "name": "pulse.profile-presets",
+      "type": "io.github.arun0009.pulse.autoconfigure.ProfilePresetsProperties",
+      "description": "Auto-applies Pulse-shipped profile presets (pulse-dev / pulse-prod / pulse-test / pulse-canary) whenever the matching base profile (dev / prod / test / canary) is active. Set auto-apply=false to keep Pulse hands-off. Extend the presets map to teach Pulse about your own profile names (e.g. stage → pulse-prod)."
+    },
+    {
+      "name": "pulse.enforcement",
+      "type": "io.github.arun0009.pulse.enforcement.EnforcementProperties",
+      "description": "Process-wide ENFORCING vs DRY_RUN gate. Mutable at runtime via POST /actuator/pulse/enforcement. Per-feature off switches remain pulse.<feature>.enabled."
     }
   ],
   "properties": [
     {
+      "name": "pulse.runtime.mode",
+      "type": "io.github.arun0009.pulse.enforcement.PulseEnforcementMode$Mode",
+      "description": "Deprecated alias for pulse.enforcement.mode. Auto-migrated at startup with a one-line WARN log; will be removed in 3.0.",
+      "deprecation": {
+        "level": "warning",
+        "reason": "Renamed to pulse.enforcement.mode in 2.0 (the OFF mode was dropped — use the per-feature pulse.<feature>.enabled toggle instead).",
+        "replacement": "pulse.enforcement.mode"
+      }
+    },
+    {
+      "name": "pulse.enforcement.mode",
+      "type": "io.github.arun0009.pulse.enforcement.PulseEnforcementMode$Mode",
+      "defaultValue": "ENFORCING",
+      "description": "Process-wide enforce-vs-observe gate consulted at the start of every Pulse guardrail. ENFORCING runs each feature normally; DRY_RUN keeps observation but disables enforcement. Mutable at runtime via POST /actuator/pulse/enforcement."
+    },
+    {
       "name": "pulse.sampling.probability",
-      "description": "Head-based sampling ratio for root spans (parent decisions are always honoured). 1.0 = sample all (default), 0.1 = 10%, 0.0 = sample none. Set to 0.05–0.1 in high-traffic production services."
+      "description": "Removed in Pulse 2.0. The head sampling rate is owned by Spring Boot's standard 'management.tracing.sampling.probability' property — Pulse defers to it so there is exactly one knob.",
+      "deprecation": {
+        "reason": "Pulse no longer shadows Boot's standard tracing-sampling property; set 'management.tracing.sampling.probability' instead.",
+        "replacement": "management.tracing.sampling.probability",
+        "level": "error"
+      }
     },
     {
       "name": "pulse.cardinality.max-tag-values-per-meter",
@@ -125,6 +215,12 @@
     {
       "name": "pulse.health.otel-exporter-stale-after",
       "description": "After this duration without a successful span export, the OTel exporter HealthIndicator reports DOWN. Tune to your service's traffic pattern — a 5m default catches collector outages while tolerating brief idle periods."
+    },
+    {
+      "name": "pulse.web-stack.suppress-reactive-warning",
+      "type": "java.lang.Boolean",
+      "description": "Silences the loud WARN that Pulse emits at startup when running on a reactive (WebFlux) application. Pulse 2.x is Servlet-only — most filters do not activate on reactive. Set to true only if you knowingly want the non-filter beans (cardinality firewall, async/scheduled MDC propagation, Kafka propagation) on a reactive app. See docs/web-stack.md.",
+      "defaultValue": false
     }
   ],
   "hints": [

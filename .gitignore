@@ -34,4 +34,6 @@ src/main/resources/application-local.yml
 
 # Docs site build artifacts
 _site/
+site/
 .venv-docs/
+.venv-mkdocs/

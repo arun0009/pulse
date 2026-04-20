@@ -14,5 +14,7 @@
  * {@code tenant} tag at {@code pulse.tenant.max-tag-cardinality} (default 100) independently
  * of the global cardinality firewall.
  */
-@org.jspecify.annotations.NullMarked
+@NullMarked
 package io.github.arun0009.pulse.tenant;
+
+import org.jspecify.annotations.NullMarked;

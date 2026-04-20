@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Test-only Log4j2 configuration. Surefire puts src/test/resources on the classpath ahead of
+  src/main/resources, so log4j2 auto-discovers this file before the production log4j2-spring.xml
+  shipped with Pulse. Production layout (JSON template, PII masking converter, MDC fields) is
+  untouched for real deployments — only the test JVM is affected.
+
+  Why root=ERROR: Pulse's whole value proposition is that its components scream at WARN on every
+  interesting-but-not-fatal condition (missing trace context, tag cardinality overflow, caught
+  exception, graceful-shutdown cutoff, N+1 query, retry amplification, circuit-breaker open,
+  bulkhead rejection, tenant tag overflow, job failure, fan-out threshold, missing recordStats()).
+  Dozens of tests exercise those code paths on purpose, producing walls of stack traces in
+  `mvn test` that drown real signal. Tests that specifically assert a WARN was emitted attach
+  their own programmatic Log4j2 appender (see PulseWebStackEnvironmentPostProcessorTest) so they
+  continue to work with additivity=false; tests that assert *observable* state (MDC,
+  Micrometer counters, registry snapshots, ProblemDetail fields) don't need the log line at all.
+
+  What's NOT suppressed:
+    - Anything at ERROR remains visible — real test regressions still show up.
+    - Framework errors, Maven errors, Surefire errors, Spring's context-initialization errors
+      when they are NOT expected (expected ones are logged at WARN by AnnotationConfigApplicationContext,
+      which root=ERROR silences; the test's `.hasFailed()` assertion is what catches regressions).
+-->
+<Configuration status="WARN">
+  <Appenders>
+    <Console name="Console" target="SYSTEM_OUT">
+      <PatternLayout pattern="%d{ISO8601} %-5level [%thread] %logger{36} - %msg%n"/>
+    </Console>
+  </Appenders>
+
+  <Loggers>
+    <!--
+      PulseExceptionHandler logs every caught exception at ERROR with a full stack trace — that's
+      its production contract. Tests in PulseExceptionHandlerTest and PulseExceptionHandlerEnabledWhenTest
+      deliberately throw to verify the handler's *observable* effects (MDC fingerprint, Micrometer
+      counter, ProblemDetail fields). They don't assert on the log line, so muting here removes
+      ~dozen stack carpets from `mvn test` without weakening a single assertion.
+    -->
+    <Logger name="io.github.arun0009.pulse.exception.PulseExceptionHandler" level="OFF" additivity="false"/>
+
+    <Root level="ERROR">
+      <AppenderRef ref="Console"/>
+    </Root>
+  </Loggers>
+</Configuration>

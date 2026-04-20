@@ -4,9 +4,9 @@ import dev.openfeature.sdk.FlagEvaluationDetails;
 import dev.openfeature.sdk.FlagValueType;
 import dev.openfeature.sdk.Hook;
 import dev.openfeature.sdk.HookContext;
-import io.opentelemetry.api.common.Attributes;
-import io.opentelemetry.api.common.AttributesBuilder;
-import io.opentelemetry.api.trace.Span;
+import io.github.arun0009.pulse.tracing.internal.PulseSpans;
+import io.micrometer.tracing.Span;
+import io.micrometer.tracing.Tracer;
 import org.slf4j.MDC;
 
 import java.util.Map;
@@ -32,20 +32,32 @@ import java.util.Map;
  */
 public final class PulseOpenFeatureMdcHook implements Hook<Object> {
 
+    private final Tracer tracer;
+
+    public PulseOpenFeatureMdcHook() {
+        this(Tracer.NOOP);
+    }
+
+    public PulseOpenFeatureMdcHook(Tracer tracer) {
+        this.tracer = tracer == null ? Tracer.NOOP : tracer;
+    }
+
     @Override
     public void after(HookContext<Object> ctx, FlagEvaluationDetails<Object> details, Map<String, Object> hints) {
         String key = "feature_flag." + ctx.getFlagKey();
         Object value = details.getValue();
         MDC.put(key, value == null ? "null" : value.toString());
 
-        Span span = Span.current();
-        if (span.getSpanContext().isValid()) {
-            AttributesBuilder attrs = Attributes.builder();
-            attrs.put("feature_flag.key", ctx.getFlagKey());
-            attrs.put("feature_flag.provider_name", ctx.getProviderMetadata().getName());
+        Span span = PulseSpans.recordable(tracer);
+        if (span != null) {
+            // TODO(phase 4e): per-event attributes — Micrometer's Span has no addEvent(name, attrs)
+            // overload, so the OTel feature-flag semconv attributes land as span tags rather than
+            // event attributes. Restored when the Observation refactor lands.
+            span.event("feature_flag");
+            span.tag("feature_flag.key", ctx.getFlagKey());
+            span.tag("feature_flag.provider_name", ctx.getProviderMetadata().getName());
             String variant = details.getVariant();
-            if (variant != null) attrs.put("feature_flag.variant", variant);
-            span.addEvent("feature_flag", attrs.build());
+            if (variant != null) span.tag("feature_flag.variant", variant);
         }
     }
 

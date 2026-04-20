@@ -6,5 +6,7 @@
  * OOM-killed. Off-heap, direct buffers, JIT, metaspace, and native libraries all show up in
  * the cgroup numbers but not in {@code jvm.memory.used}.
  */
-@org.jspecify.annotations.NullMarked
+@NullMarked
 package io.github.arun0009.pulse.container;
+
+import org.jspecify.annotations.NullMarked;

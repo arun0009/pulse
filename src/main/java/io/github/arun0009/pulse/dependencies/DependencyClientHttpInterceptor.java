@@ -29,7 +29,7 @@ public final class DependencyClientHttpInterceptor implements ClientHttpRequestI
     public ClientHttpResponse intercept(HttpRequest request, byte[] body, ClientHttpRequestExecution execution)
             throws IOException {
         long start = System.nanoTime();
-        String dep = recorder.resolver().resolve(request.getURI());
+        String dep = recorder.classify(request.getURI());
         String method = request.getMethod().name();
         try {
             ClientHttpResponse response = execution.execute(request, body);

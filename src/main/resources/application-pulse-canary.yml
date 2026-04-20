@@ -1,0 +1,65 @@
+# Pulse — canary / shadow-deployment preset.
+#
+# Activate by adding "pulse-canary" to your active Spring profiles on the
+# canary slice:
+#
+#     spring.profiles.active: canary,pulse-canary
+#
+# Or — when pulse.profile-presets.auto-apply is true (the default) — Pulse
+# detects "canary" in the active profiles and adds "pulse-canary" automatically.
+#
+# Optimised for: maximum signal at zero customer risk. Pulse runs in DRY_RUN
+# so every guardrail (trace-guard, cardinality, etc.) still emits diagnostics
+# and dashboards, but none of them enforces. Flip to pulse-prod once dashboards
+# show the impact you expect from full enforcement.
+#
+# Trades: 100% trace sampling and full diagnostics — fine for a small canary
+# fleet, expensive for a full rollout. Don't ship this to 100% of pods.
+
+pulse:
+  enforcement:
+    # Process-wide observe-only mode. The canary keeps emitting Pulse metrics
+    # and span events but never blocks a request, never rewrites a tag value,
+    # never throws on a missing trace context.
+    mode: DRY_RUN
+
+  # Pulse's additive error bias stays on so any error span is recorded even if
+  # the head rate were lowered for a larger canary fleet.
+  sampling:
+    prefer-sampling-on-error: true
+
+  # Diagnostics are still useful — fail-on-missing is also gated by DRY_RUN
+  # at runtime, so this stays observation-only either way.
+  trace-guard:
+    enabled: true
+    fail-on-missing: true
+
+  cardinality:
+    enabled: true
+    max-tag-values-per-meter: 1000
+
+  timeout-budget:
+    enabled: true
+    default-budget: 2s
+
+  # Loud startup banner — a canary is often debugged interactively.
+  banner:
+    enabled: true
+
+  exception-handler:
+    enabled: true
+
+  wide-events:
+    enabled: true
+    counter-enabled: true
+    log-enabled: true
+
+  logging:
+    pii-masking-enabled: true
+
+# Trace everything on the canary so you can answer any "why did this one
+# request behave that way?" question after the fact.
+management:
+  tracing:
+    sampling:
+      probability: 1.0

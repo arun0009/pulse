@@ -11,7 +11,7 @@ import java.io.IOException;
  * {@code pulse.dependency.*} for every call routed through an {@link okhttp3.OkHttpClient}.
  *
  * <p>The MDC and timeout-budget propagation interceptors are still wired by
- * {@link io.github.arun0009.pulse.propagation.OkHttpPropagationConfiguration}; this class purely
+ * {@link io.github.arun0009.pulse.propagation.internal.OkHttpPropagationConfiguration}; this class purely
  * adds the dependency RED metrics layer and is registered as a separate interceptor on the same
  * builder.
  */
@@ -27,7 +27,7 @@ public final class DependencyOkHttpInterceptor implements Interceptor {
     public Response intercept(Chain chain) throws IOException {
         Request request = chain.request();
         long start = System.nanoTime();
-        String dep = recorder.resolver().resolveHost(request.url().host());
+        String dep = recorder.classifyHost(request.url().host());
         String method = request.method();
         try {
             Response response = chain.proceed(request);

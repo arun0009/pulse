@@ -1,129 +1,80 @@
 # Timeout-budget propagation
 
-> **Status:** Stable · **Config prefix:** `pulse.timeout-budget` ·
-> **Source:** [`TimeoutBudget.java`](https://github.com/arun0009/pulse/blob/main/src/main/java/io/github/arun0009/pulse/guardrails/TimeoutBudget.java),
-> [`TimeoutBudgetFilter.java`](https://github.com/arun0009/pulse/blob/main/src/main/java/io/github/arun0009/pulse/guardrails/TimeoutBudgetFilter.java),
-> [`TimeoutBudgetOutboundInterceptor.java`](https://github.com/arun0009/pulse/blob/main/src/main/java/io/github/arun0009/pulse/guardrails/TimeoutBudgetOutboundInterceptor.java) ·
-> **Runbook:** [Timeout-budget exhausted](../runbooks/timeout-budget-exhausted.md)
+> **TL;DR.** The remaining deadline travels with the request across
+> `RestTemplate`, `RestClient`, `WebClient`, `OkHttp`, Apache HttpClient 5,
+> and Kafka. Doomed downstream calls fail fast instead of holding
+> connections through the next retry storm.
 
-## Value prop
+The platform default timeout — 30 seconds, set once and forgotten — is what
+every downstream service uses. The original caller may have already given up
+after 2 seconds. The chain doesn't know, holds connections open, and feeds
+the retry storm that takes the cluster down.
 
-In a 10-service request chain, the platform default timeout (typically
-30 seconds, set once and forgotten) is what every downstream uses. The
-caller may have already given up after 2 seconds — the chain doesn't know,
-holds connections open, and contributes to retry storms.
+**Pulse propagates the deadline, not the timeout.** Each hop sees the real
+remaining budget, fails fast when there's no time left, and never makes a
+doomed call against a dying downstream.
 
-Pulse propagates the **deadline**, not the timeout. The downstream sees the
-real remaining budget and fails fast instead of holding a connection open
-for 28 more seconds.
+## What you get
 
-## What it does
+When the chain is healthy, the deadline shrinks at each hop:
 
-Pulse runs three pieces:
-
-1. **`TimeoutBudgetFilter`** parses the configured inbound header (default
-   `Pulse-Timeout-Ms`) on every request, clamps it to
-   `pulse.timeout-budget.maximum-budget` for edge safety, places the absolute
-   deadline on OTel baggage and a thread-local accessor, and clears them in
-   `finally`.
-2. **`TimeoutBudgetOutboundInterceptor`** is wired into every Pulse-supported
-   client (`RestTemplate`, `RestClient`, `WebClient`, `OkHttp`, Kafka
-   producer). On every outbound call it computes the *remaining* budget
-   minus `safety-margin` and writes the configured outbound header.
-3. When the remaining budget is below `pulse.timeout-budget.minimum-budget`
-   *before* the call fires, Pulse aborts the call, increments
-   `pulse.timeout_budget.exhausted{transport}`, and emits a `WARN` log so
-   retry-storm precursors are visible *before* they become incidents.
-
-```mermaid
-sequenceDiagram
-    Caller->>+Edge: POST /orders<br/>Pulse-Timeout-Ms: 2000
-    Note over Edge: budget = 2000ms<br/>start = now()
-    Edge->>+Inventory: GET /stock/sku-42<br/>Pulse-Timeout-Ms: 1850
-    Inventory-->>-Edge: 200 OK (300ms elapsed)
-    Edge->>+Payment: POST /charge<br/>Pulse-Timeout-Ms: 1500
-    Payment-->>-Edge: 200 OK
-    Edge-->>-Caller: 201 Created
+```
+Caller     ──POST /orders   Pulse-Timeout-Ms: 2000──▶  Edge
+Edge       ──GET /stock     Pulse-Timeout-Ms: 1850──▶  Inventory     (300ms elapsed)
+Edge       ──POST /charge   Pulse-Timeout-Ms: 1500──▶  Payment       (350ms elapsed)
 ```
 
-If anywhere in the chain a service spends 1900 ms on its own work, the next
-outbound call sees ~50 ms remaining (already ≤ `safety-margin`), aborts, and
-increments `pulse.timeout_budget.exhausted` *before* slamming the
-downstream with a doomed request.
+When something is slow and the budget runs out, Pulse aborts the next call
+*before* it goes out — and a single Prometheus query lights up:
 
-## Reading the budget from your code
+```promql
+sum by (transport) (rate(pulse_timeout_budget_exhausted_total[5m]))
+```
+
+This is the leading indicator of a cascading failure. With the shipped
+`PulseTimeoutBudgetExhausted` alert, you see it minutes before the user does.
+
+## Turn it on
+
+Nothing. It's on by default with a 2 second budget per request.
+
+To set a different default, or to forward a different header name to match an
+existing convention:
+
+```yaml
+pulse:
+  timeout-budget:
+    default-budget: 5s              # used when no inbound header is present
+    inbound-header: X-Deadline-Ms   # match your gateway's convention
+```
+
+To read the remaining budget from your own code:
 
 ```java
-// In a controller, service, or any code on the request thread:
 TimeoutBudget.current().ifPresent(budget -> {
-    Duration remaining = budget.remaining();
-    if (remaining.compareTo(Duration.ofMillis(500)) < 0) {
+    if (budget.remaining().toMillis() < 500) {
         // skip the optional enrichment call — not enough time
     }
 });
 ```
 
-`TimeoutBudget.current()` returns an `Optional<TimeoutBudget>` — empty
-means the request didn't carry a budget header (or the budget filter is
-disabled), full means you can read `remaining()` for the wall-clock time
-left.
+## What it adds
 
-## Metrics emitted
+| Where | Key | Value |
+| --- | --- | --- |
+| HTTP header (in / out) | `Pulse-Timeout-Ms` | Milliseconds remaining on the deadline |
+| OTel baggage | `pulse.timeout.deadline_ms` | Absolute epoch-millis deadline |
+| MDC (logs) | `timeout_remaining_ms` | Snapshot at log time |
+| Metric | `pulse.timeout_budget.exhausted` (tag: `transport`) | Aborted outbound calls |
 
-| Metric | Type | Tags | Description |
-|---|---|---|---|
-| `pulse.timeout_budget.exhausted` | Counter | `transport` (`rest-template`, `rest-client`, `web-client`, `ok-http`, `kafka-producer`) | Outbound calls aborted because the remaining budget was below `minimum-budget` |
+The metric is tagged by transport: `resttemplate`, `restclient`, `webclient`,
+`okhttp`, `apache-hc5`, `kafka`. So you can see *which* client gave up.
 
-Prometheus normalises this to `pulse_timeout_budget_exhausted_total`.
+## When to skip it
 
-## Headers / baggage / MDC
-
-| Store | Key | Value |
-|---|---|---|
-| HTTP header (in / out) | `Pulse-Timeout-Ms` (configurable) | Absolute milliseconds remaining |
-| OTel baggage | `pulse.timeout.deadline_ms` | Epoch-millis deadline |
-| MDC | `timeout_remaining_ms` | Current-thread remaining (for logs) |
-
-The header name follows RFC 6648 (no `X-` prefix). `inboundHeader` and
-`outboundHeader` can be configured separately if you need to bridge to a
-legacy convention.
-
-## Configuration
-
-```yaml
-pulse:
-  timeout-budget:
-    enabled: true                        # default
-    inbound-header: Pulse-Timeout-Ms     # default
-    outbound-header: Pulse-Timeout-Ms    # default
-    default-budget: 2s                   # used when no inbound header is present
-    maximum-budget: 30s                  # edge clamp — caller cannot demand more
-    safety-margin: 50ms                  # subtracted from outbound budget
-    minimum-budget: 100ms                # below this, outbound calls abort
-```
-
-| Key | Type | Default | Notes |
-|---|---|---|---|
-| `enabled` | boolean | `true` | Master switch |
-| `inbound-header` | string | `Pulse-Timeout-Ms` | Where Pulse reads the budget from |
-| `outbound-header` | string | `Pulse-Timeout-Ms` | Where Pulse writes the budget on outbound calls |
-| `default-budget` | Duration | `2s` | Applied when no inbound header is present |
-| `maximum-budget` | Duration | `30s` | Hard upper bound — caller cannot demand more |
-| `safety-margin` | Duration | `50ms` | Subtracted from the outbound budget so the downstream still has time to fail cleanly |
-| `minimum-budget` | Duration | `100ms` | Outbound calls with less remaining than this are aborted |
-
-## Shipped alert
-
-`PulseTimeoutBudgetExhausted` fires when
-`rate(pulse_timeout_budget_exhausted_total[5m]) > 0` for more than 2 minutes.
-Combined with the [retry-amplification metric](retry-amplification.md), these
-two signals are the leading indicators of a cascading failure.
-
-## When to turn it off
-
-Disable when your platform already enforces a request budget end-to-end
-(Envoy timeouts, Istio request timeouts, gRPC deadlines you trust) and you
-don't want Pulse maintaining a parallel mechanism:
+Disable when your platform already enforces a request budget end-to-end —
+Envoy timeouts, Istio request timeouts, gRPC deadlines you trust — and you
+don't want a parallel mechanism:
 
 ```yaml
 pulse:
@@ -131,12 +82,52 @@ pulse:
     enabled: false
 ```
 
-The header *parsing* and *aborting* both stop; everything else (sampling,
-trace context, MDC) keeps working.
+If you run an API gateway in front, configure it to set `Pulse-Timeout-Ms`
+based on the gateway's own request timeout. Otherwise the first hop uses the
+2-second default and only later hops see the propagated value.
 
-## Edge ingress note
+## Conditional gating
 
-If you run an API gateway or Spring Cloud Gateway in front of services,
-configure it to set `Pulse-Timeout-Ms` based on the gateway's own request
-timeout. Otherwise the first hop will use `default-budget`, and the second
-hop onward gets propagated values — surprising but correct.
+To skip the budget filter for *some* requests (synthetic probes, internal
+admin traffic) without disabling the feature, use the shared
+[`enabled-when`](conditional-features.md) block:
+
+```yaml
+pulse:
+  timeout-budget:
+    enabled-when:
+      header-not-equals:
+        x-pulse-synthetic: "true"
+      path-excludes:
+        - /actuator
+```
+
+When the matcher rejects, no budget is established on baggage and
+downstream calls see `TimeoutBudget.current() == Optional.empty()` —
+your code already handles that.
+
+## Under the hood
+
+Three pieces work together:
+
+1. A filter on the way in reads the deadline header (or applies the default),
+   places it on a thread-local and on OTel baggage, and clears it in a
+   `finally`.
+2. An interceptor on the way out — wired into every supported HTTP and Kafka
+   client — computes `remaining − safety-margin` and writes the outbound
+   header.
+3. If the remaining budget is below `minimum-budget` *before* the call fires,
+   Pulse aborts the call, increments the exhausted counter, and emits a
+   `WARN` log.
+
+The header name follows RFC 6648 (no `X-` prefix). `inbound-header` and
+`outbound-header` can be configured separately if you need to bridge between
+two conventions.
+
+---
+
+**Source:** [`TimeoutBudget.java`](https://github.com/arun0009/pulse/blob/main/src/main/java/io/github/arun0009/pulse/guardrails/TimeoutBudget.java) ·
+[`TimeoutBudgetFilter.java`](https://github.com/arun0009/pulse/blob/main/src/main/java/io/github/arun0009/pulse/guardrails/TimeoutBudgetFilter.java) ·
+[`TimeoutBudgetOutboundInterceptor.java`](https://github.com/arun0009/pulse/blob/main/src/main/java/io/github/arun0009/pulse/guardrails/TimeoutBudgetOutboundInterceptor.java) ·
+**Runbook:** [Timeout-budget exhausted](../runbooks/timeout-budget-exhausted.md) ·
+**Status:** Stable since 1.0.0

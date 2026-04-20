@@ -1,6 +1,6 @@
 package io.github.arun0009.pulse.db;
 
-import io.github.arun0009.pulse.autoconfigure.PulseProperties;
+import io.github.arun0009.pulse.autoconfigure.PulseRequestMatcherProperties;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
@@ -20,7 +20,7 @@ class PulseHibernatePropertiesCustomizerTest {
 
     @Test
     void registers_pulse_inspector_when_no_existing_inspector_is_configured() {
-        PulseProperties.Db config = new PulseProperties.Db(true, 50, Duration.ofMillis(500));
+        DbProperties config = newDbConfig(Duration.ofMillis(500));
         Map<String, Object> hibernateProps = new HashMap<>();
         new PulseHibernatePropertiesCustomizer(config).customize(hibernateProps);
 
@@ -30,7 +30,7 @@ class PulseHibernatePropertiesCustomizerTest {
 
     @Test
     void does_not_overwrite_user_configured_statement_inspector() {
-        PulseProperties.Db config = new PulseProperties.Db(true, 50, Duration.ofMillis(500));
+        DbProperties config = newDbConfig(Duration.ofMillis(500));
         Map<String, Object> hibernateProps = new HashMap<>();
         hibernateProps.put(INSPECTOR_KEY, "com.example.MyInspector");
 
@@ -44,7 +44,7 @@ class PulseHibernatePropertiesCustomizerTest {
 
     @Test
     void does_not_overwrite_user_configured_slow_query_threshold() {
-        PulseProperties.Db config = new PulseProperties.Db(true, 50, Duration.ofMillis(500));
+        DbProperties config = newDbConfig(Duration.ofMillis(500));
         Map<String, Object> hibernateProps = new HashMap<>();
         hibernateProps.put(SLOW_QUERY_KEY, "5000");
 
@@ -58,11 +58,15 @@ class PulseHibernatePropertiesCustomizerTest {
         // Hibernate's property is named LOG_QUERIES_SLOWER_THAN_MS — Pulse's Duration must be
         // converted to a millisecond *string* (Hibernate parses it via Long.parseLong, not as a
         // Duration). Regression here would make Hibernate reject the value at startup.
-        PulseProperties.Db config = new PulseProperties.Db(true, 50, Duration.ofSeconds(2));
+        DbProperties config = newDbConfig(Duration.ofSeconds(2));
         Map<String, Object> hibernateProps = new HashMap<>();
         new PulseHibernatePropertiesCustomizer(config).customize(hibernateProps);
 
         Object value = hibernateProps.get(SLOW_QUERY_KEY);
         assertThat(value).isInstanceOf(String.class).isEqualTo("2000");
+    }
+
+    private static DbProperties newDbConfig(Duration slowQueryThreshold) {
+        return new DbProperties(true, 50, slowQueryThreshold, PulseRequestMatcherProperties.empty());
     }
 }

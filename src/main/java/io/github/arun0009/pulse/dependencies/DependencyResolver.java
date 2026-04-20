@@ -1,38 +1,39 @@
 package io.github.arun0009.pulse.dependencies;
 
-import io.github.arun0009.pulse.autoconfigure.PulseProperties;
-
 import java.net.URI;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
 
 /**
- * Maps an outbound URI to a logical dependency name (e.g. {@code api.payments.internal} →
- * {@code payment-service}).
+ * Pulse's built-in {@link DependencyClassifier} — maps an outbound URI to a logical dependency
+ * name (e.g. {@code api.payments.internal} → {@code payment-service}) using the
+ * {@code pulse.dependencies.map} table.
  *
  * <p>Two resolution strategies are tried in order:
  *
  * <ol>
- *   <li>Exact host match against {@link PulseProperties.Dependencies#map()}.
+ *   <li>Exact host match against {@link DependenciesProperties#map()}.
  *   <li>Suffix match — useful for environment variants where the application configures
  *       {@code payments.internal: payment-service} and the actual hosts are
  *       {@code api.payments.internal}, {@code grpc.payments.internal}.
  * </ol>
  *
- * <p>If neither matches, {@link PulseProperties.Dependencies#defaultName()} is returned. The
+ * <p>If neither matches, {@link DependenciesProperties#defaultName()} is returned. The
  * default value of {@code "unknown"} keeps the metric tag bounded so Prometheus does not get a
  * cardinality bomb when calls go to dynamic hosts (S3, AWS APIs, etc.).
  *
- * <p>Resolution is case-insensitive on the host part because DNS is.
+ * <p>Resolution is case-insensitive on the host part because DNS is. Since 1.1, this class
+ * also implements {@link DependencyClassifier} so a custom classifier can delegate to it for
+ * the cases it doesn't want to override.
  */
-public final class DependencyResolver {
+public class DependencyResolver implements DependencyClassifier {
 
     private final Map<String, String> exactMap;
     private final Map<String, String> suffixMap;
     private final String defaultName;
 
-    public DependencyResolver(PulseProperties.Dependencies config) {
+    public DependencyResolver(DependenciesProperties config) {
         Map<String, String> exact = new LinkedHashMap<>();
         Map<String, String> suffix = new LinkedHashMap<>();
         for (Map.Entry<String, String> entry : config.map().entrySet()) {
@@ -78,5 +79,15 @@ public final class DependencyResolver {
     /** Default tag value used when a host is not in the map. Exposed for diagnostics. */
     public String defaultName() {
         return defaultName;
+    }
+
+    @Override
+    public String classify(URI uri) {
+        return resolve(uri);
+    }
+
+    @Override
+    public String classifyHost(String host) {
+        return resolveHost(host);
     }
 }

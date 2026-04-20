@@ -1,12 +1,14 @@
 package io.github.arun0009.pulse.dependencies;
 
-import io.github.arun0009.pulse.autoconfigure.PulseProperties;
+import io.github.arun0009.pulse.core.PulseRequestMatcher;
 import io.github.arun0009.pulse.core.RouteTags;
+import io.github.arun0009.pulse.tracing.internal.PulseSpans;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.DistributionSummary;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Tags;
-import io.opentelemetry.api.trace.Span;
+import io.micrometer.tracing.Span;
+import io.micrometer.tracing.Tracer;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -32,7 +34,7 @@ import java.io.IOException;
  *       touched. Combined with fan-out, this distinguishes "200 calls to the same cache" from
  *       "20 calls each across 10 services".
  *   <li>{@code pulse.request.fan_out_high} — counter that increments when a single request's
- *       outbound calls exceed {@link PulseProperties.Dependencies#fanOutWarnThreshold()}. Cheap
+ *       outbound calls exceed {@link DependenciesProperties#fanOutWarnThreshold()}. Cheap
  *       Boolean signal for an alert rule.
  * </ul>
  *
@@ -49,15 +51,32 @@ public final class RequestFanoutFilter extends OncePerRequestFilter {
 
     private final MeterRegistry registry;
     private final int fanOutWarnThreshold;
+    private final PulseRequestMatcher gate;
+    private final Tracer tracer;
 
-    public RequestFanoutFilter(MeterRegistry registry, PulseProperties.Dependencies config) {
+    public RequestFanoutFilter(MeterRegistry registry, DependenciesProperties config) {
+        this(registry, config, PulseRequestMatcher.ALWAYS, Tracer.NOOP);
+    }
+
+    public RequestFanoutFilter(MeterRegistry registry, DependenciesProperties config, PulseRequestMatcher gate) {
+        this(registry, config, gate, Tracer.NOOP);
+    }
+
+    public RequestFanoutFilter(
+            MeterRegistry registry, DependenciesProperties config, PulseRequestMatcher gate, Tracer tracer) {
         this.registry = registry;
         this.fanOutWarnThreshold = config.fanOutWarnThreshold();
+        this.gate = gate;
+        this.tracer = tracer == null ? Tracer.NOOP : tracer;
     }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
+        if (!gate.matches(request)) {
+            chain.doFilter(request, response);
+            return;
+        }
         RequestFanout.begin();
         try {
             chain.doFilter(request, response);
@@ -86,10 +105,10 @@ public final class RequestFanoutFilter extends OncePerRequestFilter {
                             fanOutWarnThreshold,
                             RouteTags.of(request));
                 }
-                Span current = Span.current();
-                if (current.getSpanContext().isValid()) {
-                    current.setAttribute("pulse.request.fan_out", snap.totalCalls());
-                    current.setAttribute("pulse.request.distinct_dependencies", snap.distinctDependencies());
+                Span current = PulseSpans.recordable(tracer);
+                if (current != null) {
+                    current.tag("pulse.request.fan_out", snap.totalCalls());
+                    current.tag("pulse.request.distinct_dependencies", snap.distinctDependencies());
                 }
             }
         }

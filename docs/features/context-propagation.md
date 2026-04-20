@@ -1,36 +1,21 @@
-# Context propagation (`@Async` / `@Scheduled` / Kafka)
+# Context propagation
 
-> **Status:** Stable · **Config prefix:** `pulse.async`, `pulse.scheduling`,
-> `pulse.kafka` ·
-> **Source:** [`PulseTaskDecorator.java`](https://github.com/arun0009/pulse/blob/main/src/main/java/io/github/arun0009/pulse/async/PulseTaskDecorator.java),
-> [`ExecutorConfiguration.java`](https://github.com/arun0009/pulse/blob/main/src/main/java/io/github/arun0009/pulse/async/ExecutorConfiguration.java),
-> [`PulseKafkaRecordInterceptor.java`](https://github.com/arun0009/pulse/blob/main/src/main/java/io/github/arun0009/pulse/propagation/PulseKafkaRecordInterceptor.java) ·
-> **Runbook:** [Trace context missing](../runbooks/trace-context-missing.md)
+> **TL;DR.** MDC + OTel context restored on every `TaskExecutor`,
+> `TaskScheduler`, and Kafka listener. No `MDC.getCopyOfContextMap()`
+> boilerplate, no half-traces.
 
-## Value prop
+`@Async` methods, `@Scheduled` jobs, custom executors, Kafka listeners — every
+one of these is a place where your `traceId`, `requestId`, `userId`, tenant,
+and timeout budget silently disappear. The result is half a beautiful trace
+and half a black hole.
 
-Spring is full of "fire and forget" surfaces — `@Async` methods, `@Scheduled`
-jobs, custom executors, Kafka listeners — and every one is a place where
-your `traceId`, `requestId`, `userId`, tenant, and timeout budget silently
-disappear because someone forgot to call `MDC.getCopyOfContextMap()` and
-restore it on the worker thread.
+**Pulse fills the gap on every Spring-managed thread, automatically.** You
+don't write the boilerplate, you don't remember to wrap futures, you don't
+decide which fields to copy.
 
-The result: you have a beautiful trace for the synchronous half of your
-request and a black hole for everything that happened asynchronously.
+## What you get
 
-Pulse fixes this for every Spring-managed thread automatically. You don't
-write the boilerplate, you don't remember to wrap futures, you don't decide
-which fields to copy.
-
-## What it does
-
-### Spring `TaskExecutor` and `TaskScheduler`
-
-`ExecutorConfiguration` registers a `BeanPostProcessor` that wraps every
-`TaskExecutor` and `TaskScheduler` bean with a `PulseTaskDecorator`. The
-decorator captures **on submit** the full triple — MDC map, OTel `Context`,
-Pulse thread-locals (`TimeoutBudget`, `RequestPriority`, `Tenant`) — and
-restores it on the worker thread, then clears in `finally`.
+The same log line you used to write — but the correlation IDs are now there:
 
 ```java
 @Async
@@ -45,85 +30,73 @@ public void reconcile() {
 }
 ```
 
-This works for `@Async` methods, `@Scheduled` jobs, anything submitted to a
-Spring-managed `Executor`, and reactor `Schedulers` configured via Spring's
-`Schedulers.onScheduleHook`.
+Same thing happens on Kafka:
 
-### Kafka
+```java
+@KafkaListener(topics = "orders")
+public void onOrder(ConsumerRecord<String, Order> record) {
+    log.info("received order");  // traceId restored from the record headers
+}
+```
 
-`PulseKafkaRecordInterceptor` is composed with any user-configured
-`RecordInterceptor` so the order is: Pulse → user → handler. Before the
-listener method runs, Pulse:
+In your trace UI, the async hop and the scheduled job now appear as proper
+spans under the original request — not orphan spans with no parent.
 
-- Extracts the trace context from the record headers using the configured
-  OTel propagator.
-- Restores MDC entries (`traceId`, `requestId`, `tenant`, `priority`).
-- Restores the timeout budget (if present) so the listener can read
-  `TimeoutBudget.current()`.
-- Clears everything in `finally`.
+## Turn it on
 
-`PulseKafkaProducerInterceptor` does the inverse on the producer side:
-every `ProducerRecord` gets the current trace, request, tenant, and
-remaining-budget headers stamped on it before it leaves the broker
-boundary.
+Nothing. It's on by default for every `TaskExecutor`, `TaskScheduler`, and
+Kafka listener Spring registers.
 
-## Reactor / WebFlux
-
-If you use Reactor on top of WebFlux, `PulseTaskDecorator`'s context capture
-also feeds OTel's `Context.taskWrapping`, so anything scheduled on a
-Pulse-decorated `Scheduler` keeps the OTel `Context` parented correctly.
-
-For pure reactive request flows, no decoration is needed — the OTel
-`Context` already follows the reactor `Context` chain. Pulse only fills the
-gap between Spring's threading model and OTel's.
-
-## Things that *don't* automatically propagate
-
-These are deliberately left for you, because Pulse cannot know what you
-intended:
-
-- **Bare `new Thread(...)`** — Pulse does not patch raw threads. Wrap your
-  `Runnable` in `PulseTaskDecorator.wrap(...)` if you must use them.
-- **Third-party executors that bypass Spring** — e.g. a hand-built
-  `ForkJoinPool` you never declare as a bean. Same fix as above.
-- **`CompletableFuture.runAsync(...)` with no explicit executor** — uses the
-  common pool. Either pass a Pulse-decorated executor or wrap the lambda.
-
-For these cases, `PulseTaskDecorator.wrap(Runnable)` is one line and gives
-you the same MDC + OTel + Pulse propagation manually.
-
-## Metrics emitted
-
-Context propagation itself is silent — there are no metrics, because the
-right behaviour is "your existing log lines suddenly carry the right
-correlation IDs." The complementary signals are:
-
-- [Trace-context guard](trace-context-guard.md) — `pulse.trace.received` /
-  `pulse.trace.missing`, which surfaces *missed* propagation per route.
-- [Background-job observability](jobs.md) — RED metrics per `@Scheduled`
-  job, which let you see the async thread's own behaviour.
-
-## Configuration
+The only configurable surface is per-source on/off:
 
 ```yaml
 pulse:
   async:
-    decorate-task-executors: true        # default
-    decorate-task-schedulers: true       # default
+    decorate-task-executors: true     # default
+    decorate-task-schedulers: true    # default
   kafka:
-    record-interceptor-enabled: true     # default
-    producer-interceptor-enabled: true   # default
+    record-interceptor-enabled: true  # default
+    producer-interceptor-enabled: true # default
 ```
 
-There's intentionally very little to configure here — the right answer is
-"wrap everything, capture everything, restore everything, clear in finally,"
-and that's the default.
+For raw threads or third-party executors that bypass Spring (Pulse cannot
+reach those automatically), wrap manually — one line:
 
-## When to turn it off
+```java
+executor.submit(PulseTaskDecorator.wrap(() -> doWork()));
+```
 
-Disable per-surface if you're already running a context-propagating
-framework that does the same job (e.g., a custom `TaskDecorator` you
-maintain):
+## What it adds
+
+Context propagation itself is silent — no metrics, no headers Pulse invents
+on its own. The right behaviour is "your existing log lines now carry the
+right correlation IDs and your existing spans now have the right parent."
+
+The complementary signals you'll want to watch:
+
+| Want to know | Look at |
+| --- | --- |
+| Are inbound requests carrying trace context? | [Trace-context guard](trace-context-guard.md) |
+| How are my `@Scheduled` jobs behaving? | [Background jobs](jobs.md) |
+| Did the timeout budget survive the async hop? | `timeout_remaining_ms` field on every log line |
+
+## When you need to do something manually
+
+Three cases Pulse cannot reach automatically — wrap the `Runnable` yourself:
+
+- **Bare `new Thread(...)`.** Pulse does not patch raw threads.
+- **Third-party executors not registered as Spring beans.** A hand-built
+  `ForkJoinPool` you never declare, for example.
+- **`CompletableFuture.runAsync(...)` with no explicit executor** — uses the
+  common pool, which Pulse cannot decorate.
+
+In all three cases, `PulseTaskDecorator.wrap(Runnable)` gives you the same
+MDC + OTel + Pulse propagation manually.
+
+## When to skip it
+
+Disable per-source if you maintain your own `TaskDecorator` and don't want
+two stacked:
 
 ```yaml
 pulse:
@@ -133,3 +106,36 @@ pulse:
 
 You almost never want to disable Kafka propagation — it's the only way the
 trace survives the broker boundary.
+
+## Under the hood
+
+Pulse registers a `BeanPostProcessor` that wraps every `TaskExecutor` and
+`TaskScheduler` bean with a decorator. The decorator captures three things
+**when the task is submitted** — the MDC map, the OTel `Context`, and Pulse
+thread-locals (`TimeoutBudget`, `RequestPriority`, `Tenant`) — and restores
+them on the worker thread, then clears in `finally`.
+
+For Kafka, a `RecordInterceptor` runs before the listener. It extracts the
+trace context from the record headers, restores MDC, restores the timeout
+budget, and clears in `finally`. The producer side does the inverse: every
+`ProducerRecord` gets the current trace, request, tenant, and remaining-budget
+headers stamped on it.
+
+Outbound HTTP propagation is wired into every supported client — `RestTemplate`,
+`RestClient`, `WebClient`, `OkHttp`, and Apache HttpClient 5 — so the trace,
+tenant, retry depth, priority, and remaining-budget headers ride downstream
+without any per-client code on your side.
+
+Pulse 2.x is Servlet-only at the inbound edge ([web stack](../web-stack.md)),
+but the propagation customizers above target the *clients* — they're active
+on any application that wires those HTTP / Kafka clients as Spring beans,
+including reactive ones.
+
+---
+
+**Source:** [`PulseTaskDecorator.java`](https://github.com/arun0009/pulse/blob/main/src/main/java/io/github/arun0009/pulse/async/PulseTaskDecorator.java) ·
+[`ExecutorConfiguration.java`](https://github.com/arun0009/pulse/blob/main/src/main/java/io/github/arun0009/pulse/async/internal/ExecutorConfiguration.java) ·
+[`PulseKafkaRecordInterceptor.java`](https://github.com/arun0009/pulse/blob/main/src/main/java/io/github/arun0009/pulse/propagation/PulseKafkaRecordInterceptor.java) ·
+[`ApacheHttpClient5PropagationConfiguration.java`](https://github.com/arun0009/pulse/blob/main/src/main/java/io/github/arun0009/pulse/propagation/internal/ApacheHttpClient5PropagationConfiguration.java) ·
+**Runbook:** [Trace context missing](../runbooks/trace-context-missing.md) ·
+**Status:** Stable since 1.0.0

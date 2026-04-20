@@ -1,0 +1,61 @@
+# Pulse — local-development preset.
+#
+# Activate by adding "pulse-dev" to your active Spring profiles:
+#
+#     spring.profiles.active: dev,pulse-dev
+#
+# Or — when pulse.profile-presets.auto-apply is true (the default) — Pulse
+# detects "dev" in the active profiles and adds "pulse-dev" automatically,
+# so just SPRING_PROFILES_ACTIVE=dev is enough.
+#
+# Optimised for: high signal, fast feedback, friendly to forgotten headers.
+# Trades: more verbose logs, full sampling, looser cardinality budget.
+
+pulse:
+  enforcement:
+    mode: ENFORCING
+
+  # Pulse's additive error bias — see the standard Boot property below for the
+  # head sampling rate.
+  sampling:
+    prefer-sampling-on-error: true
+
+  # Don't reject locally-issued requests just because curl forgot traceparent.
+  trace-guard:
+    enabled: true
+    fail-on-missing: false
+
+  # Looser cardinality budget — dev data sets rarely fan out, but you want
+  # all distinct test users to show in metrics.
+  cardinality:
+    enabled: true
+    max-tag-values-per-meter: 5000
+
+  # Generous timeout in dev so breakpoints don't cause downstream failures.
+  timeout-budget:
+    enabled: true
+    default-budget: 30s
+
+  # Print the startup banner; stack traces in error responses help local debugging.
+  banner:
+    enabled: true
+  exception-handler:
+    enabled: true
+
+  # Wide events on by default — they're cheap and they make /actuator/pulse useful.
+  wide-events:
+    enabled: true
+    counter-enabled: true
+    log-enabled: true
+
+  # PII masking on even in dev — catch leaks early, don't surprise prod.
+  logging:
+    pii-masking-enabled: true
+
+# 100% trace sampling — dev volumes are tiny and you want every span. The head
+# rate is the standard Spring Boot property; Pulse only contributes its
+# additive error-bias wrapper above.
+management:
+  tracing:
+    sampling:
+      probability: 1.0

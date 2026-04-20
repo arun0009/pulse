@@ -1,12 +1,12 @@
 package io.github.arun0009.pulse.health;
 
-import io.github.arun0009.pulse.autoconfigure.PulseProperties;
 import org.springframework.boot.health.contributor.Health;
 import org.springframework.boot.health.contributor.HealthIndicator;
 import org.springframework.boot.health.contributor.Status;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.function.Supplier;
 
 /**
  * Reports the OpenTelemetry trace exporter as healthy when at least one of the registered
@@ -24,23 +24,41 @@ import java.util.List;
  *
  * <p>Wired only when {@code pulse.health.otel-exporter-enabled=true} (default). Apps that
  * intentionally idle for long stretches can disable it.
+ *
+ * <p>The exporter list is supplied lazily so the indicator can be created before the SDK
+ * builds the exporter pipeline — relevant because Spring may instantiate the indicator before
+ * the trailing OTel beans are wired.
  */
 public final class OtelExporterHealthIndicator implements HealthIndicator {
 
     public static final String STATUS_OUT_OF_SERVICE = "OUT_OF_SERVICE";
 
-    private final List<LastSuccessSpanExporter> exporters;
-    private final PulseProperties.Health config;
+    private final Supplier<List<LastSuccessSpanExporter>> exporters;
+    private final OtelExporterHealthProperties config;
 
-    public OtelExporterHealthIndicator(List<LastSuccessSpanExporter> exporters, PulseProperties.Health config) {
+    /**
+     * Convenience constructor for tests and direct wiring with a fixed exporter list.
+     */
+    public OtelExporterHealthIndicator(List<LastSuccessSpanExporter> exporters, OtelExporterHealthProperties config) {
+        this(() -> exporters, config);
+    }
+
+    /**
+     * Production constructor: the supplier is queried on every {@link #health()} call so that
+     * exporter beans created after the indicator (e.g. by Spring Boot's tracing auto-config)
+     * are still observed.
+     */
+    public OtelExporterHealthIndicator(
+            Supplier<List<LastSuccessSpanExporter>> exporters, OtelExporterHealthProperties config) {
         this.exporters = exporters;
         this.config = config;
     }
 
     @Override
     public Health health() {
+        List<LastSuccessSpanExporter> snapshot = exporters.get();
         Health.Builder builder = Health.unknown();
-        if (exporters.isEmpty()) {
+        if (snapshot.isEmpty()) {
             return builder.status(Status.UNKNOWN)
                     .withDetail("reason", "no LastSuccessSpanExporter registered")
                     .build();
@@ -56,7 +74,7 @@ public final class OtelExporterHealthIndicator implements HealthIndicator {
         long totalSuccess = 0;
         long totalFailure = 0;
 
-        for (LastSuccessSpanExporter exp : exporters) {
+        for (LastSuccessSpanExporter exp : snapshot) {
             long lastSuccess = exp.lastSuccessEpochMillis();
             totalSuccess += exp.totalSuccessfulExports();
             totalFailure += exp.totalFailedExports();

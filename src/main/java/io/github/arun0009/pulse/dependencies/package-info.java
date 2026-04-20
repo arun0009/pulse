@@ -13,5 +13,7 @@
  * {@link io.github.arun0009.pulse.dependencies.RequestFanout} into Micrometer distributions plus
  * span attributes — the per-request side of the same signal.
  */
-@org.jspecify.annotations.NullMarked
+@NullMarked
 package io.github.arun0009.pulse.dependencies;
+
+import org.jspecify.annotations.NullMarked;

@@ -279,6 +279,16 @@ class PulseLoggingEnvironmentPostProcessorTest {
     private static ResourceAttributeResolver emptyResourceResolver() {
         Function<String, @Nullable String> nothingByName = name -> null;
         Function<Path, @Nullable String> nothingByPath = path -> null;
-        return new ResourceAttributeResolver(nothingByName, nothingByName, nothingByPath, () -> null);
+        return new StubResourceAttributeResolver(nothingByName, nothingByPath, () -> null);
+    }
+
+    /** Subclass exposing the {@code protected} test-seam constructor. */
+    private static final class StubResourceAttributeResolver extends ResourceAttributeResolver {
+        StubResourceAttributeResolver(
+                Function<String, @Nullable String> envLookup,
+                Function<Path, @Nullable String> fileReader,
+                HostNameProvider hostNameProvider) {
+            super(envLookup, fileReader, hostNameProvider);
+        }
     }
 }

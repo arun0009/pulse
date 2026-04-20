@@ -54,7 +54,7 @@ No agent. No bytecode weaving. No custom runtime. One dependency.
 <dependency>
 	<groupId>io.github.arun0009</groupId>
 	<artifactId>pulse-spring-boot-starter</artifactId>
-	<version>1.0.0</version>
+	<version>2.0.0</version>
 </dependency>
 ```
 
@@ -83,7 +83,7 @@ agent.
 | Driver | What it does | Read more |
 |---|---|---|
 | **Cardinality firewall** | Hard cap per `(meter, tag)` with overflow bucket and one-time WARN. ~17 ns/op cached. | [features/cardinality-firewall](https://arun0009.github.io/pulse/features/cardinality-firewall/) |
-| **Timeout-budget propagation** | Deadline travels with the request — across `RestTemplate`, `WebClient`, `OkHttp`, Kafka. | [features/timeout-budget](https://arun0009.github.io/pulse/features/timeout-budget/) |
+| **Timeout-budget propagation** | Deadline travels with the request — across `RestTemplate`, `RestClient`, `WebClient`, `OkHttp`, Apache HttpClient 5, Kafka. | [features/timeout-budget](https://arun0009.github.io/pulse/features/timeout-budget/) |
 | **Context across `@Async` / `@Scheduled` / Kafka** | Every `TaskExecutor` and `TaskScheduler` is wrapped automatically. No `MDC` ritual. | [features/context-propagation](https://arun0009.github.io/pulse/features/context-propagation/) |
 | **Trace-context guard** | `pulse.trace.received` vs `pulse.trace.missing` per route, with shipped alert. Find the upstream stripping `traceparent`. | [features/trace-context-guard](https://arun0009.github.io/pulse/features/trace-context-guard/) |
 | **Structured logs (OTel-aligned)** | OTel-semconv JSON on every line — deploy / commit / pod / cloud region stamped automatically. PII masking on by default. | [features/structured-logs](https://arun0009.github.io/pulse/features/structured-logs/) |
@@ -151,8 +151,6 @@ docs.</sup>
 | Logging | Log4j2 by default; Logback supported via opt-in |
 | GraalVM native | Reflection / proxy / resource hints registered (best-effort) |
 
-A Boot 3.x backport may follow in the 1.x line but is not on the 1.0 roadmap.
-
 ## Build quality
 
 - **Error Prone + NullAway** — null-safety via JSpecify `@NullMarked`
@@ -167,7 +165,7 @@ A Boot 3.x backport may follow in the 1.x line but is not on the 1.0 roadmap.
 
 ## Status & community
 
-**1.0** on Maven Central. See:
+**2.0** on Maven Central. See:
 
 - [Full documentation](https://arun0009.github.io/pulse/)
 - [`CHANGELOG.md`](CHANGELOG.md) — what's in each release

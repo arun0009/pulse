@@ -1,6 +1,5 @@
 package io.github.arun0009.pulse.shutdown;
 
-import io.github.arun0009.pulse.autoconfigure.PulseProperties;
 import io.opentelemetry.sdk.OpenTelemetrySdk;
 import io.opentelemetry.sdk.common.CompletableResultCode;
 import org.jspecify.annotations.Nullable;
@@ -24,10 +23,10 @@ public final class PulseOtelShutdownLifecycle implements SmartLifecycle {
     private static final Logger log = LoggerFactory.getLogger(PulseOtelShutdownLifecycle.class);
 
     private final @Nullable OpenTelemetrySdk sdk;
-    private final PulseProperties.Shutdown config;
+    private final ShutdownProperties config;
     private volatile boolean running = false;
 
-    public PulseOtelShutdownLifecycle(@Nullable OpenTelemetrySdk sdk, PulseProperties.Shutdown config) {
+    public PulseOtelShutdownLifecycle(@Nullable OpenTelemetrySdk sdk, ShutdownProperties config) {
         this.sdk = sdk;
         this.config = config;
     }

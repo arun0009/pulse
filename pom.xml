@@ -5,7 +5,7 @@
 
     <groupId>io.github.arun0009</groupId>
     <artifactId>pulse-spring-boot-starter</artifactId>
-    <version>1.0.1-SNAPSHOT</version>
+    <version>2.0.0-SNAPSHOT</version>
     <packaging>jar</packaging>
 
     <name>Pulse — Production correctness for Spring Boot</name>
@@ -295,6 +295,21 @@
         </dependency>
 
         <!-- ========================================================================
+             Bean Validation — JSR-380 constraints on @ConfigurationProperties so a
+             misconfigured pulse.* value (negative timeout, ratio outside [0..1],
+             blank header name, etc.) fails at startup with a Pulse-friendly message
+             instead of failing weirdly at runtime. spring-boot-starter-validation
+             pulls in jakarta.validation-api + Hibernate Validator + Jakarta EL.
+             Provided scope: most consumers already have it transitively
+             (spring-data, spring-web, etc.); the few that don't get it forced once
+             they declare the Pulse starter, with no Pulse-specific opt-in.
+             ======================================================================== -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+
+        <!-- ========================================================================
              Spring Boot configuration metadata generation
              ======================================================================== -->
         <dependency>
@@ -326,6 +341,20 @@
              We pin okhttp-jvm here because that's what OTel's OTLP HTTP sender pulls in transitively
              at runtime, and our optional OkHttp interceptor needs the same types at compile time.
              Marked optional so consumers who don't already use OkHttp aren't forced into it. -->
+        <!-- Apache HttpClient 5 — optional, compile-only. Lets Pulse compile against
+             org.apache.hc.client5.http.classic.HttpClient and
+             org.apache.hc.client5.http.impl.classic.HttpClientBuilder so
+             ApacheHttpClient5PropagationConfiguration can wrap the user's HttpClientBuilder
+             beans with a Pulse HttpRequestInterceptor. Consumers who already use Spring's
+             RestTemplate get propagation via the existing RestTemplate customizer — this
+             optional dep only kicks in when the application builds an HttpClient directly
+             (e.g. for non-Spring HTTP calls) and puts the builder in the Spring context. -->
+        <dependency>
+            <groupId>org.apache.httpcomponents.client5</groupId>
+            <artifactId>httpclient5</artifactId>
+            <version>5.4.2</version>
+            <optional>true</optional>
+        </dependency>
         <dependency>
             <groupId>com.squareup.okhttp3</groupId>
             <artifactId>okhttp-jvm</artifactId>
@@ -441,6 +470,13 @@
             <artifactId>testcontainers-junit-jupiter</artifactId>
             <scope>test</scope>
         </dependency>
+        <!-- WireMock — the standalone fat-jar ships a bundled Jetty, so it doesn't depend
+             on the Jetty version Spring Boot's BOM pins (Jetty 12, while WireMock 3.x still
+             expects Jetty 11). Shipping it as a fat jar means WireMock also ships a relocated
+             SLF4J under `wiremock.org.slf4j`, which would ClassCastException if
+             `-Dslf4j.provider=...` is set. We solve that in the failsafe plugin config below
+             by excluding logback-classic from the IT classpath (so SLF4J only sees one
+             provider, no pinning needed, no shaded-SLF4J conflict). -->
         <dependency>
             <groupId>org.wiremock</groupId>
             <artifactId>wiremock-standalone</artifactId>
@@ -523,6 +559,24 @@
             </plugins>
         </pluginManagement>
         <plugins>
+            <!-- maven-dependency-plugin:properties — resolves each declared dependency's
+                 jar path into a property named `<groupId>:<artifactId>:<type>` (e.g.
+                 `org.mockito:mockito-core:jar`). Used below to pin mockito-core as a
+                 proper -javaagent so Mockito 5 doesn't self-attach at runtime on JDK 21+,
+                 which triggered three separate JVM warnings per test fork. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <version>3.7.0</version>
+                <executions>
+                    <execution>
+                        <id>resolve-agent-jars</id>
+                        <goals>
+                            <goal>properties</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
@@ -585,13 +639,29 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.2.5</version>
                 <configuration>
-                    <!-- Pulse ships both the Log4j2 starter (default) and an optional
+                    <!-- `@{argLine}` threads through the jacoco:prepare-agent output so
+                         JaCoCo's -javaagent isn't clobbered. `-javaagent:${mockito}` pins
+                         Mockito as a proper agent on JDK 21+ so it stops self-attaching
+                         (Mockito 5 warning "This will no longer work in future releases of
+                         the JDK."). `-XX:+EnableDynamicAgentLoading` silences the byte-buddy
+                         "A Java agent has been loaded dynamically" warning in forked JVMs.
+                         Pulse ships both the Log4j2 starter (default) and an optional
                          logback-classic dep so PulseLogbackEncoder can compile and be
-                         unit-tested. Both bindings end up on the test classpath, so
-                         Spring Boot's LoggingSystem auto-detection picks Logback first
-                         and fails when SLF4J is already bound to Log4j2. Pin it. -->
+                         unit-tested. Both bindings end up on the test classpath, so:
+                           1. `LoggingSystem` forces Spring Boot's LoggingSystem auto-detection
+                              to pick Log4j2 (else it would pick Logback first and fail to
+                              re-bind SLF4J which is already wired to log4j-slf4j2-impl).
+                           2. `slf4j.provider` tells SLF4J 2.0.9+ to skip its ServiceLoader
+                              scan and bind directly to log4j-slf4j2-impl — suppresses the
+                              "Class path contains multiple SLF4J providers" warning.
+                           3. `slf4j.internal.verbosity=WARN` mutes SLF4J 2.0.10+'s own
+                              "Attempting to load provider ..." INFO lines that otherwise
+                              print once per test fork. -->
+                    <argLine>@{argLine} -javaagent:${org.mockito:mockito-core:jar} -XX:+EnableDynamicAgentLoading</argLine>
                     <systemPropertyVariables>
                         <org.springframework.boot.logging.LoggingSystem>org.springframework.boot.logging.log4j2.Log4J2LoggingSystem</org.springframework.boot.logging.LoggingSystem>
+                        <slf4j.provider>org.apache.logging.slf4j.SLF4JServiceProvider</slf4j.provider>
+                        <slf4j.internal.verbosity>WARN</slf4j.internal.verbosity>
                     </systemPropertyVariables>
                 </configuration>
             </plugin>
@@ -600,11 +670,30 @@
                 <artifactId>maven-failsafe-plugin</artifactId>
                 <version>3.2.5</version>
                 <configuration>
-                    <!-- Same reason as surefire above: pin Log4j2 so SpringBootTest
-                         contexts don't try to initialize Logback. -->
+                    <!-- Mirror surefire — Mockito javaagent + silenced SLF4J internals
+                         + Log4j2 pin during integration tests.
+
+                         IT-only twist: WireMock (used by TimeoutBudgetEndToEndIT) ships a
+                         standalone fat-jar with a relocated SLF4J under `wiremock.org.slf4j`.
+                         Setting `-Dslf4j.provider=...` makes that shaded loader try to cast
+                         our non-shaded provider to its own relocated interface and blow up
+                         with a ClassCastException at fork startup. We solve it by:
+                           1. Excluding logback-classic from the IT classpath (only used by
+                              PulseLogbackEncoderTest, which runs under surefire). With only
+                              log4j-slf4j2-impl present, SLF4J's ServiceLoader has nothing
+                              to disambiguate — no "multiple providers" warning, no need to
+                              pin slf4j.provider.
+                           2. Therefore NOT setting `slf4j.provider`, which keeps WireMock's
+                              shaded SLF4J quiet too. -->
+                    <argLine>@{argLine} -javaagent:${org.mockito:mockito-core:jar} -XX:+EnableDynamicAgentLoading</argLine>
                     <systemPropertyVariables>
                         <org.springframework.boot.logging.LoggingSystem>org.springframework.boot.logging.log4j2.Log4J2LoggingSystem</org.springframework.boot.logging.LoggingSystem>
+                        <slf4j.internal.verbosity>WARN</slf4j.internal.verbosity>
                     </systemPropertyVariables>
+                    <classpathDependencyExcludes>
+                        <classpathDependencyExclude>ch.qos.logback:logback-classic</classpathDependencyExclude>
+                        <classpathDependencyExclude>ch.qos.logback:logback-core</classpathDependencyExclude>
+                    </classpathDependencyExcludes>
                 </configuration>
                 <executions>
                     <execution>

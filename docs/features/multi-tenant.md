@@ -1,57 +1,86 @@
 # Multi-tenant context
 
-> **Status:** Stable · **Config prefix:** `pulse.tenant` ·
-> **Source:** [`io.github.arun0009.pulse.tenant`](https://github.com/arun0009/pulse/tree/main/src/main/java/io/github/arun0009/pulse/tenant) ·
-> **Design notes:** [Multi-tenant context](../design/multi-tenant-context.md)
-
-## Value prop
+> **TL;DR.** Tenant id from header / JWT claim / subdomain, threaded through
+> MDC, baggage, outbound headers, and (opt-in) metric tags. Now *"slow
+> checkout"* is *"slow checkout for which tenant?"*.
 
 In a multi-tenant SaaS, *"slow checkout"* is meaningless without knowing
-*"slow checkout for which tenant?"*. Pulse threads tenant identity through
-the request without per-app glue, and (opt-in) bounds the resulting tag
-cardinality independently of the global firewall.
+*"slow checkout for which tenant?"* Most teams thread the tenant through by
+hand, drop it in half their log lines, and never tag the metrics that matter.
 
-## What it does
+**Pulse threads the tenant identity through the whole request automatically.**
+Header, JWT claim, or subdomain — pick a source. Pulse handles MDC, baggage,
+outbound headers, and (opt-in) metric tags.
 
-`TenantExtractor` is an SPI with three opt-in built-ins:
+## What you get
 
-- **Header** — default `Pulse-Tenant-Id` (RFC 6648 — no `X-` prefix)
-- **JWT claim** — configurable claim name on a Bearer token
-- **Subdomain** — `acme.example.com` → tenant `acme`
+Every log line carries the tenant:
 
-Extraction priority is explicit: system property > header > JWT claim >
-subdomain > `unknown`.
+```json
+{
+  "message": "placing order",
+  "trace_id": "...",
+  "pulse.tenant.id": "acme-corp",
+  "user.id": "u-981234"
+}
+```
 
-The resolved tenant lands on:
+Every outbound request carries it too — so the downstream service sees the
+same value without you wiring anything. And one LogQL or PromQL query
+answers tenant-scoped questions:
 
-- **MDC** (`pulse.tenant.id`)
-- **OTel baggage** (key `pulse.tenant.id`)
-- **Every outbound HTTP / Kafka header** (configurable name)
-- **(Opt-in) configured meters** as a tag
+```
+{service_name="checkout"} | json | pulse_tenant_id="acme-corp" | duration_ms > 1000
+```
 
-A separate `pulse.tenant.max-tag-cardinality` (default 100) caps the tenant
-tag independently of the global firewall, so a runaway tenant never bucket-
-spams your business meters.
+## Turn it on
 
-## Configuration
+Pick which sources Pulse should look at, in priority order:
 
 ```yaml
 pulse:
   tenant:
     enabled: true
-    inbound-header: Pulse-Tenant-Id
-    outbound-header: Pulse-Tenant-Id
-    default-tenant: unknown
-    max-tag-cardinality: 100
     extractors:
-      - header
-      # - jwt
-      # - subdomain
+      - header        # Pulse-Tenant-Id (default)
+      # - jwt         # configurable claim name on a Bearer token
+      # - subdomain   # acme.example.com → tenant "acme"
 ```
 
-!!! note "Expanded coverage coming"
+Defaults to header-only.
 
-    Full reference (custom `TenantExtractor` SPI, JWT extractor config,
-    metric tagging knobs) lands in a 1.0.x patch. The architectural
-    rationale is already in
-    [docs/design/multi-tenant-context.md](../design/multi-tenant-context.md).
+## What it adds
+
+| Where | Key |
+| --- | --- |
+| MDC | `pulse.tenant.id` |
+| OTel baggage | `pulse.tenant.id` |
+| HTTP / Kafka outbound header | `Pulse-Tenant-Id` (configurable) |
+| Optional metric tag | `tenant` (only on meters you opt in) |
+
+A separate cap (`pulse.tenant.max-tag-cardinality`, default 100) limits the
+tenant tag *independently* of the global [cardinality firewall](cardinality-firewall.md),
+so a runaway tenant ID never bucket-spams your business metrics.
+
+## When to skip it
+
+If you're not multi-tenant, or the tenant is already on your existing
+correlation header:
+
+```yaml
+pulse:
+  tenant:
+    enabled: false
+```
+
+## Custom sources
+
+Implement the `TenantExtractor` SPI for anything else (path segment, custom
+JWT shape, etc.) — see the [design notes](../design/multi-tenant-context.md)
+for the rationale and SPI shape.
+
+---
+
+**Source:** [`io.github.arun0009.pulse.tenant`](https://github.com/arun0009/pulse/tree/main/src/main/java/io/github/arun0009/pulse/tenant) ·
+**Design notes:** [Multi-tenant context](../design/multi-tenant-context.md) ·
+**Status:** Stable since 1.0.0

@@ -32,7 +32,6 @@ class ResourceAttributeResolverTest {
                     envOf(
                             "OTEL_RESOURCE_ATTRIBUTES", "host.name=otel-host",
                             "HOSTNAME", "env-host"),
-                    sysPropOf(),
                     fileReaderOf(),
                     () -> "inet-host");
 
@@ -42,22 +41,21 @@ class ResourceAttributeResolverTest {
         @Test
         void falls_back_to_HOSTNAME_env_when_otel_attribute_missing() {
             ResourceAttributeResolver resolver =
-                    resolverWith(envOf("HOSTNAME", "pod-7"), sysPropOf(), fileReaderOf(), () -> "inet-host");
+                    resolverWith(envOf("HOSTNAME", "pod-7"), fileReaderOf(), () -> "inet-host");
 
             assertThat(resolver.hostName()).isEqualTo("pod-7");
         }
 
         @Test
         void falls_back_to_inet_address_when_no_env_set() {
-            ResourceAttributeResolver resolver =
-                    resolverWith(envOf(), sysPropOf(), fileReaderOf(), () -> "laptop.local");
+            ResourceAttributeResolver resolver = resolverWith(envOf(), fileReaderOf(), () -> "laptop.local");
 
             assertThat(resolver.hostName()).isEqualTo("laptop.local");
         }
 
         @Test
         void returns_null_when_inet_address_lookup_fails() {
-            ResourceAttributeResolver resolver = resolverWith(envOf(), sysPropOf(), fileReaderOf(), () -> null);
+            ResourceAttributeResolver resolver = resolverWith(envOf(), fileReaderOf(), () -> null);
 
             assertThat(resolver.hostName()).isNull();
         }
@@ -70,7 +68,7 @@ class ResourceAttributeResolverTest {
         void extracts_64_hex_chars_from_cgroup_v1_docker_line() {
             String cgroup = "12:cpu,cpuacct:/docker/abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789\n";
             ResourceAttributeResolver resolver =
-                    resolverWith(envOf(), sysPropOf(), fileReaderOf(ResourceAttributeResolver.CGROUP_PATH, cgroup));
+                    resolverWith(envOf(), fileReaderOf(ResourceAttributeResolver.CGROUP_PATH, cgroup));
 
             assertThat(resolver.containerId())
                     .isEqualTo("abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789");
@@ -81,7 +79,7 @@ class ResourceAttributeResolverTest {
             String cgroup =
                     "0::/system.slice/docker-1111111122222222333333334444444455555555666666667777777788888888.scope\n";
             ResourceAttributeResolver resolver =
-                    resolverWith(envOf(), sysPropOf(), fileReaderOf(ResourceAttributeResolver.CGROUP_PATH, cgroup));
+                    resolverWith(envOf(), fileReaderOf(ResourceAttributeResolver.CGROUP_PATH, cgroup));
 
             assertThat(resolver.containerId())
                     .isEqualTo("1111111122222222333333334444444455555555666666667777777788888888");
@@ -91,7 +89,6 @@ class ResourceAttributeResolverTest {
         void prefers_otel_resource_attribute_over_cgroup() {
             ResourceAttributeResolver resolver = resolverWith(
                     envOf("OTEL_RESOURCE_ATTRIBUTES", "container.id=manually-overridden"),
-                    sysPropOf(),
                     fileReaderOf(
                             ResourceAttributeResolver.CGROUP_PATH,
                             "12:cpu:/docker/0000000000000000000000000000000000000000000000000000000000000000"));
@@ -101,7 +98,7 @@ class ResourceAttributeResolverTest {
 
         @Test
         void returns_null_when_cgroup_unreadable_and_no_otel_attribute() {
-            ResourceAttributeResolver resolver = resolverWith(envOf(), sysPropOf(), fileReaderOf());
+            ResourceAttributeResolver resolver = resolverWith(envOf(), fileReaderOf());
 
             assertThat(resolver.containerId()).isNull();
         }
@@ -109,9 +106,7 @@ class ResourceAttributeResolverTest {
         @Test
         void returns_null_when_cgroup_has_no_64_hex_run() {
             ResourceAttributeResolver resolver = resolverWith(
-                    envOf(),
-                    sysPropOf(),
-                    fileReaderOf(ResourceAttributeResolver.CGROUP_PATH, "12:cpu:/user.slice/session-1.scope"));
+                    envOf(), fileReaderOf(ResourceAttributeResolver.CGROUP_PATH, "12:cpu:/user.slice/session-1.scope"));
 
             assertThat(resolver.containerId()).isNull();
         }
@@ -127,7 +122,6 @@ class ResourceAttributeResolverTest {
                             "POD_NAME", "orders-7d4b9c-x",
                             "POD_NAMESPACE", "checkout",
                             "NODE_NAME", "ip-10-0-1-23.ec2.internal"),
-                    sysPropOf(),
                     fileReaderOf());
 
             assertThat(resolver.kubernetesPodName()).isEqualTo("orders-7d4b9c-x");
@@ -141,12 +135,10 @@ class ResourceAttributeResolverTest {
                     envOf(
                             "KUBERNETES_SERVICE_HOST", "10.0.0.1",
                             "HOSTNAME", "orders-abc123"),
-                    sysPropOf(),
                     fileReaderOf());
             assertThat(inK8s.kubernetesPodName()).isEqualTo("orders-abc123");
 
-            ResourceAttributeResolver onLaptop =
-                    resolverWith(envOf("HOSTNAME", "arun-mbp"), sysPropOf(), fileReaderOf());
+            ResourceAttributeResolver onLaptop = resolverWith(envOf("HOSTNAME", "arun-mbp"), fileReaderOf());
             assertThat(onLaptop.kubernetesPodName())
                     .as("HOSTNAME alone is not enough — would falsely label a developer laptop as a pod")
                     .isNull();
@@ -154,8 +146,8 @@ class ResourceAttributeResolverTest {
 
         @Test
         void reads_namespace_from_serviceaccount_mount_when_env_missing() {
-            ResourceAttributeResolver resolver = resolverWith(
-                    envOf(), sysPropOf(), fileReaderOf(ResourceAttributeResolver.K8S_NAMESPACE_FILE, "production"));
+            ResourceAttributeResolver resolver =
+                    resolverWith(envOf(), fileReaderOf(ResourceAttributeResolver.K8S_NAMESPACE_FILE, "production"));
 
             assertThat(resolver.kubernetesNamespace()).isEqualTo("production");
         }
@@ -166,7 +158,6 @@ class ResourceAttributeResolverTest {
                     envOf(
                             "OTEL_RESOURCE_ATTRIBUTES", "k8s.namespace.name=manual-override",
                             "POD_NAMESPACE", "env-says-this"),
-                    sysPropOf(),
                     fileReaderOf());
 
             assertThat(resolver.kubernetesNamespace()).isEqualTo("manual-override");
@@ -182,7 +173,6 @@ class ResourceAttributeResolverTest {
                     envOf(
                             "AWS_REGION", "us-east-1",
                             "AWS_AVAILABILITY_ZONE", "us-east-1a"),
-                    sysPropOf(),
                     fileReaderOf());
 
             ResourceAttributeResolver.CloudPlatform cloud = resolver.detectCloud();
@@ -194,7 +184,7 @@ class ResourceAttributeResolverTest {
         @Test
         void detects_aws_lambda_via_AWS_EXECUTION_ENV_even_without_region() {
             ResourceAttributeResolver resolver =
-                    resolverWith(envOf("AWS_EXECUTION_ENV", "AWS_Lambda_java21"), sysPropOf(), fileReaderOf());
+                    resolverWith(envOf("AWS_EXECUTION_ENV", "AWS_Lambda_java21"), fileReaderOf());
 
             assertThat(resolver.detectCloud().provider()).isEqualTo("aws");
         }
@@ -205,7 +195,6 @@ class ResourceAttributeResolverTest {
                     envOf(
                             "GOOGLE_CLOUD_PROJECT", "my-project",
                             "GOOGLE_CLOUD_REGION", "us-central1"),
-                    sysPropOf(),
                     fileReaderOf());
 
             ResourceAttributeResolver.CloudPlatform cloud = resolver.detectCloud();
@@ -215,8 +204,7 @@ class ResourceAttributeResolverTest {
 
         @Test
         void detects_azure_from_AZURE_REGION() {
-            ResourceAttributeResolver resolver =
-                    resolverWith(envOf("AZURE_REGION", "westeurope"), sysPropOf(), fileReaderOf());
+            ResourceAttributeResolver resolver = resolverWith(envOf("AZURE_REGION", "westeurope"), fileReaderOf());
 
             ResourceAttributeResolver.CloudPlatform cloud = resolver.detectCloud();
             assertThat(cloud.provider()).isEqualTo("azure");
@@ -229,7 +217,6 @@ class ResourceAttributeResolverTest {
                     envOf(
                             "OTEL_RESOURCE_ATTRIBUTES", "cloud.provider=fly,cloud.region=lhr",
                             "AWS_REGION", "us-east-1"),
-                    sysPropOf(),
                     fileReaderOf());
 
             ResourceAttributeResolver.CloudPlatform cloud = resolver.detectCloud();
@@ -239,7 +226,7 @@ class ResourceAttributeResolverTest {
 
         @Test
         void returns_NONE_when_no_cloud_signal_present() {
-            ResourceAttributeResolver resolver = resolverWith(envOf(), sysPropOf(), fileReaderOf());
+            ResourceAttributeResolver resolver = resolverWith(envOf(), fileReaderOf());
 
             assertThat(resolver.detectCloud()).isEqualTo(ResourceAttributeResolver.CloudPlatform.NONE);
         }
@@ -251,7 +238,7 @@ class ResourceAttributeResolverTest {
         @Test
         void omits_keys_for_which_no_source_produced_a_value() {
             // No OTel attributes, no envs, empty cgroup, no hostname → empty map.
-            ResourceAttributeResolver resolver = resolverWith(envOf(), sysPropOf(), fileReaderOf(), () -> null);
+            ResourceAttributeResolver resolver = resolverWith(envOf(), fileReaderOf(), () -> null);
 
             assertThat(resolver.resolveAll()).isEmpty();
         }
@@ -262,7 +249,6 @@ class ResourceAttributeResolverTest {
                     envOf(
                             "AWS_REGION", "eu-west-1",
                             "POD_NAME", "checkout-7"),
-                    sysPropOf(),
                     fileReaderOf(),
                     () -> "host-x");
 
@@ -280,18 +266,27 @@ class ResourceAttributeResolverTest {
     /* ---------- helpers ---------- */
 
     private static ResourceAttributeResolver resolverWith(
-            Function<String, @Nullable String> env,
-            Function<String, @Nullable String> sysProp,
-            Function<Path, @Nullable String> file) {
-        return resolverWith(env, sysProp, file, () -> null);
+            Function<String, @Nullable String> env, Function<Path, @Nullable String> file) {
+        return resolverWith(env, file, () -> null);
     }
 
     private static ResourceAttributeResolver resolverWith(
-            Function<String, @Nullable String> env,
-            Function<String, @Nullable String> sysProp,
-            Function<Path, @Nullable String> file,
-            ResourceAttributeResolver.HostNameProvider hostName) {
-        return new ResourceAttributeResolver(env, sysProp, file, hostName);
+            Function<String, @Nullable String> env, Function<Path, @Nullable String> file, HostNameProvider hostName) {
+        return new TestResourceAttributeResolver(env, file, hostName);
+    }
+
+    /**
+     * Subclass that exposes the {@code protected} constructor for tests. The production class
+     * is extensible in 2.0 — by going through a subclass we exercise the extension contract
+     * instead of bypassing it.
+     */
+    private static final class TestResourceAttributeResolver extends ResourceAttributeResolver {
+        TestResourceAttributeResolver(
+                Function<String, @Nullable String> envLookup,
+                Function<Path, @Nullable String> fileReader,
+                HostNameProvider hostNameProvider) {
+            super(envLookup, fileReader, hostNameProvider);
+        }
     }
 
     /** Build a stub env from {@code (key, value, key, value, …)} pairs, returning null for misses. */
@@ -305,10 +300,6 @@ class ResourceAttributeResolverTest {
             backing.put(keyValuePairs[i], keyValuePairs[i + 1]);
         }
         return backing::get;
-    }
-
-    private static Function<String, @Nullable String> sysPropOf() {
-        return name -> null;
     }
 
     private static Function<Path, @Nullable String> fileReaderOf() {

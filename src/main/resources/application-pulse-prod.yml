@@ -1,0 +1,72 @@
+# Pulse — production preset.
+#
+# Activate by adding "pulse-prod" to your active Spring profiles:
+#
+#     spring.profiles.active: prod,pulse-prod
+#
+# Or — when pulse.profile-presets.auto-apply is true (the default) — Pulse
+# detects "prod" in the active profiles and adds "pulse-prod" automatically,
+# so just SPRING_PROFILES_ACTIVE=prod is enough.
+#
+# Optimised for: low overhead, strict guardrails, paranoid defaults.
+# Trades: 10% trace sampling (set to 1.0 for short bursts during incident response).
+
+pulse:
+  enforcement:
+    mode: ENFORCING
+
+  # 10% sampling (set on Boot's standard property below) and Pulse's error-biased
+  # wrapper upgrades any erroring span to sampled — so you keep full coverage on
+  # what matters at 1/10th the cost.
+  sampling:
+    prefer-sampling-on-error: true
+
+  # Observe missing trace context, but never reject — propagation gaps must
+  # never become customer-visible 500s.
+  trace-guard:
+    enabled: true
+    fail-on-missing: false
+
+  cardinality:
+    enabled: true
+    max-tag-values-per-meter: 1000
+
+  timeout-budget:
+    enabled: true
+    default-budget: 2s
+    maximum-budget: 30s
+
+  # Drop stack traces from RFC 7807 responses — they leak internals.
+  exception-handler:
+    enabled: true
+
+  banner:
+    enabled: false
+
+  # PII masking is non-negotiable in prod.
+  logging:
+    pii-masking-enabled: true
+
+  # Default fan-out warning at 20 outbound calls per inbound — tighten if
+  # your service is naturally low fan-out.
+  dependencies:
+    enabled: true
+    fan-out-warn-threshold: 20
+
+  # Strict tenant cardinality — multi-tenant SaaS often runs at 100s of
+  # tenants but the metric tag must be capped to keep Prometheus happy.
+  tenant:
+    enabled: true
+    max-tag-cardinality: 100
+
+  # OTel exporter health is a real signal in prod — flag stalls promptly.
+  health:
+    otel-exporter-enabled: true
+    otel-exporter-stale-after: 5m
+
+# Head sampling rate is owned by Spring Boot's standard tracing property — Pulse
+# defers to it so there is exactly one knob to remember.
+management:
+  tracing:
+    sampling:
+      probability: 0.10

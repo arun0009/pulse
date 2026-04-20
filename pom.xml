@@ -295,6 +295,21 @@
         </dependency>
 
         <!-- ========================================================================
+             Bean Validation — JSR-380 constraints on @ConfigurationProperties so a
+             misconfigured pulse.* value (negative timeout, ratio outside [0..1],
+             blank header name, etc.) fails at startup with a Pulse-friendly message
+             instead of failing weirdly at runtime. spring-boot-starter-validation
+             pulls in jakarta.validation-api + Hibernate Validator + Jakarta EL.
+             Provided scope: most consumers already have it transitively
+             (spring-data, spring-web, etc.); the few that don't get it forced once
+             they declare the Pulse starter, with no Pulse-specific opt-in.
+             ======================================================================== -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+
+        <!-- ========================================================================
              Spring Boot configuration metadata generation
              ======================================================================== -->
         <dependency>

@@ -1,8 +1,16 @@
 package io.github.arun0009.pulse.autoconfigure;
 
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.PositiveOrZero;
 import org.jspecify.annotations.Nullable;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.DefaultValue;
+import org.springframework.validation.annotation.Validated;
 
 import java.time.Duration;
 import java.util.List;
@@ -23,44 +31,51 @@ import java.util.Map;
  *   timeout-budget.default-budget: 2s
  *   wide-events.counter-enabled: true
  * </pre>
+ *
+ * <p>The class is annotated with {@link Validated}: every constraint declared on the nested
+ * records (e.g. {@link Positive @Positive} on {@link Cardinality#maxTagValuesPerMeter()},
+ * {@link DecimalMax @DecimalMax(1.0)} on {@link Sampling#probability()}) is enforced at
+ * application startup. Misconfiguration fails fast with a Pulse-friendly message rather than
+ * showing up later as a confusing runtime symptom.
  */
+@Validated
 @ConfigurationProperties(prefix = "pulse")
 public record PulseProperties(
-        @DefaultValue Context context,
-        @DefaultValue TraceGuard traceGuard,
-        @DefaultValue Sampling sampling,
-        @DefaultValue Async async,
-        @DefaultValue Kafka kafka,
-        @DefaultValue ExceptionHandler exceptionHandler,
-        @DefaultValue Cardinality cardinality,
-        @DefaultValue TimeoutBudget timeoutBudget,
-        @DefaultValue WideEvents wideEvents,
-        @DefaultValue Logging logging,
-        @DefaultValue Banner banner,
-        @DefaultValue Histograms histograms,
-        @DefaultValue Slo slo,
-        @DefaultValue Health health,
-        @DefaultValue Shutdown shutdown,
-        @DefaultValue Jobs jobs,
-        @DefaultValue Db db,
-        @DefaultValue Resilience resilience,
-        @DefaultValue Profiling profiling,
-        @DefaultValue Dependencies dependencies,
-        @DefaultValue Tenant tenant,
-        @DefaultValue Retry retry,
-        @DefaultValue Priority priority,
-        @DefaultValue ContainerMemory containerMemory,
-        @DefaultValue OpenFeature openFeature,
-        @DefaultValue Cache cache) {
+        @DefaultValue @Valid Context context,
+        @DefaultValue @Valid TraceGuard traceGuard,
+        @DefaultValue @Valid Sampling sampling,
+        @DefaultValue @Valid Async async,
+        @DefaultValue @Valid Kafka kafka,
+        @DefaultValue @Valid ExceptionHandler exceptionHandler,
+        @DefaultValue @Valid Cardinality cardinality,
+        @DefaultValue @Valid TimeoutBudget timeoutBudget,
+        @DefaultValue @Valid WideEvents wideEvents,
+        @DefaultValue @Valid Logging logging,
+        @DefaultValue @Valid Banner banner,
+        @DefaultValue @Valid Histograms histograms,
+        @DefaultValue @Valid Slo slo,
+        @DefaultValue @Valid Health health,
+        @DefaultValue @Valid Shutdown shutdown,
+        @DefaultValue @Valid Jobs jobs,
+        @DefaultValue @Valid Db db,
+        @DefaultValue @Valid Resilience resilience,
+        @DefaultValue @Valid Profiling profiling,
+        @DefaultValue @Valid Dependencies dependencies,
+        @DefaultValue @Valid Tenant tenant,
+        @DefaultValue @Valid Retry retry,
+        @DefaultValue @Valid Priority priority,
+        @DefaultValue @Valid ContainerMemory containerMemory,
+        @DefaultValue @Valid OpenFeature openFeature,
+        @DefaultValue @Valid Cache cache) {
 
     /** MDC enrichment from the inbound HTTP request. */
     public record Context(
             @DefaultValue("true") boolean enabled,
-            @DefaultValue("X-Request-ID") String requestIdHeader,
-            @DefaultValue("X-Correlation-ID") String correlationIdHeader,
-            @DefaultValue("X-User-ID") String userIdHeader,
-            @DefaultValue("Pulse-Tenant-Id") String tenantIdHeader,
-            @DefaultValue("Idempotency-Key") String idempotencyKeyHeader,
+            @DefaultValue("X-Request-ID") @NotBlank String requestIdHeader,
+            @DefaultValue("X-Correlation-ID") @NotBlank String correlationIdHeader,
+            @DefaultValue("X-User-ID") @NotBlank String userIdHeader,
+            @DefaultValue("Pulse-Tenant-Id") @NotBlank String tenantIdHeader,
+            @DefaultValue("Idempotency-Key") @NotBlank String idempotencyKeyHeader,
             @DefaultValue({}) List<String> additionalHeaders) {}
 
     /**
@@ -103,7 +118,8 @@ public record PulseProperties(
      * for the full caveat list.
      */
     public record Sampling(
-            @DefaultValue("1.0") double probability,
+            @DefaultValue("1.0") @DecimalMin("0.0") @DecimalMax("1.0") double probability,
+
             @DefaultValue("true") boolean preferSamplingOnError) {}
 
     /**
@@ -120,10 +136,10 @@ public record PulseProperties(
     public record Async(
             @DefaultValue("true") boolean propagationEnabled,
             @DefaultValue("false") boolean dedicatedExecutor,
-            @DefaultValue("8") int corePoolSize,
-            @DefaultValue("32") int maxPoolSize,
-            @DefaultValue("100") int queueCapacity,
-            @DefaultValue("pulse-") String threadNamePrefix,
+            @DefaultValue("8") @Positive int corePoolSize,
+            @DefaultValue("32") @Positive int maxPoolSize,
+            @DefaultValue("100") @PositiveOrZero int queueCapacity,
+            @DefaultValue("pulse-") @NotBlank String threadNamePrefix,
             @DefaultValue("true") boolean scheduledPropagationEnabled) {}
 
     /**
@@ -178,8 +194,8 @@ public record PulseProperties(
      */
     public record Cardinality(
             @DefaultValue("true") boolean enabled,
-            @DefaultValue("1000") int maxTagValuesPerMeter,
-            @DefaultValue("OVERFLOW") String overflowValue,
+            @DefaultValue("1000") @Positive int maxTagValuesPerMeter,
+            @DefaultValue("OVERFLOW") @NotBlank String overflowValue,
             @DefaultValue({}) List<String> meterPrefixesToProtect,
             @DefaultValue({}) List<String> exemptMeterPrefixes) {}
 
@@ -193,8 +209,8 @@ public record PulseProperties(
      */
     public record TimeoutBudget(
             @DefaultValue("true") boolean enabled,
-            @DefaultValue("Pulse-Timeout-Ms") String inboundHeader,
-            @DefaultValue("Pulse-Timeout-Ms") String outboundHeader,
+            @DefaultValue("Pulse-Timeout-Ms") @NotBlank String inboundHeader,
+            @DefaultValue("Pulse-Timeout-Ms") @NotBlank String outboundHeader,
             @DefaultValue("2s") Duration defaultBudget,
             @DefaultValue("30s") Duration maximumBudget,
             @DefaultValue("50ms") Duration safetyMargin,
@@ -210,8 +226,8 @@ public record PulseProperties(
             @DefaultValue("true") boolean enabled,
             @DefaultValue("true") boolean counterEnabled,
             @DefaultValue("true") boolean logEnabled,
-            @DefaultValue("pulse.events") String counterName,
-            @DefaultValue("event") String logMessagePrefix) {}
+            @DefaultValue("pulse.events") @NotBlank String counterName,
+            @DefaultValue("event") @NotBlank String logMessagePrefix) {}
 
     /** Logging integration — JSON layout, PII masking. */
     public record Logging(@DefaultValue("true") boolean piiMaskingEnabled) {}
@@ -257,14 +273,18 @@ public record PulseProperties(
      */
     public record Slo(
             @DefaultValue("true") boolean enabled,
-            @DefaultValue({}) List<Objective> objectives) {
+            @DefaultValue({}) List<@Valid Objective> objectives) {
 
         public record Objective(
-                String name,
-                @DefaultValue("availability") String sli,
-                @DefaultValue("0.999") double target,
+                @NotBlank String name,
+                @DefaultValue("availability") @NotBlank String sli,
+
+                @DefaultValue("0.999") @DecimalMin("0.0") @DecimalMax("1.0") double target,
+
                 @org.jspecify.annotations.Nullable Duration threshold,
-                @DefaultValue("http.server.requests") String meter,
+
+                @DefaultValue("http.server.requests") @NotBlank String meter,
+
                 @DefaultValue({}) List<String> filters) {}
     }
 
@@ -285,7 +305,7 @@ public record PulseProperties(
     public record Shutdown(
             @DefaultValue("true") boolean otelFlushEnabled,
             @DefaultValue("10s") Duration otelFlushTimeout,
-            @DefaultValue Drain drain) {
+            @DefaultValue @Valid Drain drain) {
 
         /**
          * Drain observability — counts inflight HTTP requests at the moment Spring's
@@ -352,7 +372,7 @@ public record PulseProperties(
      */
     public record Db(
             @DefaultValue("true") boolean enabled,
-            @DefaultValue("50") int nPlusOneThreshold,
+            @DefaultValue("50") @Min(1) int nPlusOneThreshold,
             @DefaultValue("500ms") Duration slowQueryThreshold,
             @DefaultValue PulseRequestMatcherProperties enabledWhen) {}
 
@@ -418,10 +438,10 @@ public record PulseProperties(
     public record Dependencies(
             @DefaultValue("true") boolean enabled,
             @DefaultValue Map<String, String> map,
-            @DefaultValue("unknown") String defaultName,
-            @DefaultValue("20") int fanOutWarnThreshold,
+            @DefaultValue("unknown") @NotBlank String defaultName,
+            @DefaultValue("20") @Min(1) int fanOutWarnThreshold,
             @DefaultValue PulseRequestMatcherProperties enabledWhen,
-            @DefaultValue Health health) {
+            @DefaultValue @Valid Health health) {
 
         /**
          * Topology-aware health configuration.
@@ -444,7 +464,9 @@ public record PulseProperties(
         public record Health(
                 @DefaultValue("true") boolean enabled,
                 @DefaultValue({}) List<String> critical,
-                @DefaultValue("0.05") double errorRateThreshold,
+
+                @DefaultValue("0.05") @DecimalMin("0.0") @DecimalMax("1.0") double errorRateThreshold,
+
                 @DefaultValue("false") boolean down) {}
     }
 
@@ -478,12 +500,12 @@ public record PulseProperties(
      */
     public record Tenant(
             @DefaultValue("true") boolean enabled,
-            @DefaultValue Header header,
-            @DefaultValue Jwt jwt,
-            @DefaultValue Subdomain subdomain,
-            @DefaultValue("100") int maxTagCardinality,
-            @DefaultValue("__overflow__") String overflowValue,
-            @DefaultValue("unknown") String unknownValue,
+            @DefaultValue @Valid Header header,
+            @DefaultValue @Valid Jwt jwt,
+            @DefaultValue @Valid Subdomain subdomain,
+            @DefaultValue("100") @Positive int maxTagCardinality,
+            @DefaultValue("__overflow__") @NotBlank String overflowValue,
+            @DefaultValue("unknown") @NotBlank String unknownValue,
             @DefaultValue({}) List<String> tagMeters) {
 
         /**
@@ -492,7 +514,7 @@ public record PulseProperties(
          */
         public record Header(
                 @DefaultValue("true") boolean enabled,
-                @DefaultValue("Pulse-Tenant-Id") String name) {}
+                @DefaultValue("Pulse-Tenant-Id") @NotBlank String name) {}
 
         /**
          * JWT-claim extraction. Reads the {@code Authorization: Bearer ...} header, parses the
@@ -502,7 +524,7 @@ public record PulseProperties(
          */
         public record Jwt(
                 @DefaultValue("false") boolean enabled,
-                @DefaultValue("tenant_id") String claim) {}
+                @DefaultValue("tenant_id") @NotBlank String claim) {}
 
         /**
          * Subdomain extraction. Splits {@code Host} on dots and returns the segment at
@@ -511,7 +533,7 @@ public record PulseProperties(
          */
         public record Subdomain(
                 @DefaultValue("false") boolean enabled,
-                @DefaultValue("0") int index) {}
+                @DefaultValue("0") @PositiveOrZero int index) {}
     }
 
     /**
@@ -533,8 +555,8 @@ public record PulseProperties(
      */
     public record Retry(
             @DefaultValue("true") boolean enabled,
-            @DefaultValue("Pulse-Retry-Depth") String headerName,
-            @DefaultValue("3") int amplificationThreshold) {}
+            @DefaultValue("Pulse-Retry-Depth") @NotBlank String headerName,
+            @DefaultValue("3") @Min(1) int amplificationThreshold) {}
 
     /**
      * Request criticality propagation. Pulse extracts the priority from the configured inbound
@@ -556,8 +578,8 @@ public record PulseProperties(
      */
     public record Priority(
             @DefaultValue("true") boolean enabled,
-            @DefaultValue("Pulse-Priority") String headerName,
-            @DefaultValue("normal") String defaultPriority,
+            @DefaultValue("Pulse-Priority") @NotBlank String headerName,
+            @DefaultValue("normal") @NotBlank String defaultPriority,
             @DefaultValue("true") boolean warnOnCriticalTimeoutExhaustion,
             @DefaultValue({}) List<String> tagMeters) {}
 
@@ -589,8 +611,10 @@ public record PulseProperties(
     public record ContainerMemory(
             @DefaultValue("true") boolean enabled,
             @DefaultValue("true") boolean healthIndicatorEnabled,
-            @DefaultValue("0.10") double headroomCriticalRatio,
-            @DefaultValue("/sys/fs/cgroup") String cgroupRoot) {}
+
+            @DefaultValue("0.10") @DecimalMin("0.0") @DecimalMax("1.0") double headroomCriticalRatio,
+
+            @DefaultValue("/sys/fs/cgroup") @NotBlank String cgroupRoot) {}
 
     /**
      * OpenFeature integration. When the {@code dev.openfeature:sdk} is on the classpath, Pulse

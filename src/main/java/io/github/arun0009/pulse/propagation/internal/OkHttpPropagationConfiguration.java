@@ -17,6 +17,7 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -63,6 +64,7 @@ public class OkHttpPropagationConfiguration {
         }
 
         @Bean
+        @ConditionalOnMissingBean
         public PulseOkHttpInterceptor pulseOkHttpInterceptor(
                 ContextProperties context,
                 RetryProperties retry,

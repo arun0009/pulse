@@ -7,6 +7,7 @@ import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.info.BuildProperties;
 import org.springframework.boot.info.GitProperties;
 import org.springframework.boot.micrometer.metrics.autoconfigure.MeterRegistryCustomizer;
@@ -36,6 +37,7 @@ import java.util.List;
 public class CommonTagsConfiguration {
 
     @Bean
+    @ConditionalOnMissingBean(name = "pulseCommonTags")
     public MeterRegistryCustomizer<MeterRegistry> pulseCommonTags(
             @Value("${spring.application.name:unknown-service}") String serviceName,
             @Value("${app.env:unknown-env}") String environment,

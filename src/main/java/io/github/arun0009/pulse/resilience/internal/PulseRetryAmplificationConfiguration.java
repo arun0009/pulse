@@ -7,6 +7,7 @@ import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.servlet.Filter;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
@@ -36,6 +37,7 @@ public class PulseRetryAmplificationConfiguration {
     static class WebBeans {
 
         @Bean
+        @ConditionalOnMissingBean(name = "pulseRetryDepthFilter")
         public FilterRegistrationBean<RetryDepthFilter> pulseRetryDepthFilter(
                 RetryProperties retry, MeterRegistry registry) {
             RetryDepthFilter filter = new RetryDepthFilter(retry, registry);

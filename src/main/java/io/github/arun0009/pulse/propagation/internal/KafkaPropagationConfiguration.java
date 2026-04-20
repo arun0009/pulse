@@ -19,6 +19,7 @@ import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -88,6 +89,7 @@ public class KafkaPropagationConfiguration {
          * so Prometheus normalises it to {@code pulse_kafka_consumer_time_lag_seconds}).
          */
         @Bean
+        @ConditionalOnMissingBean
         public PulseKafkaRecordInterceptor pulseKafkaRecordInterceptor(
                 ContextProperties context,
                 RetryProperties retry,

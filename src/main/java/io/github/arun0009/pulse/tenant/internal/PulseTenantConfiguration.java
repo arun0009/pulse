@@ -73,6 +73,7 @@ public class PulseTenantConfiguration {
     static class WebBeans {
 
         @Bean
+        @ConditionalOnMissingBean(name = "pulseTenantContextFilter")
         public FilterRegistrationBean<TenantContextFilter> pulseTenantContextFilter(
                 ObjectProvider<TenantExtractor> extractors, TenantProperties properties) {
             List<TenantExtractor> ordered = extractors.orderedStream().toList();
@@ -93,6 +94,7 @@ public class PulseTenantConfiguration {
     }
 
     @Bean
+    @ConditionalOnMissingBean(name = "pulseTenantTagCardinalityMeterFilter")
     public MeterFilter pulseTenantTagCardinalityMeterFilter(TenantTagCardinalityFilter filter) {
         return filter;
     }
@@ -106,6 +108,7 @@ public class PulseTenantConfiguration {
 
     @Bean
     @ConditionalOnClass(ObservationRegistry.class)
+    @ConditionalOnMissingBean
     public TenantObservationRegistrar pulseTenantObservationRegistrar(
             ObjectProvider<ObservationRegistry> registry, TenantObservationFilter filter) {
         return new TenantObservationRegistrar(registry.getIfAvailable(), filter);

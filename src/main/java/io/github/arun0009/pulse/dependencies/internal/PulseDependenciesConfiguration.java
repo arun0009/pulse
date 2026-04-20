@@ -14,6 +14,7 @@ import io.github.arun0009.pulse.dependencies.DependencyResolver;
 import io.github.arun0009.pulse.dependencies.RequestFanoutFilter;
 import io.micrometer.core.instrument.MeterRegistry;
 import okhttp3.OkHttpClient;
+import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.config.BeanPostProcessor;
@@ -36,6 +37,7 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.reactive.function.client.WebClient;
 
+import java.net.URI;
 import java.util.List;
 
 /**
@@ -70,7 +72,22 @@ public class PulseDependenciesConfiguration {
     @Bean
     @Order(Ordered.LOWEST_PRECEDENCE)
     public DependencyClassifier pulseDependencyHostTableClassifier(DependencyResolver resolver) {
-        return resolver;
+        // Wrap the resolver in a small adapter so this bean's runtime type is purely
+        // DependencyClassifier. If we returned the DependencyResolver instance directly,
+        // Spring would see it as both a DependencyResolver and a DependencyClassifier,
+        // colliding with the dedicated pulseDependencyResolver bean and breaking by-type
+        // injection of DependencyResolver elsewhere.
+        return new DependencyClassifier() {
+            @Override
+            public @Nullable String classify(URI uri) {
+                return resolver.classify(uri);
+            }
+
+            @Override
+            public @Nullable String classifyHost(String host) {
+                return resolver.classifyHost(host);
+            }
+        };
     }
 
     /**
@@ -166,6 +183,7 @@ public class PulseDependenciesConfiguration {
     @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
     static class FanoutFilterBeans {
         @Bean
+        @ConditionalOnMissingBean(name = "pulseRequestFanoutFilterRegistration")
         public FilterRegistrationBean<RequestFanoutFilter> pulseRequestFanoutFilterRegistration(
                 MeterRegistry registry,
                 DependenciesProperties properties,

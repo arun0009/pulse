@@ -262,6 +262,7 @@ public class PulseAutoConfiguration {
      * constructors. Scoped internally to Pulse — not part of the public API.
      */
     @Bean
+    @ConditionalOnMissingBean
     public PulseDiagnostics.AllProperties pulseAllProperties(
             ContextProperties context,
             TraceGuardProperties traceGuard,

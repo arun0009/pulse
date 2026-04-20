@@ -98,24 +98,31 @@ attribute is added.
 ## Custom fingerprint id (`ErrorFingerprintStrategy`)
 
 Bring your own stable error id — Sentry's `event_id`, an in-house
-bug-tracker key — by publishing a single bean. Pulse uses it everywhere
-the fingerprint surfaces (response, span, MDC, metric tag).
+bug-tracker key — by publishing an `ErrorFingerprintStrategy` bean. Pulse
+uses whatever the chain returns everywhere the fingerprint surfaces
+(response, span, MDC, metric tag).
+
+Since 2.0 the SPI is **chain-of-responsibility**: every
+`ErrorFingerprintStrategy` bean becomes one link, ordered by `@Order`
+(lower runs first), and the first non-`null` result wins. The built-in
+SHA-256 strategy is registered as the terminal link, so the chain always
+produces a value even when no custom strategy matches:
 
 ```java
 @Bean
+@Order(0)
 ErrorFingerprintStrategy sentryFingerprint(SentryClient sentry) {
     return throwable -> {
         SentryEvent event = sentry.lastEventFor(throwable);
-        return event != null
-                ? event.getEventId()
-                : ExceptionFingerprint.of(throwable);
+        return event != null ? event.getEventId() : null; // delegate
     };
 }
 ```
 
 Implementations must be cheap (called on every unhandled exception),
-side-effect-free, and must never throw. Strings up to ~32 chars work fine
-on dashboards; longer is allowed but harder to read.
+side-effect-free, and must never throw — return `null` on failure so the
+next link gets a chance. Strings up to ~32 chars work fine on dashboards;
+longer is allowed but harder to read.
 
 ## Under the hood
 

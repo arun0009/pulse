@@ -25,7 +25,7 @@ to see whether they're slow, broken, or both.
 
 A health indicator (`/actuator/health/dependency`) flips DEGRADED when any
 critical dependency's caller-side error rate crosses
-`pulse.dependencies.health.error-ratio-threshold` — so Kubernetes pulls the
+`pulse.dependencies.health.error-rate-threshold` — so Kubernetes pulls the
 pod out of rotation before users see it.
 
 ## Turn it on
@@ -83,29 +83,40 @@ outbound call — you don't lose visibility on jobs.
 
 The host-table strategy described above (`pulse.dependencies.map`) covers
 most cases. When it doesn't — wildcard regions, URL-path-aware naming,
-gateway-stamped headers — declare a single bean:
+gateway-stamped headers — drop in a `DependencyClassifier` bean.
+
+Since 2.0 the SPI is **chain-of-responsibility**: every
+`DependencyClassifier` bean in the context becomes one link, ordered by
+`@Order` (lower runs first), and the first one that returns a non-`null`
+value wins. The built-in host-table resolver is registered as the terminal
+link, so any input the chain doesn't recognise still falls back to your
+configured `pulse.dependencies.default-name`.
+
+That means custom classifiers stay *additive* — handle the cases you care
+about and return `null` to delegate:
 
 ```java
 @Bean
-DependencyClassifier customClassifier(DependencyResolver fallback) {
+@Order(0)
+DependencyClassifier paymentApiClassifier() {
     return new DependencyClassifier() {
         @Override public String classify(URI uri) {
             if (uri.getPath() != null && uri.getPath().startsWith("/api/v1/payments/")) {
                 return "payment-api-v1";
             }
-            return fallback.classify(uri); // delegate to the host table
+            return null; // delegate to the next link
         }
         @Override public String classifyHost(String host) {
-            return fallback.classifyHost(host);
+            return null;
         }
     };
 }
 ```
 
 Pulse routes every transport (RestTemplate, RestClient, WebClient, OkHttp,
-Kafka) through the bean. Implementations must be cheap, thread-safe, and
-must never throw — return the default name on edge cases so cardinality
-stays bounded.
+Apache HttpClient 5, Kafka) through the chain. Implementations must be
+cheap, thread-safe, and must never throw — return `null` on doubt so the
+next link gets a chance and cardinality stays bounded.
 
 ---
 

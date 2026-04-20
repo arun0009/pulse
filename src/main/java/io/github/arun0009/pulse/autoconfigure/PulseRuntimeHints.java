@@ -7,6 +7,7 @@ import org.jspecify.annotations.Nullable;
 import org.springframework.aot.hint.MemberCategory;
 import org.springframework.aot.hint.RuntimeHints;
 import org.springframework.aot.hint.RuntimeHintsRegistrar;
+import org.springframework.util.ClassUtils;
 
 /**
  * GraalVM native-image hints for Pulse.
@@ -18,7 +19,8 @@ import org.springframework.aot.hint.RuntimeHintsRegistrar;
  * <ul>
  *   <li>{@link PulseKafkaProducerInterceptor} — Kafka instantiates this reflectively from a
  *       string class name in {@code ProducerConfig.INTERCEPTOR_CLASSES_CONFIG}; Spring never
- *       sees it as a bean and therefore never adds reflection metadata for it.
+ *       sees it as a bean and therefore never adds reflection metadata for it. Registered only
+ *       when the Kafka client is on the classpath ({@code spring-kafka} is optional for Pulse).
  *   <li>{@link PiiMaskingConverter} — discovered by Log4j2 via its plugin scanner. In native
  *       image we register it explicitly because the scanner's classpath walking is brittle
  *       under closed-world.
@@ -36,15 +38,23 @@ import org.springframework.aot.hint.RuntimeHintsRegistrar;
  */
 public class PulseRuntimeHints implements RuntimeHintsRegistrar {
 
+    /** Marker type: Kafka is an optional dependency; do not touch {@link PulseKafkaProducerInterceptor} without it. */
+    private static final String KAFKA_PRODUCER_INTERCEPTOR = "org.apache.kafka.clients.producer.ProducerInterceptor";
+
     @Override
     public void registerHints(RuntimeHints hints, @Nullable ClassLoader classLoader) {
+        ClassLoader cl = classLoader != null ? classLoader : PulseRuntimeHints.class.getClassLoader();
         // Kafka producer interceptor — instantiated by Apache Kafka via Class.forName + no-arg
-        // constructor; not visible to Spring's reflection registrar.
-        hints.reflection()
-                .registerType(
-                        PulseKafkaProducerInterceptor.class,
-                        MemberCategory.INVOKE_DECLARED_CONSTRUCTORS,
-                        MemberCategory.INVOKE_PUBLIC_METHODS);
+        // constructor; not visible to Spring's reflection registrar. Skip when Kafka is not on
+        // the classpath (e.g. Pulse showcase edge app) — registering the type would load
+        // PulseKafkaProducerInterceptor and fail AOT with NoClassDefFoundError.
+        if (ClassUtils.isPresent(KAFKA_PRODUCER_INTERCEPTOR, cl)) {
+            hints.reflection()
+                    .registerType(
+                            PulseKafkaProducerInterceptor.class,
+                            MemberCategory.INVOKE_DECLARED_CONSTRUCTORS,
+                            MemberCategory.INVOKE_PUBLIC_METHODS);
+        }
 
         // Log4j2 plugin discovered by classpath scan.
         hints.reflection()

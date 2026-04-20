@@ -35,22 +35,28 @@ of `INFO`, so the on-call sees them faster.
 
 ## Turn it on
 
-On by default with four tiers (`critical`, `high`, `normal`, `low`). Callers
-just send `Pulse-Priority: critical` (or whichever tier).
+On by default with the five-tier vocabulary (`critical`, `high`, `normal`,
+`low`, `background`). Callers just send `Pulse-Priority: critical` (or
+whichever tier). The vocabulary is fixed by design — bounded cardinality is
+the whole point — so Pulse won't accept arbitrary tier names.
 
-To define custom tiers:
+To rename the inbound header, change the default tier when none is sent, or
+opt into priority as a metric tag on a curated allow-list of meters:
 
 ```yaml
 pulse:
   priority:
-    custom-tiers: [platinum, gold, silver, bronze]
+    header-name: Pulse-Priority      # default
+    default-priority: normal         # default
+    warn-on-critical-timeout-exhaustion: true   # default
+    tag-meters: [http.server.requests]
 ```
 
 ## What it adds
 
 | Where | Key |
 | --- | --- |
-| MDC | `pulse.priority` |
+| MDC | `priority` (Micrometer MDC key) |
 | OTel baggage | `pulse.priority` |
 | HTTP / Kafka outbound header | `Pulse-Priority` (configurable) |
 | Thread-local accessor | `RequestPriority.current()` |

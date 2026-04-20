@@ -121,14 +121,21 @@ budget, and clears in `finally`. The producer side does the inverse: every
 `ProducerRecord` gets the current trace, request, tenant, and remaining-budget
 headers stamped on it.
 
-For pure reactive WebFlux, no decoration is needed — the OTel `Context`
-already follows the Reactor `Context` chain. Pulse only fills the gap between
-Spring's threading model and OTel's.
+Outbound HTTP propagation is wired into every supported client — `RestTemplate`,
+`RestClient`, `WebClient`, `OkHttp`, and Apache HttpClient 5 — so the trace,
+tenant, retry depth, priority, and remaining-budget headers ride downstream
+without any per-client code on your side.
+
+Pulse 2.x is Servlet-only at the inbound edge ([web stack](../web-stack.md)),
+but the propagation customizers above target the *clients* — they're active
+on any application that wires those HTTP / Kafka clients as Spring beans,
+including reactive ones.
 
 ---
 
 **Source:** [`PulseTaskDecorator.java`](https://github.com/arun0009/pulse/blob/main/src/main/java/io/github/arun0009/pulse/async/PulseTaskDecorator.java) ·
-[`ExecutorConfiguration.java`](https://github.com/arun0009/pulse/blob/main/src/main/java/io/github/arun0009/pulse/async/ExecutorConfiguration.java) ·
+[`ExecutorConfiguration.java`](https://github.com/arun0009/pulse/blob/main/src/main/java/io/github/arun0009/pulse/async/internal/ExecutorConfiguration.java) ·
 [`PulseKafkaRecordInterceptor.java`](https://github.com/arun0009/pulse/blob/main/src/main/java/io/github/arun0009/pulse/propagation/PulseKafkaRecordInterceptor.java) ·
+[`ApacheHttpClient5PropagationConfiguration.java`](https://github.com/arun0009/pulse/blob/main/src/main/java/io/github/arun0009/pulse/propagation/internal/ApacheHttpClient5PropagationConfiguration.java) ·
 **Runbook:** [Trace context missing](../runbooks/trace-context-missing.md) ·
 **Status:** Stable since 1.0.0

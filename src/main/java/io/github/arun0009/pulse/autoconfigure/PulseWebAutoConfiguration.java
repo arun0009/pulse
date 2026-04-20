@@ -112,9 +112,13 @@ public class PulseWebAutoConfiguration {
      * sequence and returns the first non-null fingerprint. This is the bean
      * {@link PulseExceptionHandler} actually injects; user-supplied strategies participate by
      * being declared as Spring beans.
+     *
+     * <p>Register your own {@code @Bean("pulseErrorFingerprintStrategy")} to replace the entire
+     * chain with a single strategy (advanced).
      */
     @Bean
     @Primary
+    @ConditionalOnMissingBean(name = "pulseErrorFingerprintStrategy")
     public ErrorFingerprintStrategy pulseErrorFingerprintStrategy(List<ErrorFingerprintStrategy> chain) {
         return new CompositeErrorFingerprintStrategy(chain);
     }

@@ -169,7 +169,7 @@ Things every Spring shop eventually builds, badly.
   best-effort `pulse.sampling.prefer-sampling-on-error` for spans the head
   sampler would have dropped.
 
-## Operational levers (1.1+)
+## Operational levers
 
 Adoption-shortcut features that exist purely to make Pulse safer and
 easier to roll out across an existing fleet.
@@ -187,8 +187,8 @@ easier to roll out across an existing fleet.
 
 ## Coverage status
 
-The six day-one drivers ship with **full feature pages** in 1.0. The
-remaining nineteen ship with **shorter pages** covering what they do, the
+All features ship with **full feature pages**. The six day-one drivers have
+the deepest coverage; the remaining subsystems document what they do, the
 metrics they emit, and how to turn them off. Expanded sections land in
 patch releases on the 1.0.x line — track [issue
 #1](https://github.com/arun0009/pulse/issues) for the order.

@@ -57,5 +57,5 @@ pulse:
 
 ---
 
-**Source:** [`io.github.arun0009.pulse.propagation`](https://github.com/arun0009/pulse/tree/main/src/main/java/io/github/arun0009/pulse/propagation) ·
+**Source:** [`io.github.arun0009.pulse.resilience`](https://github.com/arun0009/pulse/tree/main/src/main/java/io/github/arun0009/pulse/resilience) ·
 **Status:** Stable since 1.0.0

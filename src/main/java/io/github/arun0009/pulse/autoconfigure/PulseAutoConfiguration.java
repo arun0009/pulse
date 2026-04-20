@@ -96,10 +96,10 @@ import org.springframework.core.env.Environment;
 @AutoConfiguration
 @AutoConfigureAfter(
         name = {
+            // Spring Boot 4.0.5 — use real @AutoConfiguration FQCNs so ordering is honored.
             "org.springframework.boot.micrometer.metrics.autoconfigure.MetricsAutoConfiguration",
-            "org.springframework.boot.opentelemetry.autoconfigure.OpenTelemetryAutoConfiguration",
-            "org.springframework.boot.opentelemetry.actuate.autoconfigure.metrics.OpenTelemetryMetricsAutoConfiguration",
-            "org.springframework.boot.tracing.autoconfigure.opentelemetry.OpenTelemetryTracingAutoConfiguration"
+            "org.springframework.boot.opentelemetry.autoconfigure.OpenTelemetrySdkAutoConfiguration",
+            "org.springframework.boot.micrometer.tracing.opentelemetry.autoconfigure.OpenTelemetryTracingAutoConfiguration"
         })
 @EnableConfigurationProperties({
     ContextProperties.class,

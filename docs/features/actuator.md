@@ -32,7 +32,7 @@ Plus the pre-built health indicators:
 | --- | --- |
 | `/actuator/health/otelExporter` | UP when the trace exporter has actually exported in the last `pulse.health.otel-exporter-stale-after` (default 5m) |
 | `/actuator/health/dependency` | DEGRADED when caller-side error rate for any tracked downstream crosses threshold |
-| `/actuator/health/containerMemory` | DEGRADED below configured memory headroom ratio |
+| `/actuator/health/containerMemory` | `OUT_OF_SERVICE` when headroom &lt; `pulse.container-memory.headroom-critical-ratio`; `UNKNOWN` without cgroup accounting |
 | `/actuator/health/jobs` | DOWN when a `@Scheduled` job hasn't succeeded inside its grace period |
 
 ## Turn it on
@@ -51,12 +51,18 @@ management:
 ## When to turn off the UI
 
 If you don't want the HTML page exposed (e.g. on a shared management port
-behind a reverse proxy you don't control):
+behind a reverse proxy you don't control), use the standard Spring Boot
+endpoint controls — Pulse adds no proprietary toggle here:
 
 ```yaml
-pulse:
-  actuator:
-    ui-enabled: false
+management:
+  endpoint:
+    pulseui:
+      enabled: false                       # disable the bean entirely
+  endpoints:
+    web:
+      exposure:
+        include: health,info,pulse,prometheus   # or simply exclude pulseui
 ```
 
 JSON endpoints stay available either way.

@@ -57,14 +57,6 @@ pulse:
     enabled: false
 ```
 
-To keep the metrics but suppress the span events:
-
-```yaml
-pulse:
-  resilience:
-    span-events-enabled: false
-```
-
 ---
 
 **Source:** [`io.github.arun0009.pulse.resilience`](https://github.com/arun0009/pulse/tree/main/src/main/java/io/github/arun0009/pulse/resilience) ·

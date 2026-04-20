@@ -15,10 +15,12 @@ pod out of rotation *before* the kernel does.
 ## What you get
 
 ```promql
-pulse_container_memory_headroom_ratio < 0.15
+pulse_container_memory_headroom_ratio < 0.10
 ```
 
-The headroom ratio drops below 15% well before the OOMKiller fires, giving
+Tune the threshold to match `pulse.container-memory.headroom-critical-ratio`
+(default **0.10**). The headroom ratio drops below that level before the
+OOMKiller typically fires, giving
 the readiness probe time to drain the pod and the cluster time to spin up
 a replacement. The shipped alert (`PulseContainerMemoryLow`) fires here.
 
@@ -39,9 +41,12 @@ no JNI or agent.
 | `pulse.container.memory.headroom_ratio` | Gauge (0.0–1.0) | `1 − used / limit` |
 | `pulse.container.memory.oom_kills` | Counter | Increments on every cgroup oom_kill event |
 
-A health indicator (`/actuator/health/containerMemory`) flips DEGRADED below
-the configured warning threshold (default 15%), so Kubernetes drains the
-pod before the kernel kills it.
+A health indicator (`/actuator/health/containerMemory`) reports
+**`OUT_OF_SERVICE`** when headroom falls below
+`pulse.container-memory.headroom-critical-ratio` (default **10%**), so
+Kubernetes can pull the pod from the load balancer before the kernel kills
+it. On hosts without cgroup visibility (laptops, plain VMs) the indicator
+returns **`UNKNOWN`** instead of failing readiness.
 
 ## When to skip it
 
@@ -51,9 +56,8 @@ disable it explicitly:
 
 ```yaml
 pulse:
-  container:
-    memory:
-      enabled: false
+  container-memory:
+    enabled: false
 ```
 
 ---

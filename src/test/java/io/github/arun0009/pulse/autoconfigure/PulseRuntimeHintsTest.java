@@ -23,6 +23,19 @@ import static org.springframework.aot.hint.predicate.RuntimeHintsPredicates.reso
 class PulseRuntimeHintsTest {
 
     @Test
+    void skips_kafka_interceptor_when_kafka_client_not_on_classpath() {
+        // Apps that use Pulse without spring-kafka (e.g. examples/showcase/edge) must not load
+        // PulseKafkaProducerInterceptor during AOT — it implements Kafka types not on the classpath.
+        RuntimeHints hints = new RuntimeHints();
+        ClassLoader withoutKafka = new ClassLoader(null) {};
+        new PulseRuntimeHints().registerHints(hints, withoutKafka);
+
+        Assertions.assertThat(
+                        reflection().onType(PulseKafkaProducerInterceptor.class).test(hints))
+                .isFalse();
+    }
+
+    @Test
     void registers_kafka_producer_interceptor_for_reflection_with_default_constructor() {
         // Apache Kafka instantiates this class via Class.forName(...).getDeclaredConstructor().newInstance()
         // — without this hint, native image throws ClassNotFoundException on first send().

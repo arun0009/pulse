@@ -113,7 +113,7 @@ You pay for what you turn on.
 
 ## Status
 
-Pulse is **1.0** and published on Maven Central.
+Pulse is **2.0** and published on Maven Central.
 
 - [Changelog](release/changelog.md) — what's in each release
 - [Source on GitHub](https://github.com/arun0009/pulse) — issues, discussions, PRs

@@ -94,7 +94,7 @@ the same `pulse.*` properties documented elsewhere; reading the YAMLs
 themselves is the fastest way to see exactly what changes:
 
 ```bash
-$ jar -tf pulse-spring-boot-starter-1.1.0.jar | grep '^application-pulse'
+$ jar -tf pulse-spring-boot-starter-2.0.0.jar | grep '^application-pulse'
 application-pulse-dev.yml
 application-pulse-prod.yml
 application-pulse-test.yml
@@ -130,5 +130,5 @@ an `@Configuration` class and `@Profile`-gate it as usual.
 
 ---
 
-**Source:** [`application-pulse-*.yml`](https://github.com/arun0009/pulse/tree/main/src/main/resources) · [`PulseProfilePresetEnvironmentPostProcessor`](https://github.com/arun0009/pulse/blob/main/src/main/java/io/github/arun0009/pulse/autoconfigure/PulseProfilePresetEnvironmentPostProcessor.java) ·
+**Source:** [`application-pulse-*.yml`](https://github.com/arun0009/pulse/tree/main/src/main/resources) · [`PulseProfilePresetEnvironmentPostProcessor`](https://github.com/arun0009/pulse/blob/main/src/main/java/io/github/arun0009/pulse/autoconfigure/internal/PulseProfilePresetEnvironmentPostProcessor.java) ·
 **Status:** Stable since 1.1.0

@@ -27,12 +27,13 @@ extra wiring. In other UIs, the URL is one copy-paste.
 
 ## Turn it on
 
-Set the URL template that points at your profiler instance:
+Set the URL of your Pyroscope-compatible UI; Pulse builds the per-trace
+deep link on root spans:
 
 ```yaml
 pulse:
   profiling:
-    profile-url-template: "https://pyroscope.example.com/?query={query}"
+    pyroscope-url: "https://pyroscope.example.com"
 ```
 
 Pulse never bundles or starts a profiler. If you've already injected the

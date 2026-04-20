@@ -36,26 +36,32 @@ To tune:
 ```yaml
 pulse:
   shutdown:
+    otel-flush-enabled: true   # default
     otel-flush-timeout: 15s
-    drain-timeout: 60s
+    drain:
+      enabled: true            # default
+      timeout: 60s
 ```
 
 ## Recommended Kubernetes config
 
 For Pulse's drain to fit cleanly inside the pod lifecycle, set
 `terminationGracePeriodSeconds` to comfortably exceed
-`drain-timeout + otel-flush-timeout`. With Pulse defaults, **60 seconds** is
+`drain.timeout + otel-flush-timeout`. With Pulse defaults, **60 seconds** is
 a safe value.
 
 ## When to skip it
 
 If you already have a sidecar (Envoy, Istio) handling drain and an OTel
-Collector running locally on the pod that you trust to flush:
+Collector running locally on the pod that you trust to flush, opt out
+per-feature — there is no single global `pulse.shutdown.enabled` switch:
 
 ```yaml
 pulse:
   shutdown:
-    enabled: false
+    otel-flush-enabled: false
+    drain:
+      enabled: false
 ```
 
 ---

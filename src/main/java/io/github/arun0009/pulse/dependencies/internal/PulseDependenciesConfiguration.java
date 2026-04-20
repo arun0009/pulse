@@ -99,6 +99,7 @@ public class PulseDependenciesConfiguration {
      */
     @Bean
     @Primary
+    @ConditionalOnMissingBean(name = "pulseDependencyClassifier")
     public DependencyClassifier pulseDependencyClassifier(List<DependencyClassifier> chain) {
         return new CompositeDependencyClassifier(chain);
     }

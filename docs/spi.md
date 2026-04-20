@@ -10,10 +10,10 @@ the same two patterns:
    *chain-of-responsibility* (one bean per concern, ordered by `@Order`,
    first non-null wins). You add behavior by registering an additional bean,
    not by replacing Pulse's defaults.
-2. **`@ConditionalOnMissingBean` everywhere** — single-instance SPIs (and
-   every override-worthy `@Bean` definition Pulse ships) defer to a
-   user-supplied bean of the same name or type. Drop one in your
-   `@Configuration` and Pulse stops registering its own.
+2. **`@ConditionalOnMissingBean` on override points** — most user-replaceable
+   `@Bean` definitions defer to your bean of the same type (or a well-known
+   bean name for chain terminals — see below). Ordered chain composites remain
+   registered unless you supply the named replacement bean.
 
 This page lists every SPI, what it controls, when to reach for it, and a
 copy-paste example. It is not the *only* extension surface — every
@@ -46,7 +46,7 @@ is the surface intended to be extended *frequently*.
 
 Maps an outbound URI (or raw host) to the logical `dep` tag stamped on every
 `pulse.dependency.*` meter. The default link is the
-`pulse.dependencies.host-table` configured in YAML; user beans participate in
+`pulse.dependencies.map` (host → logical name); user beans participate in
 an ordered chain and the first non-null result wins.
 
 **Reach for it when** Pulse's host-table cannot tag a destination correctly —
@@ -318,11 +318,14 @@ list):
 | `pulseProducerFactoryCustomizer`             | `BeanPostProcessor` that appends Pulse's producer interceptor. |
 | `pulseRecordInterceptorComposite`            | `@Primary RecordInterceptor` that composes user interceptors with Pulse's. |
 
-> **What is intentionally not overridable by name?** Ordered chain terminals
-> (`pulseDependencyHostTableClassifier`, `pulseDefaultErrorFingerprintStrategy`)
-> and `@Primary` chain composites (`pulseDependencyClassifier`,
-> `pulseErrorFingerprintStrategy`) — adding more chain links is the correct
-> extension path, not replacing the composite or the terminal. Toggle-gated
-> `BeanPostProcessor`s like `pulsePreferErrorSamplerWrapper` are disabled via
-> their property (here `pulse.sampling.prefer-sampling-on-error=false`), not
-> by bean replacement.
+> **Chain composites (advanced replacement).** Pulse registers `@Primary`
+> composites `pulseDependencyClassifier` and `pulseErrorFingerprintStrategy`
+> unless you define your **own** beans with those exact names — in that case
+> Pulse skips its composite and wires yours instead (escape hatch for a fully
+> custom implementation). Terminal links (`pulseDependencyHostTableClassifier`,
+> `pulseDefaultErrorFingerprintStrategy`) remain; add more links via ordinary
+> ordered SPI beans instead of replacing terminals when possible.
+>
+> Toggle-gated `BeanPostProcessor`s like `pulsePreferErrorSamplerWrapper` are
+> disabled via `pulse.sampling.prefer-sampling-on-error=false`, not by bean
+> replacement.

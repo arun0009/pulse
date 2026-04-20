@@ -42,10 +42,16 @@ collapse to the same time series.
 
 ## When to skip it
 
-```yaml
-pulse:
-  fleet:
-    config-hash-enabled: false
+The config-hash gauge is unconditionally registered when the Pulse starter
+is on the classpath — there is no dedicated toggle to disable just this
+signal. To suppress it, override the bean with a no-op:
+
+```java
+@Bean
+@Primary
+ConfigHashGauge noopConfigHashGauge(MeterRegistry registry) {
+    return new ConfigHashGauge(registry, "disabled");
+}
 ```
 
 ---

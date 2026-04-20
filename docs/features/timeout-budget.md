@@ -1,8 +1,9 @@
 # Timeout-budget propagation
 
 > **TL;DR.** The remaining deadline travels with the request across
-> `RestTemplate`, `WebClient`, `OkHttp`, and Kafka. Doomed downstream calls
-> fail fast instead of holding connections through the next retry storm.
+> `RestTemplate`, `RestClient`, `WebClient`, `OkHttp`, Apache HttpClient 5,
+> and Kafka. Doomed downstream calls fail fast instead of holding
+> connections through the next retry storm.
 
 The platform default timeout — 30 seconds, set once and forgotten — is what
 every downstream service uses. The original caller may have already given up
@@ -66,8 +67,8 @@ TimeoutBudget.current().ifPresent(budget -> {
 | MDC (logs) | `timeout_remaining_ms` | Snapshot at log time |
 | Metric | `pulse.timeout_budget.exhausted` (tag: `transport`) | Aborted outbound calls |
 
-The metric is tagged by transport: `rest-template`, `rest-client`, `web-client`,
-`ok-http`, `kafka-producer`. So you can see *which* client gave up.
+The metric is tagged by transport: `resttemplate`, `restclient`, `webclient`,
+`okhttp`, `apache-hc5`, `kafka`. So you can see *which* client gave up.
 
 ## When to skip it
 

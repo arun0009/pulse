@@ -44,7 +44,7 @@ Same fields apply on every feature that exposes `enabled-when`:
 | `bean` | `String` | Name of a `PulseRequestMatcher` bean to delegate to. When set, declarative fields are ignored. |
 
 **Combination rule:** AND across populated fields. An empty / unset block
-matches every request — the default, identical to pre-1.1 behaviour.
+matches every request — i.e. the feature runs unconditionally.
 
 ## More examples
 
@@ -127,7 +127,7 @@ startup fails fast — never silently at the first request.
 
 | Misconfiguration | Behaviour |
 | --- | --- |
-| Empty / unset `enabled-when` | Matcher always matches (feature always runs) — pre-1.1 default |
+| Empty / unset `enabled-when` | Matcher always matches (feature always runs) |
 | `bean:` references a missing bean | `IllegalStateException` at startup. App does not start. |
 | `bean:` references a bean of the wrong type | `IllegalStateException` at startup with the actual type in the message |
 | Header in `header-equals` is absent at request time | Matcher returns `false`, feature skipped |

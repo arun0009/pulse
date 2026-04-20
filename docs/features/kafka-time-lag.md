@@ -15,7 +15,7 @@ your SLO is freshness.
 ## What you get
 
 ```promql
-max by (topic, consumer_group) (pulse_kafka_consumer_time_lag_seconds) > 300
+max by (topic, group) (pulse_kafka_consumer_time_lag_seconds) > 300
 ```
 
 Any consumer falling more than five minutes behind real time, regardless of
@@ -31,7 +31,7 @@ is registered (also default).
 
 | Metric | Type | Tags | Meaning |
 | --- | --- | --- | --- |
-| `pulse.kafka.consumer.time_lag` | Gauge (seconds) | `topic`, `consumer-group` | `now() − record.timestamp` on the most recent consumed record |
+| `pulse.kafka.consumer.time_lag` | Gauge (seconds) | `group`, `topic`, `partition` | `now() − record.timestamp` on the most recent consumed record (per partition) |
 
 Prometheus normalises this to `pulse_kafka_consumer_time_lag_seconds`.
 
@@ -42,8 +42,7 @@ If you're already capturing time lag from a Kafka exporter or burrow:
 ```yaml
 pulse:
   kafka:
-    consumer:
-      time-lag-enabled: false
+    consumer-time-lag-enabled: false
 ```
 
 ---

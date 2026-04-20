@@ -1,6 +1,5 @@
 package io.github.arun0009.pulse.guardrails;
 
-import io.github.arun0009.pulse.autoconfigure.PulseProperties;
 import io.github.arun0009.pulse.autoconfigure.PulseRequestMatcherProperties;
 import jakarta.servlet.FilterChain;
 import org.junit.jupiter.api.Test;
@@ -20,7 +19,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class TimeoutBudgetFilterTest {
 
-    private static final PulseProperties.TimeoutBudget CONFIG = new PulseProperties.TimeoutBudget(
+    private static final TimeoutBudgetProperties CONFIG = new TimeoutBudgetProperties(
             true,
             "Pulse-Timeout-Ms",
             "Pulse-Timeout-Ms",
@@ -92,7 +91,7 @@ class TimeoutBudgetFilterTest {
         // Operators can opt out of the implicit safety net by setting defaultBudget to 0.
         // When no inbound header arrives, downstream code sees TimeoutBudget.current() == empty
         // — i.e., no fabricated deadline. This is the contract the showcase relies on.
-        TimeoutBudgetFilter optOut = new TimeoutBudgetFilter(new PulseProperties.TimeoutBudget(
+        TimeoutBudgetFilter optOut = new TimeoutBudgetFilter(new TimeoutBudgetProperties(
                 true,
                 "Pulse-Timeout-Ms",
                 "Pulse-Timeout-Ms",
@@ -116,7 +115,7 @@ class TimeoutBudgetFilterTest {
     void zero_default_still_honors_explicit_inbound_header() throws Exception {
         // Opt-out only suppresses the *implicit* default; an explicit caller-provided header
         // must still propagate.
-        TimeoutBudgetFilter optOut = new TimeoutBudgetFilter(new PulseProperties.TimeoutBudget(
+        TimeoutBudgetFilter optOut = new TimeoutBudgetFilter(new TimeoutBudgetProperties(
                 true,
                 "Pulse-Timeout-Ms",
                 "Pulse-Timeout-Ms",

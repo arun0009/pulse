@@ -1,6 +1,5 @@
 package io.github.arun0009.pulse.dependencies;
 
-import io.github.arun0009.pulse.autoconfigure.PulseProperties;
 import io.github.arun0009.pulse.core.PulseRequestMatcher;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -42,7 +41,7 @@ public final class DependencyOutboundRecorder {
     private final PulseRequestMatcher gate;
 
     public DependencyOutboundRecorder(
-            MeterRegistry registry, DependencyResolver resolver, PulseProperties.Dependencies config) {
+            MeterRegistry registry, DependencyResolver resolver, DependenciesProperties config) {
         this(registry, resolver, resolver, config, PulseRequestMatcher.ALWAYS);
     }
 
@@ -50,7 +49,7 @@ public final class DependencyOutboundRecorder {
             MeterRegistry registry,
             DependencyClassifier classifier,
             DependencyResolver resolver,
-            PulseProperties.Dependencies config,
+            DependenciesProperties config,
             PulseRequestMatcher gate) {
         this.registry = registry;
         this.classifier = classifier;

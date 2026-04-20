@@ -1,6 +1,5 @@
 package io.github.arun0009.pulse.slo;
 
-import io.github.arun0009.pulse.autoconfigure.PulseProperties;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Tag;
 import io.micrometer.core.instrument.Timer;
@@ -14,12 +13,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class SloProjectorTest {
 
-    private static PulseProperties.Slo.Objective availability(String name, double target) {
-        return new PulseProperties.Slo.Objective(name, "availability", target, null, "http.server.requests", List.of());
+    private static SloProperties.Objective availability(String name, double target) {
+        return new SloProperties.Objective(name, "availability", target, null, "http.server.requests", List.of());
     }
 
-    private static PulseProperties.Slo.Objective latency(String name, double target, Duration threshold) {
-        return new PulseProperties.Slo.Objective(name, "latency", target, threshold, "http.server.requests", List.of());
+    private static SloProperties.Objective latency(String name, double target, Duration threshold) {
+        return new SloProperties.Objective(name, "latency", target, threshold, "http.server.requests", List.of());
     }
 
     @Test
@@ -30,7 +29,7 @@ class SloProjectorTest {
         for (int i = 0; i < 100; i++) timer.record(Duration.ofMillis(50));
 
         SloProjector projector =
-                new SloProjector(new PulseProperties.Slo(true, List.of(availability("svc", 0.999))), registry);
+                new SloProjector(new SloProperties(true, List.of(availability("svc", 0.999))), registry);
 
         SloProjector.SloStatus status = projector.project().get(0);
 
@@ -50,7 +49,7 @@ class SloProjectorTest {
         for (int i = 0; i < 50; i++) fail.record(Duration.ofMillis(20));
 
         SloProjector projector =
-                new SloProjector(new PulseProperties.Slo(true, List.of(availability("svc", 0.999))), registry);
+                new SloProjector(new SloProperties(true, List.of(availability("svc", 0.999))), registry);
 
         SloProjector.SloStatus status = projector.project().get(0);
 
@@ -71,7 +70,7 @@ class SloProjectorTest {
         for (int i = 0; i < 10; i++) client.record(Duration.ofMillis(5));
 
         SloProjector projector =
-                new SloProjector(new PulseProperties.Slo(true, List.of(availability("svc", 0.95))), registry);
+                new SloProjector(new SloProperties(true, List.of(availability("svc", 0.95))), registry);
 
         SloProjector.SloStatus status = projector.project().get(0);
 
@@ -84,7 +83,7 @@ class SloProjectorTest {
         MeterRegistry registry = new SimpleMeterRegistry();
 
         SloProjector projector =
-                new SloProjector(new PulseProperties.Slo(true, List.of(availability("svc", 0.95))), registry);
+                new SloProjector(new SloProperties(true, List.of(availability("svc", 0.95))), registry);
 
         SloProjector.SloStatus status = projector.project().get(0);
 
@@ -99,10 +98,10 @@ class SloProjectorTest {
         Timer timer = registry.timer("http.server.requests", List.of(Tag.of("status", "200")));
         timer.record(Duration.ofMillis(10));
 
-        PulseProperties.Slo.Objective bad =
-                new PulseProperties.Slo.Objective("svc", "latency", 0.95, null, "http.server.requests", List.of());
+        SloProperties.Objective bad =
+                new SloProperties.Objective("svc", "latency", 0.95, null, "http.server.requests", List.of());
 
-        SloProjector projector = new SloProjector(new PulseProperties.Slo(true, List.of(bad)), registry);
+        SloProjector projector = new SloProjector(new SloProperties(true, List.of(bad)), registry);
 
         assertThat(projector.project().get(0).status()).isEqualTo("missing threshold");
     }
@@ -116,7 +115,7 @@ class SloProjectorTest {
         for (int i = 0; i < 100; i++) timer.record(Duration.ofMillis(10));
 
         SloProjector projector = new SloProjector(
-                new PulseProperties.Slo(true, List.of(latency("svc", 0.95, Duration.ofMillis(500)))), registry);
+                new SloProperties(true, List.of(latency("svc", 0.95, Duration.ofMillis(500)))), registry);
 
         SloProjector.SloStatus status = projector.project().get(0);
 

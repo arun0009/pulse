@@ -1,8 +1,8 @@
 package io.github.arun0009.pulse.guardrails.internal;
 
 import io.github.arun0009.pulse.autoconfigure.PulseAutoConfiguration;
-import io.github.arun0009.pulse.autoconfigure.PulseProperties;
 import io.github.arun0009.pulse.guardrails.PreferErrorSampler;
+import io.github.arun0009.pulse.guardrails.SamplingProperties;
 import io.opentelemetry.sdk.trace.samplers.Sampler;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -31,10 +31,9 @@ public class SamplingConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public Sampler pulseSampler(PulseProperties properties) {
-        Sampler base = Sampler.parentBased(
-                Sampler.traceIdRatioBased(properties.sampling().probability()));
-        if (properties.sampling().preferSamplingOnError()) {
+    public Sampler pulseSampler(SamplingProperties sampling) {
+        Sampler base = Sampler.parentBased(Sampler.traceIdRatioBased(sampling.probability()));
+        if (sampling.preferSamplingOnError()) {
             return new PreferErrorSampler(base);
         }
         return base;

@@ -1,8 +1,8 @@
 package io.github.arun0009.pulse.async.internal;
 
+import io.github.arun0009.pulse.async.AsyncProperties;
 import io.github.arun0009.pulse.async.PulseTaskDecorator;
 import io.github.arun0009.pulse.autoconfigure.PulseAutoConfiguration;
-import io.github.arun0009.pulse.autoconfigure.PulseProperties;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -34,11 +34,7 @@ public class ExecutorConfiguration {
      */
     @Bean
     @ConditionalOnMissingBean(TaskDecorator.class)
-    @ConditionalOnProperty(
-            prefix = "pulse.async",
-            name = "propagation-enabled",
-            havingValue = "true",
-            matchIfMissing = true)
+    @ConditionalOnProperty(prefix = "pulse.async", name = "enabled", havingValue = "true", matchIfMissing = true)
     public TaskDecorator pulseTaskDecorator() {
         return new PulseTaskDecorator();
     }
@@ -51,10 +47,9 @@ public class ExecutorConfiguration {
     @Bean
     @ConditionalOnProperty(prefix = "pulse.async", name = "dedicated-executor", havingValue = "true")
     @ConditionalOnMissingBean(name = "pulseDedicatedExecutor")
-    public ThreadPoolTaskExecutor pulseDedicatedExecutor(PulseProperties properties) {
-        var async = properties.async();
+    public ThreadPoolTaskExecutor pulseDedicatedExecutor(AsyncProperties async) {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-        if (async.propagationEnabled()) {
+        if (async.enabled()) {
             executor.setTaskDecorator(new PulseTaskDecorator());
         }
         executor.setCorePoolSize(async.corePoolSize());

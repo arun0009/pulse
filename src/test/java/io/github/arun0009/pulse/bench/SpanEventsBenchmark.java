@@ -1,7 +1,7 @@
 package io.github.arun0009.pulse.bench;
 
-import io.github.arun0009.pulse.autoconfigure.PulseProperties;
 import io.github.arun0009.pulse.events.SpanEvents;
+import io.github.arun0009.pulse.events.WideEventsProperties;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
@@ -41,9 +41,9 @@ public class SpanEventsBenchmark {
     @Setup
     public void setup() {
         SimpleMeterRegistry registry = new SimpleMeterRegistry();
-        events = new SpanEvents(registry, new PulseProperties.WideEvents(true, true, false, "pulse.events", "event"));
+        events = new SpanEvents(registry, new WideEventsProperties(true, true, false, "pulse.events", "event"));
         eventsCounterOff =
-                new SpanEvents(registry, new PulseProperties.WideEvents(true, false, false, "pulse.events", "event"));
+                new SpanEvents(registry, new WideEventsProperties(true, false, false, "pulse.events", "event"));
         attrs = Map.of(
                 "orderId", "ord-12345",
                 "amount", 4995L,

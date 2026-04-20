@@ -1,6 +1,5 @@
 package io.github.arun0009.pulse.resilience;
 
-import io.github.arun0009.pulse.autoconfigure.PulseProperties;
 import io.github.arun0009.pulse.core.ContextKeys;
 import io.github.arun0009.pulse.core.PulseRequestContextFilter;
 import io.github.arun0009.pulse.core.RouteTags;
@@ -45,7 +44,7 @@ public final class RetryDepthFilter extends OncePerRequestFilter implements Orde
     private final int amplificationThreshold;
     private final MeterRegistry registry;
 
-    public RetryDepthFilter(PulseProperties.Retry config, MeterRegistry registry) {
+    public RetryDepthFilter(RetryProperties config, MeterRegistry registry) {
         this.headerName = config.headerName();
         this.amplificationThreshold = config.amplificationThreshold();
         this.registry = registry;

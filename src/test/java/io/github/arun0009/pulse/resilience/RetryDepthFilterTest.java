@@ -1,6 +1,5 @@
 package io.github.arun0009.pulse.resilience;
 
-import io.github.arun0009.pulse.autoconfigure.PulseProperties;
 import io.github.arun0009.pulse.core.ContextKeys;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
@@ -17,7 +16,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class RetryDepthFilterTest {
 
     private final MeterRegistry registry = new SimpleMeterRegistry();
-    private final PulseProperties.Retry config = new PulseProperties.Retry(true, "Pulse-Retry-Depth", 3);
+    private final RetryProperties config = new RetryProperties(true, "Pulse-Retry-Depth", 3);
     private final RetryDepthFilter filter = new RetryDepthFilter(config, registry);
 
     @AfterEach

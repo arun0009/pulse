@@ -1,6 +1,5 @@
 package io.github.arun0009.pulse.guardrails;
 
-import io.github.arun0009.pulse.autoconfigure.PulseProperties;
 import io.github.arun0009.pulse.autoconfigure.PulseRequestMatcherProperties;
 import io.github.arun0009.pulse.core.PulseRequestMatcher;
 import jakarta.servlet.FilterChain;
@@ -20,7 +19,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class TimeoutBudgetFilterEnabledWhenTest {
 
-    private static final PulseProperties.TimeoutBudget CONFIG = new PulseProperties.TimeoutBudget(
+    private static final TimeoutBudgetProperties CONFIG = new TimeoutBudgetProperties(
             true,
             "Pulse-Timeout-Ms",
             "Pulse-Timeout-Ms",

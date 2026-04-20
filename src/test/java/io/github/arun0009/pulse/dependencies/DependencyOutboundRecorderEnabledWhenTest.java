@@ -1,6 +1,5 @@
 package io.github.arun0009.pulse.dependencies;
 
-import io.github.arun0009.pulse.autoconfigure.PulseProperties;
 import io.github.arun0009.pulse.autoconfigure.PulseRequestMatcherProperties;
 import io.github.arun0009.pulse.core.PulseRequestMatcher;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -32,13 +31,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 class DependencyOutboundRecorderEnabledWhenTest {
 
     private final MeterRegistry registry = new SimpleMeterRegistry();
-    private final PulseProperties.Dependencies config = new PulseProperties.Dependencies(
+    private final DependenciesProperties config = new DependenciesProperties(
             true,
             Map.of(),
             "unknown",
             20,
             PulseRequestMatcherProperties.empty(),
-            new PulseProperties.Dependencies.Health(true, List.of(), 0.05, false));
+            new DependenciesProperties.Health(true, List.of(), 0.05, false));
 
     private final DependencyResolver resolver = new DependencyResolver(config);
 

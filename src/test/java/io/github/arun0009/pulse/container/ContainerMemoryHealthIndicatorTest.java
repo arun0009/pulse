@@ -1,6 +1,5 @@
 package io.github.arun0009.pulse.container;
 
-import io.github.arun0009.pulse.autoconfigure.PulseProperties;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -15,8 +14,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class ContainerMemoryHealthIndicatorTest {
 
-    private static final PulseProperties.ContainerMemory CONFIG =
-            new PulseProperties.ContainerMemory(true, true, 0.10, "/sys/fs/cgroup");
+    private static final ContainerMemoryProperties CONFIG =
+            new ContainerMemoryProperties(true, true, 0.10, "/sys/fs/cgroup");
 
     @Test
     void reportsUpWhenHeadroomAboveThreshold(@TempDir Path root) throws IOException {

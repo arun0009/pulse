@@ -1,11 +1,36 @@
 package io.github.arun0009.pulse.actuator;
 
-import io.github.arun0009.pulse.autoconfigure.PulseProperties;
+import io.github.arun0009.pulse.async.AsyncProperties;
+import io.github.arun0009.pulse.cache.CacheProperties;
+import io.github.arun0009.pulse.container.ContainerMemoryProperties;
+import io.github.arun0009.pulse.core.ContextProperties;
+import io.github.arun0009.pulse.core.TraceGuardProperties;
+import io.github.arun0009.pulse.db.DbProperties;
+import io.github.arun0009.pulse.dependencies.DependenciesProperties;
 import io.github.arun0009.pulse.enforcement.PulseEnforcementMode;
+import io.github.arun0009.pulse.events.WideEventsProperties;
+import io.github.arun0009.pulse.exception.ExceptionHandlerProperties;
 import io.github.arun0009.pulse.guardrails.CardinalityFirewall;
+import io.github.arun0009.pulse.guardrails.CardinalityProperties;
+import io.github.arun0009.pulse.guardrails.SamplingProperties;
+import io.github.arun0009.pulse.guardrails.TimeoutBudgetProperties;
+import io.github.arun0009.pulse.health.OtelExporterHealthProperties;
 import io.github.arun0009.pulse.jobs.JobRegistry;
+import io.github.arun0009.pulse.jobs.JobsProperties;
+import io.github.arun0009.pulse.logging.LoggingProperties;
+import io.github.arun0009.pulse.metrics.HistogramsProperties;
+import io.github.arun0009.pulse.openfeature.OpenFeatureProperties;
+import io.github.arun0009.pulse.priority.PriorityProperties;
+import io.github.arun0009.pulse.profiling.ProfilingProperties;
 import io.github.arun0009.pulse.propagation.KafkaPropagationContext;
+import io.github.arun0009.pulse.propagation.KafkaPropagationProperties;
+import io.github.arun0009.pulse.resilience.ResilienceProperties;
+import io.github.arun0009.pulse.resilience.RetryProperties;
+import io.github.arun0009.pulse.shutdown.ShutdownProperties;
 import io.github.arun0009.pulse.slo.SloProjector;
+import io.github.arun0009.pulse.slo.SloProperties;
+import io.github.arun0009.pulse.startup.BannerProperties;
+import io.github.arun0009.pulse.tenant.TenantProperties;
 import org.jspecify.annotations.Nullable;
 
 import java.util.LinkedHashMap;
@@ -19,7 +44,41 @@ import java.util.Map;
  */
 public final class PulseDiagnostics {
 
-    private final PulseProperties properties;
+    /**
+     * Aggregates every {@code *Properties} record so {@link PulseDiagnostics} and
+     * {@link io.github.arun0009.pulse.startup.PulseStartupBanner} can consume them through a
+     * single injectable bundle instead of ballooning constructor arities. The record is
+     * assembled by {@code PulseAutoConfiguration#pulseAllProperties}.
+     */
+    public record AllProperties(
+            ContextProperties context,
+            TraceGuardProperties traceGuard,
+            SamplingProperties sampling,
+            AsyncProperties async,
+            KafkaPropagationProperties kafka,
+            ExceptionHandlerProperties exceptionHandler,
+            CardinalityProperties cardinality,
+            TimeoutBudgetProperties timeoutBudget,
+            WideEventsProperties wideEvents,
+            LoggingProperties logging,
+            BannerProperties banner,
+            HistogramsProperties histograms,
+            SloProperties slo,
+            OtelExporterHealthProperties health,
+            ShutdownProperties shutdown,
+            JobsProperties jobs,
+            DbProperties db,
+            ResilienceProperties resilience,
+            ProfilingProperties profiling,
+            DependenciesProperties dependencies,
+            TenantProperties tenant,
+            RetryProperties retry,
+            PriorityProperties priority,
+            ContainerMemoryProperties containerMemory,
+            OpenFeatureProperties openFeature,
+            CacheProperties cache) {}
+
+    private final AllProperties p;
     private final String serviceName;
     private final String environment;
     private final String version;
@@ -29,7 +88,7 @@ public final class PulseDiagnostics {
     private final @Nullable PulseEnforcementMode enforcementMode;
 
     public PulseDiagnostics(
-            PulseProperties properties,
+            AllProperties p,
             String serviceName,
             String environment,
             String version,
@@ -37,7 +96,7 @@ public final class PulseDiagnostics {
             @Nullable SloProjector sloProjector,
             @Nullable JobRegistry jobRegistry,
             @Nullable PulseEnforcementMode enforcementMode) {
-        this.properties = properties;
+        this.p = p;
         this.serviceName = serviceName;
         this.environment = environment;
         this.version = version;
@@ -72,32 +131,32 @@ public final class PulseDiagnostics {
 
     public Map<String, Object> effectiveConfig() {
         Map<String, Object> pulse = new LinkedHashMap<>();
-        pulse.put("context", properties.context());
-        pulse.put("traceGuard", properties.traceGuard());
-        pulse.put("sampling", properties.sampling());
-        pulse.put("async", properties.async());
-        pulse.put("kafka", properties.kafka());
-        pulse.put("exceptionHandler", properties.exceptionHandler());
-        pulse.put("cardinality", properties.cardinality());
-        pulse.put("timeoutBudget", properties.timeoutBudget());
-        pulse.put("wideEvents", properties.wideEvents());
-        pulse.put("logging", properties.logging());
-        pulse.put("banner", properties.banner());
-        pulse.put("histograms", properties.histograms());
-        pulse.put("slo", properties.slo());
-        pulse.put("health", properties.health());
-        pulse.put("shutdown", properties.shutdown());
-        pulse.put("jobs", properties.jobs());
-        pulse.put("db", properties.db());
-        pulse.put("resilience", properties.resilience());
-        pulse.put("profiling", properties.profiling());
-        pulse.put("dependencies", properties.dependencies());
-        pulse.put("tenant", properties.tenant());
-        pulse.put("retry", properties.retry());
-        pulse.put("priority", properties.priority());
-        pulse.put("containerMemory", properties.containerMemory());
-        pulse.put("openFeature", properties.openFeature());
-        pulse.put("cache", properties.cache());
+        pulse.put("context", p.context());
+        pulse.put("traceGuard", p.traceGuard());
+        pulse.put("sampling", p.sampling());
+        pulse.put("async", p.async());
+        pulse.put("kafka", p.kafka());
+        pulse.put("exceptionHandler", p.exceptionHandler());
+        pulse.put("cardinality", p.cardinality());
+        pulse.put("timeoutBudget", p.timeoutBudget());
+        pulse.put("wideEvents", p.wideEvents());
+        pulse.put("logging", p.logging());
+        pulse.put("banner", p.banner());
+        pulse.put("histograms", p.histograms());
+        pulse.put("slo", p.slo());
+        pulse.put("health", p.health());
+        pulse.put("shutdown", p.shutdown());
+        pulse.put("jobs", p.jobs());
+        pulse.put("db", p.db());
+        pulse.put("resilience", p.resilience());
+        pulse.put("profiling", p.profiling());
+        pulse.put("dependencies", p.dependencies());
+        pulse.put("tenant", p.tenant());
+        pulse.put("retry", p.retry());
+        pulse.put("priority", p.priority());
+        pulse.put("containerMemory", p.containerMemory());
+        pulse.put("openFeature", p.openFeature());
+        pulse.put("cache", p.cache());
         return Map.of("pulse", pulse);
     }
 
@@ -109,7 +168,7 @@ public final class PulseDiagnostics {
         return runtime;
     }
 
-    /** Returns the live SLO compliance projection or {@code null} when no projector is wired. */
+    /** Returns the live SLO compliance projection or an empty list when no projector is wired. */
     public List<SloProjector.SloStatus> sloProjection() {
         if (sloProjector == null) return List.of();
         return sloProjector.project();
@@ -120,130 +179,113 @@ public final class PulseDiagnostics {
         map.put(
                 "requestContext",
                 entry(
-                        properties.context().enabled(),
+                        p.context().enabled(),
                         Map.of(
-                                "requestIdHeader", properties.context().requestIdHeader(),
-                                "userIdHeader", properties.context().userIdHeader(),
-                                "tenantIdHeader", properties.context().tenantIdHeader(),
-                                "idempotencyKeyHeader", properties.context().idempotencyKeyHeader(),
-                                "additionalHeaders", properties.context().additionalHeaders())));
+                                "requestIdHeader", p.context().requestIdHeader(),
+                                "userIdHeader", p.context().userIdHeader(),
+                                "tenantIdHeader", p.context().tenantIdHeader(),
+                                "idempotencyKeyHeader", p.context().idempotencyKeyHeader(),
+                                "additionalHeaders", p.context().additionalHeaders())));
         map.put(
                 "traceGuard",
                 entry(
-                        properties.traceGuard().enabled(),
+                        p.traceGuard().enabled(),
                         Map.of(
-                                "failOnMissing", properties.traceGuard().failOnMissing(),
-                                "excludePathPrefixes", properties.traceGuard().excludePathPrefixes())));
-        map.put("sampling", Map.of("probability", properties.sampling().probability()));
+                                "failOnMissing", p.traceGuard().failOnMissing(),
+                                "excludePathPrefixes", p.traceGuard().excludePathPrefixes())));
+        map.put("sampling", Map.of("probability", p.sampling().probability()));
         map.put(
                 "async",
                 entry(
-                        properties.async().propagationEnabled(),
+                        p.async().enabled(),
                         Map.of(
-                                "dedicatedExecutor", properties.async().dedicatedExecutor(),
-                                "scheduledPropagationEnabled",
-                                        properties.async().scheduledPropagationEnabled(),
-                                "corePoolSize", properties.async().corePoolSize(),
-                                "maxPoolSize", properties.async().maxPoolSize())));
-        boolean kafkaConfigured = properties.kafka().propagationEnabled();
+                                "dedicatedExecutor", p.async().dedicatedExecutor(),
+                                "scheduledPropagationEnabled", p.async().scheduledPropagationEnabled(),
+                                "corePoolSize", p.async().corePoolSize(),
+                                "maxPoolSize", p.async().maxPoolSize())));
+        boolean kafkaConfigured = p.kafka().propagationEnabled();
         boolean kafkaWired = KafkaPropagationContext.initialized();
         Map<String, Object> kafkaDetails = new LinkedHashMap<>();
         kafkaDetails.put("classpathPresent", kafkaWired);
-        kafkaDetails.put("consumerTimeLagEnabled", properties.kafka().consumerTimeLagEnabled());
+        kafkaDetails.put("consumerTimeLagEnabled", p.kafka().consumerTimeLagEnabled());
         kafkaDetails.put(
                 "status",
                 kafkaConfigured ? (kafkaWired ? "active" : "off (spring-kafka not on classpath)") : "disabled");
         map.put("kafka", entry(kafkaConfigured && kafkaWired, kafkaDetails));
-        map.put("exceptionHandler", entry(properties.exceptionHandler().enabled(), Map.of()));
+        map.put("exceptionHandler", entry(p.exceptionHandler().enabled(), Map.of()));
         map.put(
                 "cardinalityFirewall",
                 entry(
-                        properties.cardinality().enabled(),
+                        p.cardinality().enabled(),
                         Map.of(
-                                "maxTagValuesPerMeter", properties.cardinality().maxTagValuesPerMeter(),
-                                "overflowValue", properties.cardinality().overflowValue(),
-                                "meterPrefixesToProtect",
-                                        properties.cardinality().meterPrefixesToProtect(),
-                                "exemptMeterPrefixes", properties.cardinality().exemptMeterPrefixes())));
+                                "maxTagValuesPerMeter", p.cardinality().maxTagValuesPerMeter(),
+                                "overflowValue", p.cardinality().overflowValue(),
+                                "meterPrefixesToProtect", p.cardinality().meterPrefixesToProtect(),
+                                "exemptMeterPrefixes", p.cardinality().exemptMeterPrefixes())));
         map.put(
                 "timeoutBudget",
                 entry(
-                        properties.timeoutBudget().enabled(),
+                        p.timeoutBudget().enabled(),
                         Map.of(
-                                "inboundHeader", properties.timeoutBudget().inboundHeader(),
-                                "outboundHeader", properties.timeoutBudget().outboundHeader(),
+                                "inboundHeader", p.timeoutBudget().inboundHeader(),
+                                "outboundHeader", p.timeoutBudget().outboundHeader(),
                                 "defaultBudget",
-                                        properties
-                                                .timeoutBudget()
-                                                .defaultBudget()
-                                                .toString(),
+                                        p.timeoutBudget().defaultBudget().toString(),
                                 "maximumBudget",
-                                        properties
-                                                .timeoutBudget()
-                                                .maximumBudget()
-                                                .toString(),
-                                "safetyMargin",
-                                        properties
-                                                .timeoutBudget()
-                                                .safetyMargin()
-                                                .toString(),
+                                        p.timeoutBudget().maximumBudget().toString(),
+                                "safetyMargin", p.timeoutBudget().safetyMargin().toString(),
                                 "minimumBudget",
-                                        properties
-                                                .timeoutBudget()
-                                                .minimumBudget()
-                                                .toString())));
+                                        p.timeoutBudget().minimumBudget().toString())));
         map.put(
                 "wideEvents",
                 entry(
-                        properties.wideEvents().enabled(),
+                        p.wideEvents().enabled(),
                         Map.of(
-                                "counterEnabled", properties.wideEvents().counterEnabled(),
-                                "logEnabled", properties.wideEvents().logEnabled(),
-                                "counterName", properties.wideEvents().counterName())));
-        map.put("logging", Map.of("piiMaskingEnabled", properties.logging().piiMaskingEnabled()));
+                                "counterEnabled", p.wideEvents().counterEnabled(),
+                                "logEnabled", p.wideEvents().logEnabled(),
+                                "counterName", p.wideEvents().counterName())));
+        map.put("logging", Map.of("piiMaskingEnabled", p.logging().piiMaskingEnabled()));
         map.put(
                 "histograms",
                 entry(
-                        properties.histograms().enabled(),
+                        p.histograms().enabled(),
                         Map.of(
-                                "meterPrefixes", properties.histograms().meterPrefixes(),
+                                "meterPrefixes", p.histograms().meterPrefixes(),
                                 "sloBuckets",
-                                        properties.histograms().sloBuckets().stream()
+                                        p.histograms().sloBuckets().stream()
                                                 .map(Object::toString)
                                                 .toList())));
         map.put(
                 "slo",
                 entry(
-                        properties.slo().enabled(),
+                        p.slo().enabled(),
                         Map.of(
-                                "objectiveCount", properties.slo().objectives().size(),
+                                "objectiveCount", p.slo().objectives().size(),
                                 "objectives",
-                                        properties.slo().objectives().stream()
+                                        p.slo().objectives().stream()
                                                 .map(o -> o.name())
                                                 .toList())));
         map.put(
                 "jobs",
                 entry(
-                        properties.jobs().enabled(),
+                        p.jobs().enabled(),
                         Map.of(
-                                "healthIndicatorEnabled", properties.jobs().healthIndicatorEnabled(),
+                                "healthIndicatorEnabled", p.jobs().healthIndicatorEnabled(),
                                 "failureGracePeriod",
-                                        properties.jobs().failureGracePeriod().toString())));
+                                        p.jobs().failureGracePeriod().toString())));
         map.put(
                 "db",
                 entry(
-                        properties.db().enabled(),
+                        p.db().enabled(),
                         Map.of(
-                                "nPlusOneThreshold", properties.db().nPlusOneThreshold(),
+                                "nPlusOneThreshold", p.db().nPlusOneThreshold(),
                                 "slowQueryThreshold",
-                                        properties.db().slowQueryThreshold().toString())));
-        map.put("resilience", entry(properties.resilience().enabled(), Map.of()));
+                                        p.db().slowQueryThreshold().toString())));
+        map.put("resilience", entry(p.resilience().enabled(), Map.of()));
         Map<String, Object> profilingDetails = new LinkedHashMap<>();
         profilingDetails.put(
                 "pyroscopeUrl",
-                properties.profiling().pyroscopeUrl() == null
-                        ? ""
-                        : properties.profiling().pyroscopeUrl());
+                p.profiling().pyroscopeUrl() == null ? "" : p.profiling().pyroscopeUrl());
         io.github.arun0009.pulse.profiling.PyroscopeDetector.Detection detection =
                 io.github.arun0009.pulse.profiling.PyroscopeDetector.detect();
         profilingDetails.put("pyroscopeAgentDetected", detection.present());
@@ -254,54 +296,51 @@ public final class PulseDiagnostics {
             profilingDetails.put(
                     "pyroscopeAgentServer", detection.serverAddress() == null ? "" : detection.serverAddress());
         }
-        map.put("profiling", entry(properties.profiling().enabled(), profilingDetails));
+        map.put("profiling", entry(p.profiling().enabled(), profilingDetails));
         Map<String, Object> dependenciesDetails = new LinkedHashMap<>();
-        dependenciesDetails.put("knownHosts", properties.dependencies().map().size());
-        dependenciesDetails.put("defaultName", properties.dependencies().defaultName());
-        dependenciesDetails.put("fanOutWarnThreshold", properties.dependencies().fanOutWarnThreshold());
-        map.put("dependencies", entry(properties.dependencies().enabled(), dependenciesDetails));
+        dependenciesDetails.put("knownHosts", p.dependencies().map().size());
+        dependenciesDetails.put("defaultName", p.dependencies().defaultName());
+        dependenciesDetails.put("fanOutWarnThreshold", p.dependencies().fanOutWarnThreshold());
+        map.put("dependencies", entry(p.dependencies().enabled(), dependenciesDetails));
         Map<String, Object> tenantDetails = new LinkedHashMap<>();
-        tenantDetails.put("headerEnabled", properties.tenant().header().enabled());
-        tenantDetails.put("headerName", properties.tenant().header().name());
-        tenantDetails.put("jwtEnabled", properties.tenant().jwt().enabled());
-        tenantDetails.put("jwtClaim", properties.tenant().jwt().claim());
-        tenantDetails.put("subdomainEnabled", properties.tenant().subdomain().enabled());
-        tenantDetails.put("maxTagCardinality", properties.tenant().maxTagCardinality());
-        tenantDetails.put("tagMeters", properties.tenant().tagMeters());
-        map.put("tenant", entry(properties.tenant().enabled(), tenantDetails));
+        tenantDetails.put("headerEnabled", p.tenant().header().enabled());
+        tenantDetails.put("headerName", p.tenant().header().name());
+        tenantDetails.put("jwtEnabled", p.tenant().jwt().enabled());
+        tenantDetails.put("jwtClaim", p.tenant().jwt().claim());
+        tenantDetails.put("subdomainEnabled", p.tenant().subdomain().enabled());
+        tenantDetails.put("maxTagCardinality", p.tenant().maxTagCardinality());
+        tenantDetails.put("tagMeters", p.tenant().tagMeters());
+        map.put("tenant", entry(p.tenant().enabled(), tenantDetails));
         map.put(
                 "retry",
                 entry(
-                        properties.retry().enabled(),
+                        p.retry().enabled(),
                         Map.of(
-                                "headerName", properties.retry().headerName(),
-                                "amplificationThreshold", properties.retry().amplificationThreshold())));
+                                "headerName", p.retry().headerName(),
+                                "amplificationThreshold", p.retry().amplificationThreshold())));
         map.put(
                 "containerMemory",
                 entry(
-                        properties.containerMemory().enabled(),
+                        p.containerMemory().enabled(),
                         Map.of(
-                                "healthIndicatorEnabled",
-                                        properties.containerMemory().healthIndicatorEnabled(),
-                                "headroomCriticalRatio",
-                                        properties.containerMemory().headroomCriticalRatio(),
-                                "cgroupRoot", properties.containerMemory().cgroupRoot())));
+                                "healthIndicatorEnabled", p.containerMemory().healthIndicatorEnabled(),
+                                "headroomCriticalRatio", p.containerMemory().headroomCriticalRatio(),
+                                "cgroupRoot", p.containerMemory().cgroupRoot())));
         map.put(
                 "priority",
                 entry(
-                        properties.priority().enabled(),
+                        p.priority().enabled(),
                         Map.of(
-                                "headerName", properties.priority().headerName(),
-                                "defaultPriority", properties.priority().defaultPriority(),
-                                "warnOnCriticalTimeoutExhaustion",
-                                        properties.priority().warnOnCriticalTimeoutExhaustion(),
-                                "tagMeters", properties.priority().tagMeters())));
-        map.put("openFeature", entry(properties.openFeature().enabled(), Map.of()));
+                                "headerName", p.priority().headerName(),
+                                "defaultPriority", p.priority().defaultPriority(),
+                                "warnOnCriticalTimeoutExhaustion", p.priority().warnOnCriticalTimeoutExhaustion(),
+                                "tagMeters", p.priority().tagMeters())));
+        map.put("openFeature", entry(p.openFeature().enabled(), Map.of()));
         map.put(
                 "cache",
                 entry(
-                        properties.cache().caffeine().enabled(),
-                        Map.of("caffeineEnabled", properties.cache().caffeine().enabled())));
+                        p.cache().caffeine().enabled(),
+                        Map.of("caffeineEnabled", p.cache().caffeine().enabled())));
         return map;
     }
 

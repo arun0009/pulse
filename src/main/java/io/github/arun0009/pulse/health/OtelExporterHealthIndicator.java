@@ -1,6 +1,5 @@
 package io.github.arun0009.pulse.health;
 
-import io.github.arun0009.pulse.autoconfigure.PulseProperties;
 import org.springframework.boot.health.contributor.Health;
 import org.springframework.boot.health.contributor.HealthIndicator;
 import org.springframework.boot.health.contributor.Status;
@@ -30,10 +29,9 @@ public final class OtelExporterHealthIndicator implements HealthIndicator {
     public static final String STATUS_OUT_OF_SERVICE = "OUT_OF_SERVICE";
 
     private final List<LastSuccessSpanExporter> exporters;
-    private final PulseProperties.OtelExporterHealth config;
+    private final OtelExporterHealthProperties config;
 
-    public OtelExporterHealthIndicator(
-            List<LastSuccessSpanExporter> exporters, PulseProperties.OtelExporterHealth config) {
+    public OtelExporterHealthIndicator(List<LastSuccessSpanExporter> exporters, OtelExporterHealthProperties config) {
         this.exporters = exporters;
         this.config = config;
     }

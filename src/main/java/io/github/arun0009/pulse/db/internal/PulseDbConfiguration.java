@@ -1,9 +1,9 @@
 package io.github.arun0009.pulse.db.internal;
 
 import io.github.arun0009.pulse.autoconfigure.PulseAutoConfiguration;
-import io.github.arun0009.pulse.autoconfigure.PulseProperties;
 import io.github.arun0009.pulse.autoconfigure.PulseRequestMatcherFactory;
 import io.github.arun0009.pulse.core.PulseRequestMatcher;
+import io.github.arun0009.pulse.db.DbProperties;
 import io.github.arun0009.pulse.db.PulseDbObservationFilter;
 import io.github.arun0009.pulse.db.PulseHibernatePropertiesCustomizer;
 import io.github.arun0009.pulse.db.PulseStatementInspector;
@@ -49,8 +49,8 @@ public class PulseDbConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public PulseHibernatePropertiesCustomizer pulseHibernateStatementInspectorCustomizer(PulseProperties properties) {
-        return new PulseHibernatePropertiesCustomizer(properties.db());
+    public PulseHibernatePropertiesCustomizer pulseHibernateStatementInspectorCustomizer(DbProperties properties) {
+        return new PulseHibernatePropertiesCustomizer(properties);
     }
 
     @Bean
@@ -59,12 +59,11 @@ public class PulseDbConfiguration {
     @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
     public PulseDbObservationFilter pulseDbObservationFilter(
             MeterRegistry meterRegistry,
-            PulseProperties properties,
+            DbProperties properties,
             ObjectProvider<PulseRequestMatcherFactory> matcherFactory) {
         PulseRequestMatcherFactory factory = matcherFactory.getIfAvailable();
-        PulseRequestMatcher gate = factory == null
-                ? PulseRequestMatcher.ALWAYS
-                : factory.build("db", properties.db().enabledWhen());
-        return new PulseDbObservationFilter(meterRegistry, properties.db(), gate);
+        PulseRequestMatcher gate =
+                factory == null ? PulseRequestMatcher.ALWAYS : factory.build("db", properties.enabledWhen());
+        return new PulseDbObservationFilter(meterRegistry, properties, gate);
     }
 }

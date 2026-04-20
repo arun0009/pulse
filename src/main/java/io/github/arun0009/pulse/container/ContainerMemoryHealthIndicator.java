@@ -1,12 +1,11 @@
 package io.github.arun0009.pulse.container;
 
-import io.github.arun0009.pulse.autoconfigure.PulseProperties;
 import org.springframework.boot.health.contributor.Health;
 import org.springframework.boot.health.contributor.HealthIndicator;
 
 /**
  * Reports {@code OUT_OF_SERVICE} when container memory headroom drops below
- * {@link PulseProperties.ContainerMemory#headroomCriticalRatio()} (default 10%).
+ * {@link ContainerMemoryProperties#headroomCriticalRatio()} (default 10%).
  * On hosts without cgroup accounting visible (macOS, Windows, host JVM) the indicator
  * silently reports {@code UNKNOWN} — preferable to {@code DOWN}, which would force-fail
  * readiness probes during local development.
@@ -20,7 +19,7 @@ public final class ContainerMemoryHealthIndicator implements HealthIndicator {
     private final ContainerMemoryMetrics metrics;
     private final double criticalRatio;
 
-    public ContainerMemoryHealthIndicator(ContainerMemoryMetrics metrics, PulseProperties.ContainerMemory config) {
+    public ContainerMemoryHealthIndicator(ContainerMemoryMetrics metrics, ContainerMemoryProperties config) {
         this.metrics = metrics;
         this.criticalRatio = config.headroomCriticalRatio();
     }

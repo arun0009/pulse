@@ -1,9 +1,12 @@
 package io.github.arun0009.pulse.propagation.internal;
 
 import io.github.arun0009.pulse.autoconfigure.PulseAutoConfiguration;
-import io.github.arun0009.pulse.autoconfigure.PulseProperties;
+import io.github.arun0009.pulse.core.ContextProperties;
 import io.github.arun0009.pulse.guardrails.TimeoutBudgetOutbound;
+import io.github.arun0009.pulse.guardrails.TimeoutBudgetProperties;
+import io.github.arun0009.pulse.priority.PriorityProperties;
 import io.github.arun0009.pulse.propagation.HeaderPropagation;
+import io.github.arun0009.pulse.resilience.RetryProperties;
 import io.micrometer.core.instrument.MeterRegistry;
 import okhttp3.Interceptor;
 import okhttp3.OkHttpClient;
@@ -37,13 +40,16 @@ public class OkHttpPropagationConfiguration {
 
         @Bean
         public BeanPostProcessor pulseOkHttpBuilderInstrumenter(
-                PulseProperties properties, ObjectProvider<MeterRegistry> registry) {
-            Map<String, String> headerMap =
-                    HeaderPropagation.headerToMdcKey(properties.context(), properties.retry(), properties.priority());
+                ContextProperties context,
+                RetryProperties retry,
+                PriorityProperties priority,
+                TimeoutBudgetProperties timeoutBudget,
+                ObjectProvider<MeterRegistry> registry) {
+            Map<String, String> headerMap = HeaderPropagation.headerToMdcKey(context, retry, priority);
             PulseOkHttpInterceptor interceptor = new PulseOkHttpInterceptor(
                     headerMap,
-                    properties.timeoutBudget().outboundHeader(),
-                    properties.timeoutBudget().enabled(),
+                    timeoutBudget.outboundHeader(),
+                    timeoutBudget.enabled(),
                     new TimeoutBudgetOutbound(registry.getIfAvailable()));
             return new BeanPostProcessor() {
                 @Override
@@ -58,11 +64,15 @@ public class OkHttpPropagationConfiguration {
 
         @Bean
         public PulseOkHttpInterceptor pulseOkHttpInterceptor(
-                PulseProperties properties, ObjectProvider<MeterRegistry> registry) {
+                ContextProperties context,
+                RetryProperties retry,
+                PriorityProperties priority,
+                TimeoutBudgetProperties timeoutBudget,
+                ObjectProvider<MeterRegistry> registry) {
             return new PulseOkHttpInterceptor(
-                    HeaderPropagation.headerToMdcKey(properties.context(), properties.retry(), properties.priority()),
-                    properties.timeoutBudget().outboundHeader(),
-                    properties.timeoutBudget().enabled(),
+                    HeaderPropagation.headerToMdcKey(context, retry, priority),
+                    timeoutBudget.outboundHeader(),
+                    timeoutBudget.enabled(),
                     new TimeoutBudgetOutbound(registry.getIfAvailable()));
         }
     }

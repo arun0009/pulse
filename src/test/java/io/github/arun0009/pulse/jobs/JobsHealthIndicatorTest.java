@@ -1,6 +1,5 @@
 package io.github.arun0009.pulse.jobs;
 
-import io.github.arun0009.pulse.autoconfigure.PulseProperties;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.health.contributor.Health;
@@ -19,7 +18,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class JobsHealthIndicatorTest {
 
-    private final PulseProperties.Jobs config = new PulseProperties.Jobs(true, true, Duration.ofMinutes(10));
+    private final JobsProperties config = new JobsProperties(true, true, Duration.ofMinutes(10));
 
     @Test
     void no_observed_jobs_reports_up_with_observed_count_zero() {
@@ -77,7 +76,7 @@ class JobsHealthIndicatorTest {
             Thread.currentThread().interrupt();
         }
 
-        PulseProperties.Jobs tightGrace = new PulseProperties.Jobs(true, true, Duration.ofMillis(1));
+        JobsProperties tightGrace = new JobsProperties(true, true, Duration.ofMillis(1));
         Health health = new JobsHealthIndicator(registry, tightGrace).health();
 
         assertThat(health.getStatus()).isEqualTo(Status.DOWN);

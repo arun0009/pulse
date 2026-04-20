@@ -1,10 +1,11 @@
 package io.github.arun0009.pulse.enforcement;
 
-import io.github.arun0009.pulse.autoconfigure.PulseProperties;
 import io.github.arun0009.pulse.autoconfigure.PulseRequestMatcherProperties;
 import io.github.arun0009.pulse.core.PulseRequestMatcher;
 import io.github.arun0009.pulse.core.TraceGuardFilter;
+import io.github.arun0009.pulse.core.TraceGuardProperties;
 import io.github.arun0009.pulse.guardrails.CardinalityFirewall;
+import io.github.arun0009.pulse.guardrails.CardinalityProperties;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -44,7 +45,7 @@ class PulseEnforcementModeWiringTest {
         PulseEnforcementMode enforcement = new PulseEnforcementMode(PulseEnforcementMode.Mode.DRY_RUN);
         TraceGuardFilter guard = new TraceGuardFilter(
                 registry,
-                new PulseProperties.TraceGuard(true, true, List.of(), PulseRequestMatcherProperties.empty()),
+                new TraceGuardProperties(true, true, List.of(), PulseRequestMatcherProperties.empty()),
                 PulseRequestMatcher.ALWAYS,
                 enforcement);
 
@@ -68,7 +69,7 @@ class PulseEnforcementModeWiringTest {
         PulseEnforcementMode enforcement = new PulseEnforcementMode(PulseEnforcementMode.Mode.ENFORCING);
         TraceGuardFilter guard = new TraceGuardFilter(
                 registry,
-                new PulseProperties.TraceGuard(true, true, List.of(), PulseRequestMatcherProperties.empty()),
+                new TraceGuardProperties(true, true, List.of(), PulseRequestMatcherProperties.empty()),
                 PulseRequestMatcher.ALWAYS,
                 enforcement);
 
@@ -85,7 +86,7 @@ class PulseEnforcementModeWiringTest {
         PulseEnforcementMode enforcement = new PulseEnforcementMode(PulseEnforcementMode.Mode.ENFORCING);
         TraceGuardFilter guard = new TraceGuardFilter(
                 registry,
-                new PulseProperties.TraceGuard(true, true, List.of(), PulseRequestMatcherProperties.empty()),
+                new TraceGuardProperties(true, true, List.of(), PulseRequestMatcherProperties.empty()),
                 PulseRequestMatcher.ALWAYS,
                 enforcement);
 
@@ -101,7 +102,7 @@ class PulseEnforcementModeWiringTest {
 
     @Test
     void cardinality_firewall_dry_run_observes_overflow_but_does_not_clamp() {
-        PulseProperties.Cardinality config = new PulseProperties.Cardinality(true, 5, "OVERFLOW", List.of(), List.of());
+        CardinalityProperties config = new CardinalityProperties(true, 5, "OVERFLOW", List.of(), List.of());
         PulseEnforcementMode enforcement = new PulseEnforcementMode(PulseEnforcementMode.Mode.DRY_RUN);
         SimpleMeterRegistry registry = new SimpleMeterRegistry();
         CardinalityFirewall firewall = new CardinalityFirewall(config, enforcement, () -> registry);
@@ -124,7 +125,7 @@ class PulseEnforcementModeWiringTest {
 
     @Test
     void cardinality_firewall_enforcing_clamps_runaway_tags() {
-        PulseProperties.Cardinality config = new PulseProperties.Cardinality(true, 5, "OVERFLOW", List.of(), List.of());
+        CardinalityProperties config = new CardinalityProperties(true, 5, "OVERFLOW", List.of(), List.of());
         PulseEnforcementMode enforcement = new PulseEnforcementMode(PulseEnforcementMode.Mode.ENFORCING);
         SimpleMeterRegistry registry = new SimpleMeterRegistry();
         CardinalityFirewall firewall = new CardinalityFirewall(config, enforcement, () -> registry);

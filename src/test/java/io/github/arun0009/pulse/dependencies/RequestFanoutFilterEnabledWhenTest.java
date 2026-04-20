@@ -1,6 +1,5 @@
 package io.github.arun0009.pulse.dependencies;
 
-import io.github.arun0009.pulse.autoconfigure.PulseProperties;
 import io.github.arun0009.pulse.autoconfigure.PulseRequestMatcherProperties;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
@@ -24,13 +23,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 class RequestFanoutFilterEnabledWhenTest {
 
     private final MeterRegistry registry = new SimpleMeterRegistry();
-    private final PulseProperties.Dependencies config = new PulseProperties.Dependencies(
+    private final DependenciesProperties config = new DependenciesProperties(
             true,
             Map.of(),
             "unknown",
             5,
             PulseRequestMatcherProperties.empty(),
-            new PulseProperties.Dependencies.Health(true, List.of(), 0.05, false));
+            new DependenciesProperties.Health(true, List.of(), 0.05, false));
 
     @AfterEach
     void clear() {

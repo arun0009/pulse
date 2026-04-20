@@ -1,6 +1,5 @@
 package io.github.arun0009.pulse.priority;
 
-import io.github.arun0009.pulse.autoconfigure.PulseProperties;
 import io.github.arun0009.pulse.core.ContextKeys;
 import io.opentelemetry.api.baggage.Baggage;
 import jakarta.servlet.FilterChain;
@@ -16,8 +15,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class RequestPriorityFilterTest {
 
-    private static final PulseProperties.Priority CONFIG =
-            new PulseProperties.Priority(true, "Pulse-Priority", "normal", true, List.of());
+    private static final PriorityProperties CONFIG =
+            new PriorityProperties(true, "Pulse-Priority", "normal", true, List.of());
 
     @AfterEach
     void resetThreadState() {

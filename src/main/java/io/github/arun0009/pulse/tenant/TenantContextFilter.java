@@ -1,6 +1,5 @@
 package io.github.arun0009.pulse.tenant;
 
-import io.github.arun0009.pulse.autoconfigure.PulseProperties;
 import io.github.arun0009.pulse.core.ContextKeys;
 import io.github.arun0009.pulse.core.PulseRequestContextFilter;
 import io.opentelemetry.api.baggage.Baggage;
@@ -43,7 +42,7 @@ import java.util.Optional;
  * <ol>
  *   <li>{@code pulse.tenant.id} system property (test / dev override).
  *   <li>First non-empty extractor result, lowest order first.
- *   <li>{@link PulseProperties.Tenant#unknownValue()} (default {@code "unknown"}) — written to
+ *   <li>{@link TenantProperties#unknownValue()} (default {@code "unknown"}) — written to
  *       MDC and {@code TenantContext} so downstream signals are uniformly tagged rather than
  *       silently null.
  * </ol>
@@ -58,7 +57,7 @@ public final class TenantContextFilter extends OncePerRequestFilter implements O
     private final List<TenantExtractor> extractors;
     private final String unknownValue;
 
-    public TenantContextFilter(List<TenantExtractor> extractors, PulseProperties.Tenant config) {
+    public TenantContextFilter(List<TenantExtractor> extractors, TenantProperties config) {
         this.extractors = extractors;
         this.unknownValue = config.unknownValue();
     }

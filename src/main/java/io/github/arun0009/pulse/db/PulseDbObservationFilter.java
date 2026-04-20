@@ -1,6 +1,5 @@
 package io.github.arun0009.pulse.db;
 
-import io.github.arun0009.pulse.autoconfigure.PulseProperties;
 import io.github.arun0009.pulse.core.PulseRequestMatcher;
 import io.micrometer.core.instrument.DistributionSummary;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -56,14 +55,14 @@ public class PulseDbObservationFilter extends OncePerRequestFilter implements Or
     private static final Logger log = LoggerFactory.getLogger("pulse.db.n-plus-one");
 
     private final MeterRegistry meterRegistry;
-    private final PulseProperties.Db config;
+    private final DbProperties config;
     private final PulseRequestMatcher gate;
 
-    public PulseDbObservationFilter(MeterRegistry meterRegistry, PulseProperties.Db config) {
+    public PulseDbObservationFilter(MeterRegistry meterRegistry, DbProperties config) {
         this(meterRegistry, config, PulseRequestMatcher.ALWAYS);
     }
 
-    public PulseDbObservationFilter(MeterRegistry meterRegistry, PulseProperties.Db config, PulseRequestMatcher gate) {
+    public PulseDbObservationFilter(MeterRegistry meterRegistry, DbProperties config, PulseRequestMatcher gate) {
         this.meterRegistry = meterRegistry;
         this.config = config;
         this.gate = gate;

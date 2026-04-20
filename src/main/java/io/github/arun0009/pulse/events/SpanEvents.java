@@ -1,6 +1,5 @@
 package io.github.arun0009.pulse.events;
 
-import io.github.arun0009.pulse.autoconfigure.PulseProperties;
 import io.micrometer.common.KeyValues;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Tag;
@@ -48,14 +47,14 @@ public final class SpanEvents {
     private static final Logger log = LoggerFactory.getLogger("pulse.events");
 
     private final MeterRegistry registry;
-    private final PulseProperties.WideEvents config;
+    private final WideEventsProperties config;
     private final ObservationRegistry observationRegistry;
 
     /**
      * Backwards-compatible constructor — the Observation seam is created in NOOP mode, which means
      * no handlers fire and zero overhead. Equivalent to pre-1.1 behaviour.
      */
-    public SpanEvents(MeterRegistry registry, PulseProperties.WideEvents config) {
+    public SpanEvents(MeterRegistry registry, WideEventsProperties config) {
         this(registry, config, ObservationRegistry.NOOP);
     }
 
@@ -68,8 +67,7 @@ public final class SpanEvents {
      *     This is purely additive: the existing counter, span event, and log line still fire
      *     regardless of the registry.
      */
-    public SpanEvents(
-            MeterRegistry registry, PulseProperties.WideEvents config, ObservationRegistry observationRegistry) {
+    public SpanEvents(MeterRegistry registry, WideEventsProperties config, ObservationRegistry observationRegistry) {
         this.registry = registry;
         this.config = config;
         this.observationRegistry = observationRegistry == null ? ObservationRegistry.NOOP : observationRegistry;

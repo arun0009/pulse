@@ -1,7 +1,16 @@
 package io.github.arun0009.pulse.autoconfigure;
 
 import io.github.arun0009.pulse.autoconfigure.internal.PulseProfilePresetEnvironmentPostProcessor;
+import io.github.arun0009.pulse.core.TraceGuardProperties;
+import io.github.arun0009.pulse.db.DbProperties;
+import io.github.arun0009.pulse.dependencies.DependenciesProperties;
+import io.github.arun0009.pulse.enforcement.EnforcementProperties;
 import io.github.arun0009.pulse.enforcement.PulseEnforcementMode;
+import io.github.arun0009.pulse.guardrails.CardinalityProperties;
+import io.github.arun0009.pulse.guardrails.SamplingProperties;
+import io.github.arun0009.pulse.guardrails.TimeoutBudgetProperties;
+import io.github.arun0009.pulse.startup.BannerProperties;
+import io.github.arun0009.pulse.tenant.TenantProperties;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
@@ -43,7 +52,18 @@ class PulseProfilePresetsTest {
             .withInitializer(new ConfigDataApplicationContextInitializer());
 
     @Configuration(proxyBeanMethods = false)
-    @EnableConfigurationProperties(PulseProperties.class)
+    @EnableConfigurationProperties({
+        EnforcementProperties.class,
+        SamplingProperties.class,
+        TraceGuardProperties.class,
+        CardinalityProperties.class,
+        TimeoutBudgetProperties.class,
+        BannerProperties.class,
+        DbProperties.class,
+        TenantProperties.class,
+        DependenciesProperties.class,
+        ProfilePresetsProperties.class,
+    })
     static class EnableProps {}
 
     private ApplicationContextRunner withPulseProfile(String pulseProfile) {
@@ -57,50 +77,49 @@ class PulseProfilePresetsTest {
     @Test
     void dev_preset_runs_enforcing_with_full_sampling_and_loose_cardinality_budget() {
         withPulseProfile("pulse-dev").run(ctx -> {
-            PulseProperties props = ctx.getBean(PulseProperties.class);
-            assertThat(props.enforcement().mode()).isEqualTo(PulseEnforcementMode.Mode.ENFORCING);
-            assertThat(props.sampling().probability()).isEqualTo(1.0);
-            assertThat(props.traceGuard().failOnMissing()).isFalse();
-            assertThat(props.cardinality().maxTagValuesPerMeter()).isEqualTo(5000);
-            assertThat(props.banner().enabled()).isTrue();
+            assertThat(ctx.getBean(EnforcementProperties.class).mode()).isEqualTo(PulseEnforcementMode.Mode.ENFORCING);
+            assertThat(ctx.getBean(SamplingProperties.class).probability()).isEqualTo(1.0);
+            assertThat(ctx.getBean(TraceGuardProperties.class).failOnMissing()).isFalse();
+            assertThat(ctx.getBean(CardinalityProperties.class).maxTagValuesPerMeter())
+                    .isEqualTo(5000);
+            assertThat(ctx.getBean(BannerProperties.class).enabled()).isTrue();
         });
     }
 
     @Test
     void prod_preset_runs_enforcing_with_low_sampling_and_strict_guards() {
         withPulseProfile("pulse-prod").run(ctx -> {
-            PulseProperties props = ctx.getBean(PulseProperties.class);
-            assertThat(props.enforcement().mode()).isEqualTo(PulseEnforcementMode.Mode.ENFORCING);
-            assertThat(props.sampling().probability()).isEqualTo(0.10);
-            assertThat(props.cardinality().maxTagValuesPerMeter()).isEqualTo(1000);
-            assertThat(props.banner().enabled()).isFalse();
-            assertThat(props.tenant().maxTagCardinality()).isEqualTo(100);
-            assertThat(props.dependencies().fanOutWarnThreshold()).isEqualTo(20);
+            assertThat(ctx.getBean(EnforcementProperties.class).mode()).isEqualTo(PulseEnforcementMode.Mode.ENFORCING);
+            assertThat(ctx.getBean(SamplingProperties.class).probability()).isEqualTo(0.10);
+            assertThat(ctx.getBean(CardinalityProperties.class).maxTagValuesPerMeter())
+                    .isEqualTo(1000);
+            assertThat(ctx.getBean(BannerProperties.class).enabled()).isFalse();
+            assertThat(ctx.getBean(TenantProperties.class).maxTagCardinality()).isEqualTo(100);
+            assertThat(ctx.getBean(DependenciesProperties.class).fanOutWarnThreshold())
+                    .isEqualTo(20);
         });
     }
 
     @Test
     void test_preset_disables_enforcing_features_so_unit_tests_stay_clean() {
         withPulseProfile("pulse-test").run(ctx -> {
-            PulseProperties props = ctx.getBean(PulseProperties.class);
-            assertThat(props.traceGuard().enabled()).isFalse();
-            assertThat(props.cardinality().enabled()).isFalse();
-            assertThat(props.timeoutBudget().enabled()).isFalse();
-            assertThat(props.sampling().probability()).isEqualTo(0.0);
-            assertThat(props.banner().enabled()).isFalse();
-            assertThat(props.db().enabled()).isFalse();
+            assertThat(ctx.getBean(TraceGuardProperties.class).enabled()).isFalse();
+            assertThat(ctx.getBean(CardinalityProperties.class).enabled()).isFalse();
+            assertThat(ctx.getBean(TimeoutBudgetProperties.class).enabled()).isFalse();
+            assertThat(ctx.getBean(SamplingProperties.class).probability()).isEqualTo(0.0);
+            assertThat(ctx.getBean(BannerProperties.class).enabled()).isFalse();
+            assertThat(ctx.getBean(DbProperties.class).enabled()).isFalse();
         });
     }
 
     @Test
     void canary_preset_runs_dry_run_with_full_sampling() {
         withPulseProfile("pulse-canary").run(ctx -> {
-            PulseProperties props = ctx.getBean(PulseProperties.class);
-            assertThat(props.enforcement().mode())
+            assertThat(ctx.getBean(EnforcementProperties.class).mode())
                     .as("canary must be DRY_RUN — every guardrail observes, none enforces")
                     .isEqualTo(PulseEnforcementMode.Mode.DRY_RUN);
-            assertThat(props.sampling().probability()).isEqualTo(1.0);
-            assertThat(props.traceGuard().failOnMissing())
+            assertThat(ctx.getBean(SamplingProperties.class).probability()).isEqualTo(1.0);
+            assertThat(ctx.getBean(TraceGuardProperties.class).failOnMissing())
                     .as("fail-on-missing stays enabled — DRY_RUN downgrades it at runtime")
                     .isTrue();
         });
@@ -221,11 +240,8 @@ class PulseProfilePresetsTest {
                             .postProcessEnvironment(ctx.getEnvironment(), new SpringApplication());
                 })
                 .withInitializer(new ConfigDataApplicationContextInitializer())
-                .run(ctx -> {
-                    PulseProperties props = ctx.getBean(PulseProperties.class);
-                    assertThat(props.sampling().probability())
-                            .as("auto-applied pulse-prod must drag in its 0.10 sampling probability")
-                            .isEqualTo(0.10);
-                });
+                .run(ctx -> assertThat(ctx.getBean(SamplingProperties.class).probability())
+                        .as("auto-applied pulse-prod must drag in its 0.10 sampling probability")
+                        .isEqualTo(0.10));
     }
 }

@@ -1,6 +1,5 @@
 package io.github.arun0009.pulse.tenant;
 
-import io.github.arun0009.pulse.autoconfigure.PulseProperties;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.Test;
@@ -51,11 +50,11 @@ class TenantTagCardinalityFilterTest {
     }
 
     private TenantTagCardinalityFilter filter(int max) {
-        return new TenantTagCardinalityFilter(new PulseProperties.Tenant(
+        return new TenantTagCardinalityFilter(new TenantProperties(
                 true,
-                new PulseProperties.Tenant.Header(true, "Pulse-Tenant-Id"),
-                new PulseProperties.Tenant.Jwt(false, "tenant_id"),
-                new PulseProperties.Tenant.Subdomain(false, 0),
+                new TenantProperties.Header(true, "Pulse-Tenant-Id"),
+                new TenantProperties.Jwt(false, "tenant_id"),
+                new TenantProperties.Subdomain(false, 0),
                 max,
                 "__overflow__",
                 "unknown",

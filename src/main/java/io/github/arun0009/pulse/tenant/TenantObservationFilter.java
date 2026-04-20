@@ -11,7 +11,7 @@ import java.util.Set;
 /**
  * Adds the {@code tenant} tag to every {@link io.micrometer.observation.Observation} whose name
  * starts with one of the operator-configured prefixes in
- * {@link io.github.arun0009.pulse.autoconfigure.PulseProperties.Tenant#tagMeters()}.
+ * {@link TenantProperties#tagMeters()}.
  *
  * <p>Why an {@link ObservationFilter} rather than a Micrometer {@code MeterFilter}: meter
  * filters can only modify the {@code Meter.Id} once (at meter registration), so they cannot

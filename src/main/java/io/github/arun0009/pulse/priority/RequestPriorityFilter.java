@@ -1,6 +1,5 @@
 package io.github.arun0009.pulse.priority;
 
-import io.github.arun0009.pulse.autoconfigure.PulseProperties;
 import io.github.arun0009.pulse.core.ContextKeys;
 import io.github.arun0009.pulse.core.PulseRequestContextFilter;
 import io.opentelemetry.api.baggage.Baggage;
@@ -35,7 +34,7 @@ public final class RequestPriorityFilter extends OncePerRequestFilter implements
     private final String headerName;
     private final RequestPriority defaultPriority;
 
-    public RequestPriorityFilter(PulseProperties.Priority config) {
+    public RequestPriorityFilter(PriorityProperties config) {
         this.headerName = config.headerName();
         this.defaultPriority = RequestPriority.parseOrDefault(config.defaultPriority(), RequestPriority.NORMAL);
     }

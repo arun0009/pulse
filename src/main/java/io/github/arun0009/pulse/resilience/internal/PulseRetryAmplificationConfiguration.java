@@ -1,8 +1,8 @@
 package io.github.arun0009.pulse.resilience.internal;
 
 import io.github.arun0009.pulse.autoconfigure.PulseAutoConfiguration;
-import io.github.arun0009.pulse.autoconfigure.PulseProperties;
 import io.github.arun0009.pulse.resilience.RetryDepthFilter;
+import io.github.arun0009.pulse.resilience.RetryProperties;
 import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.servlet.Filter;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -37,8 +37,8 @@ public class PulseRetryAmplificationConfiguration {
 
         @Bean
         public FilterRegistrationBean<RetryDepthFilter> pulseRetryDepthFilter(
-                PulseProperties properties, MeterRegistry registry) {
-            RetryDepthFilter filter = new RetryDepthFilter(properties.retry(), registry);
+                RetryProperties retry, MeterRegistry registry) {
+            RetryDepthFilter filter = new RetryDepthFilter(retry, registry);
             FilterRegistrationBean<RetryDepthFilter> reg = new FilterRegistrationBean<>(filter);
             reg.setOrder(filter.getOrder());
             reg.addUrlPatterns("/*");

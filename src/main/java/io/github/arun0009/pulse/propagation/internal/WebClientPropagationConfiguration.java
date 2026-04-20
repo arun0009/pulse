@@ -1,9 +1,12 @@
 package io.github.arun0009.pulse.propagation.internal;
 
 import io.github.arun0009.pulse.autoconfigure.PulseAutoConfiguration;
-import io.github.arun0009.pulse.autoconfigure.PulseProperties;
+import io.github.arun0009.pulse.core.ContextProperties;
 import io.github.arun0009.pulse.guardrails.TimeoutBudgetOutbound;
+import io.github.arun0009.pulse.guardrails.TimeoutBudgetProperties;
+import io.github.arun0009.pulse.priority.PriorityProperties;
 import io.github.arun0009.pulse.propagation.HeaderPropagation;
+import io.github.arun0009.pulse.resilience.RetryProperties;
 import io.micrometer.core.instrument.MeterRegistry;
 import org.slf4j.MDC;
 import org.springframework.beans.factory.ObjectProvider;
@@ -36,11 +39,14 @@ public class WebClientPropagationConfiguration {
 
         @Bean
         public WebClientCustomizer pulseWebClientCustomizer(
-                PulseProperties properties, ObjectProvider<MeterRegistry> registry) {
-            Map<String, String> headerMap =
-                    HeaderPropagation.headerToMdcKey(properties.context(), properties.retry(), properties.priority());
-            String budgetHeader = properties.timeoutBudget().outboundHeader();
-            boolean budgetEnabled = properties.timeoutBudget().enabled();
+                ContextProperties context,
+                RetryProperties retry,
+                PriorityProperties priority,
+                TimeoutBudgetProperties timeoutBudget,
+                ObjectProvider<MeterRegistry> registry) {
+            Map<String, String> headerMap = HeaderPropagation.headerToMdcKey(context, retry, priority);
+            String budgetHeader = timeoutBudget.outboundHeader();
+            boolean budgetEnabled = timeoutBudget.enabled();
             TimeoutBudgetOutbound budgetHelper = new TimeoutBudgetOutbound(registry.getIfAvailable());
             return builder -> builder.filter(filter(headerMap, budgetHeader, budgetEnabled, budgetHelper));
         }

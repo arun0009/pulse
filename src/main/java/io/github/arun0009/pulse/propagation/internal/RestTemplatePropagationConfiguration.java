@@ -1,9 +1,12 @@
 package io.github.arun0009.pulse.propagation.internal;
 
 import io.github.arun0009.pulse.autoconfigure.PulseAutoConfiguration;
-import io.github.arun0009.pulse.autoconfigure.PulseProperties;
+import io.github.arun0009.pulse.core.ContextProperties;
 import io.github.arun0009.pulse.guardrails.TimeoutBudgetOutboundInterceptor;
+import io.github.arun0009.pulse.guardrails.TimeoutBudgetProperties;
+import io.github.arun0009.pulse.priority.PriorityProperties;
 import io.github.arun0009.pulse.propagation.HeaderPropagation;
+import io.github.arun0009.pulse.resilience.RetryProperties;
 import io.micrometer.core.instrument.MeterRegistry;
 import org.slf4j.MDC;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -34,9 +37,9 @@ public class RestTemplatePropagationConfiguration {
     static class Beans {
 
         @Bean
-        public RestTemplateCustomizer pulseRestTemplateCustomizer(PulseProperties properties) {
-            Map<String, String> headerMap =
-                    HeaderPropagation.headerToMdcKey(properties.context(), properties.retry(), properties.priority());
+        public RestTemplateCustomizer pulseRestTemplateCustomizer(
+                ContextProperties context, RetryProperties retry, PriorityProperties priority) {
+            Map<String, String> headerMap = HeaderPropagation.headerToMdcKey(context, retry, priority);
             return restTemplate -> restTemplate.getInterceptors().add((request, body, execution) -> {
                 Map<String, String> mdc = MDC.getCopyOfContextMap();
                 if (mdc != null) {
@@ -58,9 +61,9 @@ public class RestTemplatePropagationConfiguration {
                 havingValue = "true",
                 matchIfMissing = true)
         public RestTemplateCustomizer pulseTimeoutBudgetRestTemplateCustomizer(
-                PulseProperties properties, MeterRegistry registry) {
+                TimeoutBudgetProperties timeoutBudget, MeterRegistry registry) {
             TimeoutBudgetOutboundInterceptor interceptor =
-                    new TimeoutBudgetOutboundInterceptor(properties.timeoutBudget(), registry, "resttemplate");
+                    new TimeoutBudgetOutboundInterceptor(timeoutBudget, registry, "resttemplate");
             return restTemplate -> restTemplate.getInterceptors().add(interceptor);
         }
     }

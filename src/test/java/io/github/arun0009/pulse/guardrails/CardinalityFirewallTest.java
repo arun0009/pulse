@@ -1,6 +1,5 @@
 package io.github.arun0009.pulse.guardrails;
 
-import io.github.arun0009.pulse.autoconfigure.PulseProperties;
 import io.github.arun0009.pulse.enforcement.PulseEnforcementMode;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.Test;
@@ -17,8 +16,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class CardinalityFirewallTest {
 
-    private static final PulseProperties.Cardinality DEFAULT_CONFIG =
-            new PulseProperties.Cardinality(true, 1000, "OVERFLOW", List.of(), List.of());
+    private static final CardinalityProperties DEFAULT_CONFIG =
+            new CardinalityProperties(true, 1000, "OVERFLOW", List.of(), List.of());
 
     private static PulseEnforcementMode enforcing() {
         return new PulseEnforcementMode(PulseEnforcementMode.Mode.ENFORCING);
@@ -40,8 +39,7 @@ class CardinalityFirewallTest {
 
     @Test
     void runaway_tag_is_capped_at_configured_limit_and_excess_buckets_to_overflow() {
-        PulseProperties.Cardinality config =
-                new PulseProperties.Cardinality(true, 100, "OVERFLOW", List.of(), List.of());
+        CardinalityProperties config = new CardinalityProperties(true, 100, "OVERFLOW", List.of(), List.of());
         SimpleMeterRegistry registry = new SimpleMeterRegistry();
         registry.config().meterFilter(new CardinalityFirewall(config, enforcing(), () -> registry));
 
@@ -78,8 +76,7 @@ class CardinalityFirewallTest {
 
     @Test
     void exempt_meter_prefix_is_not_protected() {
-        PulseProperties.Cardinality config =
-                new PulseProperties.Cardinality(true, 10, "OVERFLOW", List.of(), List.of("business."));
+        CardinalityProperties config = new CardinalityProperties(true, 10, "OVERFLOW", List.of(), List.of("business."));
         SimpleMeterRegistry registry = new SimpleMeterRegistry();
         registry.config().meterFilter(new CardinalityFirewall(config, enforcing(), () -> registry));
 
@@ -97,8 +94,7 @@ class CardinalityFirewallTest {
 
     @Test
     void allowlist_protects_only_named_prefixes() {
-        PulseProperties.Cardinality config =
-                new PulseProperties.Cardinality(true, 5, "OVERFLOW", List.of("http."), List.of());
+        CardinalityProperties config = new CardinalityProperties(true, 5, "OVERFLOW", List.of("http."), List.of());
         SimpleMeterRegistry registry = new SimpleMeterRegistry();
         registry.config().meterFilter(new CardinalityFirewall(config, enforcing(), () -> registry));
 
@@ -123,7 +119,7 @@ class CardinalityFirewallTest {
 
     @Test
     void disabled_firewall_is_a_no_op() {
-        PulseProperties.Cardinality off = new PulseProperties.Cardinality(false, 1, "OVERFLOW", List.of(), List.of());
+        CardinalityProperties off = new CardinalityProperties(false, 1, "OVERFLOW", List.of(), List.of());
         SimpleMeterRegistry registry = new SimpleMeterRegistry();
         registry.config().meterFilter(new CardinalityFirewall(off, enforcing(), () -> registry));
 

@@ -1,6 +1,5 @@
 package io.github.arun0009.pulse.core;
 
-import io.github.arun0009.pulse.autoconfigure.PulseProperties;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -35,13 +34,13 @@ public class PulseRequestContextFilter extends OncePerRequestFilter implements O
 
     private final String serviceName;
     private final String environment;
-    private final PulseProperties.Context contextConfig;
+    private final ContextProperties contextConfig;
     private final List<ContextContributor> contributors;
 
     public PulseRequestContextFilter(
             String serviceName,
             String environment,
-            PulseProperties.Context contextConfig,
+            ContextProperties contextConfig,
             List<ContextContributor> contributors) {
         this.serviceName = serviceName;
         this.environment = environment;

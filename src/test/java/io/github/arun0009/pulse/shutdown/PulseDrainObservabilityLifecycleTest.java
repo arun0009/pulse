@@ -1,6 +1,5 @@
 package io.github.arun0009.pulse.shutdown;
 
-import io.github.arun0009.pulse.autoconfigure.PulseProperties;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.Test;
 
@@ -15,7 +14,7 @@ class PulseDrainObservabilityLifecycleTest {
         SimpleMeterRegistry registry = new SimpleMeterRegistry();
         InflightRequestCounter counter = new InflightRequestCounter(registry);
         PulseDrainObservabilityLifecycle lifecycle = new PulseDrainObservabilityLifecycle(
-                counter, new PulseProperties.Shutdown.Drain(true, Duration.ofSeconds(1)), registry);
+                counter, new ShutdownProperties.Drain(true, Duration.ofSeconds(1)), registry);
 
         lifecycle.start();
         lifecycle.stop();
@@ -29,7 +28,7 @@ class PulseDrainObservabilityLifecycleTest {
     void inflightAtDeadlineCountsAsDropped() {
         SimpleMeterRegistry registry = new SimpleMeterRegistry();
         PulseDrainObservabilityLifecycle lifecycle = new PulseDrainObservabilityLifecycle(
-                () -> 3, new PulseProperties.Shutdown.Drain(true, Duration.ofMillis(150)), registry);
+                () -> 3, new ShutdownProperties.Drain(true, Duration.ofMillis(150)), registry);
 
         lifecycle.start();
         lifecycle.stop();

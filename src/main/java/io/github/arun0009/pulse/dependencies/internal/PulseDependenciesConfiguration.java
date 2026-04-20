@@ -1,9 +1,9 @@
 package io.github.arun0009.pulse.dependencies.internal;
 
 import io.github.arun0009.pulse.autoconfigure.PulseAutoConfiguration;
-import io.github.arun0009.pulse.autoconfigure.PulseProperties;
 import io.github.arun0009.pulse.autoconfigure.PulseRequestMatcherFactory;
 import io.github.arun0009.pulse.core.PulseRequestMatcher;
+import io.github.arun0009.pulse.dependencies.DependenciesProperties;
 import io.github.arun0009.pulse.dependencies.DependencyClassifier;
 import io.github.arun0009.pulse.dependencies.DependencyClientHttpInterceptor;
 import io.github.arun0009.pulse.dependencies.DependencyExchangeFilter;
@@ -49,8 +49,8 @@ public class PulseDependenciesConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public DependencyResolver pulseDependencyResolver(PulseProperties properties) {
-        return new DependencyResolver(properties.dependencies());
+    public DependencyResolver pulseDependencyResolver(DependenciesProperties properties) {
+        return new DependencyResolver(properties);
     }
 
     @Bean
@@ -68,13 +68,12 @@ public class PulseDependenciesConfiguration {
             MeterRegistry registry,
             DependencyClassifier classifier,
             DependencyResolver resolver,
-            PulseProperties properties,
+            DependenciesProperties properties,
             ObjectProvider<PulseRequestMatcherFactory> matcherFactory) {
         PulseRequestMatcherFactory factory = matcherFactory.getIfAvailable();
-        PulseRequestMatcher gate = factory == null
-                ? PulseRequestMatcher.ALWAYS
-                : factory.build("dependencies", properties.dependencies().enabledWhen());
-        return new DependencyOutboundRecorder(registry, classifier, resolver, properties.dependencies(), gate);
+        PulseRequestMatcher gate =
+                factory == null ? PulseRequestMatcher.ALWAYS : factory.build("dependencies", properties.enabledWhen());
+        return new DependencyOutboundRecorder(registry, classifier, resolver, properties, gate);
     }
 
     @Bean
@@ -86,8 +85,8 @@ public class PulseDependenciesConfiguration {
             havingValue = "true",
             matchIfMissing = true)
     public DependencyHealthIndicator pulseDependencyHealthIndicator(
-            MeterRegistry registry, PulseProperties properties) {
-        return new DependencyHealthIndicator(registry, properties.dependencies().health());
+            MeterRegistry registry, DependenciesProperties properties) {
+        return new DependencyHealthIndicator(registry, properties.health());
     }
 
     @Configuration(proxyBeanMethods = false)
@@ -146,15 +145,14 @@ public class PulseDependenciesConfiguration {
         @Bean
         public FilterRegistrationBean<RequestFanoutFilter> pulseRequestFanoutFilterRegistration(
                 MeterRegistry registry,
-                PulseProperties properties,
+                DependenciesProperties properties,
                 ObjectProvider<PulseRequestMatcherFactory> matcherFactory) {
             PulseRequestMatcherFactory factory = matcherFactory.getIfAvailable();
             PulseRequestMatcher gate = factory == null
                     ? PulseRequestMatcher.ALWAYS
-                    : factory.build(
-                            "dependencies.fan-out", properties.dependencies().enabledWhen());
+                    : factory.build("dependencies.fan-out", properties.enabledWhen());
             FilterRegistrationBean<RequestFanoutFilter> reg =
-                    new FilterRegistrationBean<>(new RequestFanoutFilter(registry, properties.dependencies(), gate));
+                    new FilterRegistrationBean<>(new RequestFanoutFilter(registry, properties, gate));
             // Run very late so the thread-local is initialized after auth/MDC filters and
             // closed before request logging. HIGHEST_PRECEDENCE-1 would be wrong because the
             // outbound calls happen inside the controller, which is called by the chain — we

@@ -1,6 +1,5 @@
 package io.github.arun0009.pulse.guardrails;
 
-import io.github.arun0009.pulse.autoconfigure.PulseProperties;
 import io.github.arun0009.pulse.core.PulseRequestMatcher;
 import io.opentelemetry.api.baggage.Baggage;
 import io.opentelemetry.context.Context;
@@ -30,9 +29,9 @@ import java.util.Optional;
  *   <li>Otherwise, fall back to the configured default budget.
  * </ol>
  *
- * <p>Floors the budget at {@link PulseProperties.TimeoutBudget#minimumBudget()} and applies {@link
- * PulseProperties.TimeoutBudget#safetyMargin()} so the inbound work has a small buffer before the
- * upstream caller cancels. Inbound values above {@link PulseProperties.TimeoutBudget#maximumBudget()}
+ * <p>Floors the budget at {@link TimeoutBudgetProperties#minimumBudget()} and applies {@link
+ * TimeoutBudgetProperties#safetyMargin()} so the inbound work has a small buffer before the
+ * upstream caller cancels. Inbound values above {@link TimeoutBudgetProperties#maximumBudget()}
  * are clamped before the margin is applied.
  */
 public class TimeoutBudgetFilter extends OncePerRequestFilter implements Ordered {
@@ -41,14 +40,14 @@ public class TimeoutBudgetFilter extends OncePerRequestFilter implements Ordered
 
     private static final Logger log = LoggerFactory.getLogger(TimeoutBudgetFilter.class);
 
-    private final PulseProperties.TimeoutBudget config;
+    private final TimeoutBudgetProperties config;
     private final PulseRequestMatcher gate;
 
-    public TimeoutBudgetFilter(PulseProperties.TimeoutBudget config) {
+    public TimeoutBudgetFilter(TimeoutBudgetProperties config) {
         this(config, PulseRequestMatcher.ALWAYS);
     }
 
-    public TimeoutBudgetFilter(PulseProperties.TimeoutBudget config, PulseRequestMatcher gate) {
+    public TimeoutBudgetFilter(TimeoutBudgetProperties config, PulseRequestMatcher gate) {
         this.config = config;
         this.gate = gate;
     }

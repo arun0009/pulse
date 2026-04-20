@@ -1,6 +1,5 @@
 package io.github.arun0009.pulse.slo;
 
-import io.github.arun0009.pulse.autoconfigure.PulseProperties;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Tag;
 import io.micrometer.core.instrument.Timer;
@@ -28,23 +27,23 @@ import java.util.List;
  */
 public final class SloProjector {
 
-    private final PulseProperties.Slo config;
+    private final SloProperties config;
     private final MeterRegistry registry;
 
-    public SloProjector(PulseProperties.Slo config, MeterRegistry registry) {
+    public SloProjector(SloProperties config, MeterRegistry registry) {
         this.config = config;
         this.registry = registry;
     }
 
     public List<SloStatus> project() {
         List<SloStatus> out = new ArrayList<>();
-        for (PulseProperties.Slo.Objective o : config.objectives()) {
+        for (SloProperties.Objective o : config.objectives()) {
             out.add(projectOne(o));
         }
         return out;
     }
 
-    private SloStatus projectOne(PulseProperties.Slo.Objective o) {
+    private SloStatus projectOne(SloProperties.Objective o) {
         Search search = registry.find(o.meter());
         Collection<Timer> timers = search.timers();
         if (timers.isEmpty()) {

@@ -1,6 +1,5 @@
 package io.github.arun0009.pulse.tenant;
 
-import io.github.arun0009.pulse.autoconfigure.PulseProperties;
 import io.micrometer.core.instrument.Meter;
 import io.micrometer.core.instrument.Tag;
 import io.micrometer.core.instrument.Tags;
@@ -22,7 +21,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *
  * <p>For every meter created with a {@code tenant} tag, the distinct tenants seen for that
  * meter are tracked in a {@link Set}. Once the count exceeds {@code maxTagCardinality}, any
- * further tenant value is rewritten to {@link PulseProperties.Tenant#overflowValue()} (default
+ * further tenant value is rewritten to {@link TenantProperties#overflowValue()} (default
  * {@code __overflow__}) and a one-time WARN line fires.
  *
  * <p>Memory bound: at most {@code (number of tenant-tagged meters) × maxTagCardinality} string
@@ -38,7 +37,7 @@ public final class TenantTagCardinalityFilter implements MeterFilter {
     private final ConcurrentHashMap<String, Set<String>> tenantsByMeter = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, AtomicBoolean> warnedByMeter = new ConcurrentHashMap<>();
 
-    public TenantTagCardinalityFilter(PulseProperties.Tenant config) {
+    public TenantTagCardinalityFilter(TenantProperties config) {
         this.maxCardinality = config.maxTagCardinality();
         this.overflowValue = config.overflowValue();
     }

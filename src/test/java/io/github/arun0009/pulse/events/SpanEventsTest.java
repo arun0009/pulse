@@ -1,6 +1,5 @@
 package io.github.arun0009.pulse.events;
 
-import io.github.arun0009.pulse.autoconfigure.PulseProperties;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.Tracer;
@@ -26,8 +25,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class SpanEventsTest {
 
-    private static final PulseProperties.WideEvents DEFAULT_CONFIG =
-            new PulseProperties.WideEvents(true, true, true, "pulse.events", "event");
+    private static final WideEventsProperties DEFAULT_CONFIG =
+            new WideEventsProperties(true, true, true, "pulse.events", "event");
 
     private InMemorySpanExporter exporter;
     private Tracer tracer;
@@ -107,7 +106,7 @@ class SpanEventsTest {
     @Test
     void disabled_subsystem_emits_nothing() {
         SpanEvents disabled =
-                new SpanEvents(registry, new PulseProperties.WideEvents(false, true, true, "pulse.events", "event"));
+                new SpanEvents(registry, new WideEventsProperties(false, true, true, "pulse.events", "event"));
         Span span = tracer.spanBuilder("X").startSpan();
         try (Scope ignored = span.makeCurrent()) {
             disabled.emit("never.fired");
@@ -121,7 +120,7 @@ class SpanEventsTest {
     @Test
     void counter_disabled_still_records_span_event() {
         SpanEvents noCounter =
-                new SpanEvents(registry, new PulseProperties.WideEvents(true, false, true, "pulse.events", "event"));
+                new SpanEvents(registry, new WideEventsProperties(true, false, true, "pulse.events", "event"));
         Span span = tracer.spanBuilder("X").startSpan();
         try (Scope ignored = span.makeCurrent()) {
             noCounter.emit("trace.only");

@@ -1,27 +1,54 @@
 package io.github.arun0009.pulse.autoconfigure;
 
 import io.github.arun0009.pulse.actuator.PulseDiagnostics;
+import io.github.arun0009.pulse.async.AsyncProperties;
+import io.github.arun0009.pulse.cache.CacheProperties;
+import io.github.arun0009.pulse.container.ContainerMemoryProperties;
+import io.github.arun0009.pulse.core.ContextProperties;
+import io.github.arun0009.pulse.core.TraceGuardProperties;
+import io.github.arun0009.pulse.db.DbProperties;
+import io.github.arun0009.pulse.dependencies.DependenciesProperties;
+import io.github.arun0009.pulse.enforcement.EnforcementProperties;
 import io.github.arun0009.pulse.enforcement.PulseEnforcementMode;
 import io.github.arun0009.pulse.events.SpanEvents;
+import io.github.arun0009.pulse.events.WideEventsProperties;
+import io.github.arun0009.pulse.exception.ExceptionHandlerProperties;
 import io.github.arun0009.pulse.fleet.ConfigHashGauge;
 import io.github.arun0009.pulse.fleet.ConfigHasher;
 import io.github.arun0009.pulse.guardrails.CardinalityFirewall;
+import io.github.arun0009.pulse.guardrails.CardinalityProperties;
+import io.github.arun0009.pulse.guardrails.SamplingProperties;
+import io.github.arun0009.pulse.guardrails.TimeoutBudgetProperties;
 import io.github.arun0009.pulse.health.OtelExporterHealthIndicator;
+import io.github.arun0009.pulse.health.OtelExporterHealthProperties;
 import io.github.arun0009.pulse.health.OtelExporterHealthRegistrar;
 import io.github.arun0009.pulse.jobs.InstrumentedTaskScheduler;
 import io.github.arun0009.pulse.jobs.JobRegistry;
 import io.github.arun0009.pulse.jobs.JobsHealthIndicator;
+import io.github.arun0009.pulse.jobs.JobsProperties;
+import io.github.arun0009.pulse.logging.LoggingProperties;
 import io.github.arun0009.pulse.metrics.BusinessMetrics;
 import io.github.arun0009.pulse.metrics.DeployInfoMetrics;
 import io.github.arun0009.pulse.metrics.HistogramMeterFilter;
+import io.github.arun0009.pulse.metrics.HistogramsProperties;
+import io.github.arun0009.pulse.openfeature.OpenFeatureProperties;
+import io.github.arun0009.pulse.priority.PriorityProperties;
+import io.github.arun0009.pulse.profiling.ProfilingProperties;
+import io.github.arun0009.pulse.propagation.KafkaPropagationProperties;
+import io.github.arun0009.pulse.resilience.ResilienceProperties;
+import io.github.arun0009.pulse.resilience.RetryProperties;
 import io.github.arun0009.pulse.scheduling.ContextPropagatingTaskScheduler;
 import io.github.arun0009.pulse.scheduling.PulseSchedulingConfigurer;
 import io.github.arun0009.pulse.shutdown.InflightRequestCounter;
 import io.github.arun0009.pulse.shutdown.PulseDrainObservabilityLifecycle;
 import io.github.arun0009.pulse.shutdown.PulseOtelShutdownLifecycle;
+import io.github.arun0009.pulse.shutdown.ShutdownProperties;
 import io.github.arun0009.pulse.slo.SloProjector;
+import io.github.arun0009.pulse.slo.SloProperties;
 import io.github.arun0009.pulse.slo.SloRuleGenerator;
+import io.github.arun0009.pulse.startup.BannerProperties;
 import io.github.arun0009.pulse.startup.PulseStartupBanner;
+import io.github.arun0009.pulse.tenant.TenantProperties;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.config.MeterFilter;
 import io.opentelemetry.sdk.OpenTelemetrySdk;
@@ -43,11 +70,12 @@ import org.springframework.core.env.Environment;
 /**
  * Root Pulse auto-configuration.
  *
- * <p>This class is intentionally thin: it registers {@link PulseProperties}, the global
- * {@link PulseEnforcementMode}, and a small set of cross-cutting beans that every other
- * Pulse auto-config depends on (diagnostics, common metrics, cardinality firewall, startup
- * banner, job registry, shutdown lifecycles, OTel-exporter health). Each feature subsystem
- * ships its own dedicated {@link AutoConfiguration @AutoConfiguration} class under
+ * <p>This class is intentionally thin: it registers every Pulse {@code *Properties} record
+ * for YAML binding, the global {@link PulseEnforcementMode}, and a small set of cross-cutting
+ * beans that every other Pulse auto-config depends on (diagnostics, common metrics,
+ * cardinality firewall, startup banner, job registry, shutdown lifecycles, OTel-exporter
+ * health). Each feature subsystem ships its own dedicated
+ * {@link AutoConfiguration @AutoConfiguration} class under
  * {@code io.github.arun0009.pulse.<feature>.internal} and is listed independently in
  * {@code META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports}
  * so each feature shows up as its own entry in {@code /actuator/conditions}.
@@ -56,12 +84,6 @@ import org.springframework.core.env.Environment;
  * {@link PulseWebAutoConfiguration} so non-web worker apps still benefit from Pulse's
  * cardinality firewall, MDC propagation across {@code @Async}/{@code @Scheduled}, and Kafka
  * propagation without dragging in servlet API dependencies.
- *
- * <p>{@link AutoConfigureAfter} pins Pulse after Boot's metrics + OpenTelemetry auto-configs
- * so we observe the {@code MeterRegistry} and {@code OpenTelemetrySdk} they create. Each
- * feature auto-config in turn uses {@code @AutoConfiguration(after = PulseAutoConfiguration.class)}
- * to pick up {@code PulseProperties} and {@code PulseEnforcementMode} without any ordering
- * gymnastics in user code.
  */
 @AutoConfiguration
 @AutoConfigureAfter(
@@ -71,7 +93,36 @@ import org.springframework.core.env.Environment;
             "org.springframework.boot.opentelemetry.actuate.autoconfigure.metrics.OpenTelemetryMetricsAutoConfiguration",
             "org.springframework.boot.tracing.autoconfigure.opentelemetry.OpenTelemetryTracingAutoConfiguration"
         })
-@EnableConfigurationProperties(PulseProperties.class)
+@EnableConfigurationProperties({
+    ContextProperties.class,
+    TraceGuardProperties.class,
+    SamplingProperties.class,
+    AsyncProperties.class,
+    KafkaPropagationProperties.class,
+    ExceptionHandlerProperties.class,
+    CardinalityProperties.class,
+    TimeoutBudgetProperties.class,
+    WideEventsProperties.class,
+    LoggingProperties.class,
+    BannerProperties.class,
+    HistogramsProperties.class,
+    SloProperties.class,
+    OtelExporterHealthProperties.class,
+    ShutdownProperties.class,
+    JobsProperties.class,
+    DbProperties.class,
+    ResilienceProperties.class,
+    ProfilingProperties.class,
+    DependenciesProperties.class,
+    TenantProperties.class,
+    RetryProperties.class,
+    PriorityProperties.class,
+    ContainerMemoryProperties.class,
+    OpenFeatureProperties.class,
+    CacheProperties.class,
+    EnforcementProperties.class,
+    ProfilePresetsProperties.class,
+})
 @ImportRuntimeHints(PulseRuntimeHints.class)
 public class PulseAutoConfiguration {
 
@@ -79,34 +130,28 @@ public class PulseAutoConfiguration {
      * Process-wide enforce-vs-observe gate. Always created (regardless of
      * {@code pulse.enforcement.mode}) so that the {@code POST /actuator/pulse/enforcement} write
      * operation can flip between ENFORCING and DRY_RUN during an incident without a redeploy.
-     * The constructor seeds the initial mode from {@code pulse.enforcement.mode}; subsequent
-     * runtime mutations are made through
-     * {@link PulseEnforcementMode#set(PulseEnforcementMode.Mode)}.
      */
     @Bean
     @ConditionalOnMissingBean
-    public PulseEnforcementMode pulseEnforcementMode(PulseProperties properties) {
-        return new PulseEnforcementMode(properties.enforcement().mode());
+    public PulseEnforcementMode pulseEnforcementMode(EnforcementProperties properties) {
+        return new PulseEnforcementMode(properties.mode());
     }
 
     @Bean
     @ConditionalOnMissingBean
     @ConditionalOnProperty(prefix = "pulse.cardinality", name = "enabled", havingValue = "true", matchIfMissing = true)
     public CardinalityFirewall pulseCardinalityFirewall(
-            PulseProperties properties,
+            CardinalityProperties properties,
             PulseEnforcementMode enforcement,
             ObjectProvider<MeterRegistry> meterRegistryProvider) {
-        // ObjectProvider keeps this lazy: Spring Boot's MeterRegistryPostProcessor resolves
-        // MeterFilter beans during MeterRegistry construction. Eagerly injecting MeterRegistry
-        // here would create a circular bean reference and fail context startup.
-        return new CardinalityFirewall(properties.cardinality(), enforcement, meterRegistryProvider::getObject);
+        return new CardinalityFirewall(properties, enforcement, meterRegistryProvider::getObject);
     }
 
     @Bean
     @ConditionalOnMissingBean(name = "pulseHistogramMeterFilter")
     @ConditionalOnProperty(prefix = "pulse.histograms", name = "enabled", havingValue = "true", matchIfMissing = true)
-    public MeterFilter pulseHistogramMeterFilter(PulseProperties properties) {
-        return new HistogramMeterFilter(properties.histograms());
+    public MeterFilter pulseHistogramMeterFilter(HistogramsProperties properties) {
+        return new HistogramMeterFilter(properties);
     }
 
     @Bean
@@ -120,11 +165,11 @@ public class PulseAutoConfiguration {
     @ConditionalOnProperty(prefix = "pulse.wide-events", name = "enabled", havingValue = "true", matchIfMissing = true)
     public SpanEvents pulseSpanEvents(
             MeterRegistry registry,
-            PulseProperties properties,
+            WideEventsProperties properties,
             ObjectProvider<io.micrometer.observation.ObservationRegistry> observationRegistry) {
         return new SpanEvents(
                 registry,
-                properties.wideEvents(),
+                properties,
                 observationRegistry.getIfAvailable(() -> io.micrometer.observation.ObservationRegistry.NOOP));
     }
 
@@ -141,21 +186,21 @@ public class PulseAutoConfiguration {
     @ConditionalOnMissingBean
     @ConditionalOnProperty(prefix = "pulse.slo", name = "enabled", havingValue = "true", matchIfMissing = true)
     public SloRuleGenerator pulseSloRuleGenerator(
-            PulseProperties properties, @Value("${spring.application.name:unknown-service}") String serviceName) {
-        return new SloRuleGenerator(properties.slo(), serviceName);
+            SloProperties properties, @Value("${spring.application.name:unknown-service}") String serviceName) {
+        return new SloRuleGenerator(properties, serviceName);
     }
 
     @Bean
     @ConditionalOnMissingBean
     @ConditionalOnProperty(prefix = "pulse.slo", name = "enabled", havingValue = "true", matchIfMissing = true)
-    public SloProjector pulseSloProjector(PulseProperties properties, MeterRegistry registry) {
-        return new SloProjector(properties.slo(), registry);
+    public SloProjector pulseSloProjector(SloProperties properties, MeterRegistry registry) {
+        return new SloProjector(properties, registry);
     }
 
     @Bean
     @ConditionalOnMissingBean
     public PulseDiagnostics pulseDiagnostics(
-            PulseProperties properties,
+            PulseDiagnostics.AllProperties all,
             @Value("${spring.application.name:unknown-service}") String serviceName,
             @Value("${app.env:unknown-env}") String environment,
             ObjectProvider<CardinalityFirewall> cardinalityFirewall,
@@ -164,7 +209,7 @@ public class PulseAutoConfiguration {
             PulseEnforcementMode enforcement) {
         String version = getClass().getPackage().getImplementationVersion();
         return new PulseDiagnostics(
-                properties,
+                all,
                 serviceName,
                 environment,
                 version == null ? "dev" : version,
@@ -172,6 +217,68 @@ public class PulseAutoConfiguration {
                 sloProjector.getIfAvailable(),
                 jobRegistry.getIfAvailable(),
                 enforcement);
+    }
+
+    /**
+     * Aggregates every {@code *Properties} record into a single injectable bundle so that
+     * {@link PulseDiagnostics} and {@link PulseStartupBanner} don't need 27-argument
+     * constructors. Scoped internally to Pulse — not part of the public API.
+     */
+    @Bean
+    public PulseDiagnostics.AllProperties pulseAllProperties(
+            ContextProperties context,
+            TraceGuardProperties traceGuard,
+            SamplingProperties sampling,
+            AsyncProperties async,
+            KafkaPropagationProperties kafka,
+            ExceptionHandlerProperties exceptionHandler,
+            CardinalityProperties cardinality,
+            TimeoutBudgetProperties timeoutBudget,
+            WideEventsProperties wideEvents,
+            LoggingProperties logging,
+            BannerProperties banner,
+            HistogramsProperties histograms,
+            SloProperties slo,
+            OtelExporterHealthProperties health,
+            ShutdownProperties shutdown,
+            JobsProperties jobs,
+            DbProperties db,
+            ResilienceProperties resilience,
+            ProfilingProperties profiling,
+            DependenciesProperties dependencies,
+            TenantProperties tenant,
+            RetryProperties retry,
+            PriorityProperties priority,
+            ContainerMemoryProperties containerMemory,
+            OpenFeatureProperties openFeature,
+            CacheProperties cache) {
+        return new PulseDiagnostics.AllProperties(
+                context,
+                traceGuard,
+                sampling,
+                async,
+                kafka,
+                exceptionHandler,
+                cardinality,
+                timeoutBudget,
+                wideEvents,
+                logging,
+                banner,
+                histograms,
+                slo,
+                health,
+                shutdown,
+                jobs,
+                db,
+                resilience,
+                profiling,
+                dependencies,
+                tenant,
+                retry,
+                priority,
+                containerMemory,
+                openFeature,
+                cache);
     }
 
     @Bean
@@ -186,7 +293,7 @@ public class PulseAutoConfiguration {
     @ConditionalOnMissingBean
     @ConditionalOnProperty(prefix = "pulse.banner", name = "enabled", havingValue = "true", matchIfMissing = true)
     public PulseStartupBanner pulseStartupBanner(
-            PulseProperties properties,
+            PulseDiagnostics.AllProperties properties,
             Environment env,
             @Value("${spring.application.name:unknown-service}") String serviceName) {
         return new PulseStartupBanner(properties, env, serviceName);
@@ -214,11 +321,6 @@ public class PulseAutoConfiguration {
         return scheduler;
     }
 
-    /**
-     * Tracks the runtime state of every {@code @Scheduled} job Pulse has observed so the
-     * {@code jobs} health indicator and {@code /actuator/pulse} can report on them. Always
-     * registered when jobs are enabled (default) — it has no overhead until a job actually runs.
-     */
     @Bean
     @ConditionalOnMissingBean
     @ConditionalOnProperty(prefix = "pulse.jobs", name = "enabled", havingValue = "true", matchIfMissing = true)
@@ -234,24 +336,10 @@ public class PulseAutoConfiguration {
             name = "health-indicator-enabled",
             havingValue = "true",
             matchIfMissing = true)
-    public HealthIndicator pulseJobsHealthIndicator(JobRegistry registry, PulseProperties properties) {
-        return new JobsHealthIndicator(registry, properties.jobs());
+    public HealthIndicator pulseJobsHealthIndicator(JobRegistry registry, JobsProperties properties) {
+        return new JobsHealthIndicator(registry, properties);
     }
 
-    /**
-     * Wraps the application's {@link org.springframework.scheduling.TaskScheduler} with one of
-     * two decorators based on {@code pulse.jobs.enabled}:
-     *
-     * <ul>
-     *   <li>{@code true} (default) — {@link InstrumentedTaskScheduler}: context propagation +
-     *       per-job metrics + registry updates.
-     *   <li>{@code false} — {@link ContextPropagatingTaskScheduler}: context propagation only.
-     * </ul>
-     *
-     * <p>The wrapper is supplied to the configurer as a function so neither decorator is
-     * instantiated until {@link org.springframework.scheduling.config.ScheduledTaskRegistrar} is
-     * actually being configured (lazy + matches Spring's lifecycle ordering).
-     */
     @Bean
     @ConditionalOnMissingBean
     @ConditionalOnProperty(
@@ -261,11 +349,11 @@ public class PulseAutoConfiguration {
             matchIfMissing = true)
     public PulseSchedulingConfigurer pulseSchedulingConfigurer(
             org.springframework.scheduling.TaskScheduler scheduler,
-            PulseProperties properties,
+            JobsProperties jobs,
             ObjectProvider<JobRegistry> jobRegistry,
             ObjectProvider<MeterRegistry> meterRegistry) {
         java.util.function.UnaryOperator<org.springframework.scheduling.TaskScheduler> wrapper;
-        if (properties.jobs().enabled()) {
+        if (jobs.enabled()) {
             wrapper = ts -> new InstrumentedTaskScheduler(ts, meterRegistry.getObject(), jobRegistry.getObject());
         } else {
             wrapper = ContextPropagatingTaskScheduler::new;
@@ -282,8 +370,8 @@ public class PulseAutoConfiguration {
             havingValue = "true",
             matchIfMissing = true)
     public PulseOtelShutdownLifecycle pulseOtelShutdownLifecycle(
-            ObjectProvider<OpenTelemetrySdk> sdk, PulseProperties properties) {
-        return new PulseOtelShutdownLifecycle(sdk.getIfAvailable(), properties.shutdown());
+            ObjectProvider<OpenTelemetrySdk> sdk, ShutdownProperties properties) {
+        return new PulseOtelShutdownLifecycle(sdk.getIfAvailable(), properties);
     }
 
     @Bean
@@ -322,12 +410,12 @@ public class PulseAutoConfiguration {
             havingValue = "true",
             matchIfMissing = true)
     public PulseDrainObservabilityLifecycle pulseDrainObservabilityLifecycle(
-            ObjectProvider<InflightRequestCounter> counter, PulseProperties properties, MeterRegistry registry) {
+            ObjectProvider<InflightRequestCounter> counter, ShutdownProperties properties, MeterRegistry registry) {
         InflightRequestCounter c = counter.getIfAvailable();
         if (c == null) {
             c = new InflightRequestCounter(registry);
         }
-        return new PulseDrainObservabilityLifecycle(c, properties.shutdown().drain(), registry);
+        return new PulseDrainObservabilityLifecycle(c, properties.drain(), registry);
     }
 
     @Bean
@@ -351,7 +439,7 @@ public class PulseAutoConfiguration {
             havingValue = "true",
             matchIfMissing = true)
     public HealthIndicator otelExporterHealthIndicator(
-            OtelExporterHealthRegistrar registrar, PulseProperties properties) {
-        return new OtelExporterHealthIndicator(registrar.exporters(), properties.health());
+            OtelExporterHealthRegistrar registrar, OtelExporterHealthProperties properties) {
+        return new OtelExporterHealthIndicator(registrar.exporters(), properties);
     }
 }

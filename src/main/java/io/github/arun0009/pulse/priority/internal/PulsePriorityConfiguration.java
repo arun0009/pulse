@@ -1,7 +1,7 @@
 package io.github.arun0009.pulse.priority.internal;
 
 import io.github.arun0009.pulse.autoconfigure.PulseAutoConfiguration;
-import io.github.arun0009.pulse.autoconfigure.PulseProperties;
+import io.github.arun0009.pulse.priority.PriorityProperties;
 import io.github.arun0009.pulse.priority.RequestPriorityFilter;
 import io.github.arun0009.pulse.priority.RequestPriorityObservationFilter;
 import jakarta.servlet.Servlet;
@@ -9,6 +9,7 @@ import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -27,12 +28,13 @@ public class PulsePriorityConfiguration {
 
     @Configuration(proxyBeanMethods = false)
     @ConditionalOnClass(Servlet.class)
+    @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
     public static class Web {
         @Bean
         @ConditionalOnMissingBean
-        public FilterRegistrationBean<RequestPriorityFilter> pulseRequestPriorityFilter(PulseProperties properties) {
+        public FilterRegistrationBean<RequestPriorityFilter> pulseRequestPriorityFilter(PriorityProperties priority) {
             FilterRegistrationBean<RequestPriorityFilter> bean =
-                    new FilterRegistrationBean<>(new RequestPriorityFilter(properties.priority()));
+                    new FilterRegistrationBean<>(new RequestPriorityFilter(priority));
             bean.setOrder(RequestPriorityFilter.ORDER);
             return bean;
         }
@@ -40,7 +42,7 @@ public class PulsePriorityConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public RequestPriorityObservationFilter pulseRequestPriorityObservationFilter(PulseProperties properties) {
-        return new RequestPriorityObservationFilter(properties.priority().tagMeters());
+    public RequestPriorityObservationFilter pulseRequestPriorityObservationFilter(PriorityProperties priority) {
+        return new RequestPriorityObservationFilter(priority.tagMeters());
     }
 }

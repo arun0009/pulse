@@ -1,7 +1,8 @@
 package io.github.arun0009.pulse.propagation;
 
-import io.github.arun0009.pulse.autoconfigure.PulseProperties;
 import io.github.arun0009.pulse.core.ContextKeys;
+import io.github.arun0009.pulse.core.ContextProperties;
+import io.github.arun0009.pulse.resilience.RetryProperties;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -16,7 +17,7 @@ class HeaderPropagationTest {
         // Idempotency-Key has to be in the default propagated set. Without it, retries through
         // a fan-out create silent duplicate side effects on the downstream — exactly the failure
         // mode pulse claims to prevent.
-        PulseProperties.Context defaults = new PulseProperties.Context(
+        ContextProperties defaults = new ContextProperties(
                 true, "X-Request-ID", "X-Correlation-ID", "X-User-ID", "Pulse-Tenant-Id", "Idempotency-Key", List.of());
 
         Map<String, String> map = HeaderPropagation.headerToMdcKey(defaults);
@@ -34,7 +35,7 @@ class HeaderPropagationTest {
         // A consumer who already has an established header convention (e.g. Stripe-style
         // "X-Idempotency-Key") can override the name once and have RestTemplate, WebClient,
         // OkHttp, and Kafka all agree.
-        PulseProperties.Context custom = new PulseProperties.Context(
+        ContextProperties custom = new ContextProperties(
                 true,
                 "X-Request-ID",
                 "X-Correlation-ID",
@@ -52,9 +53,9 @@ class HeaderPropagationTest {
 
     @Test
     void retry_overload_adds_amplification_header_when_enabled() {
-        PulseProperties.Context context = new PulseProperties.Context(
+        ContextProperties context = new ContextProperties(
                 true, "X-Request-ID", "X-Correlation-ID", "X-User-ID", "Pulse-Tenant-Id", "Idempotency-Key", List.of());
-        PulseProperties.Retry retry = new PulseProperties.Retry(true, "Pulse-Retry-Depth", 3);
+        RetryProperties retry = new RetryProperties(true, "Pulse-Retry-Depth", 3);
 
         Map<String, String> map = HeaderPropagation.headerToMdcKey(context, retry);
 
@@ -63,9 +64,9 @@ class HeaderPropagationTest {
 
     @Test
     void retry_overload_omits_amplification_header_when_disabled() {
-        PulseProperties.Context context = new PulseProperties.Context(
+        ContextProperties context = new ContextProperties(
                 true, "X-Request-ID", "X-Correlation-ID", "X-User-ID", "Pulse-Tenant-Id", "Idempotency-Key", List.of());
-        PulseProperties.Retry retry = new PulseProperties.Retry(false, "Pulse-Retry-Depth", 3);
+        RetryProperties retry = new RetryProperties(false, "Pulse-Retry-Depth", 3);
 
         Map<String, String> map = HeaderPropagation.headerToMdcKey(context, retry);
 

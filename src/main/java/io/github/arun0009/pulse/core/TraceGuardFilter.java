@@ -1,6 +1,5 @@
 package io.github.arun0009.pulse.core;
 
-import io.github.arun0009.pulse.autoconfigure.PulseProperties;
 import io.github.arun0009.pulse.enforcement.PulseEnforcementMode;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -41,13 +40,13 @@ import java.util.List;
  *       absent or disabled.
  * </ol>
  *
- * <p>Behavior on missing context is governed by {@link PulseProperties.TraceGuard#failOnMissing()}.
+ * <p>Behavior on missing context is governed by {@link TraceGuardProperties#failOnMissing()}.
  *
  * <p>A request can be excluded from the guard in two ways:
  * <ol>
- *   <li>{@link PulseProperties.TraceGuard#excludePathPrefixes()} — coarse, path-prefix-based,
+ *   <li>{@link TraceGuardProperties#excludePathPrefixes()} — coarse, path-prefix-based,
  *       evaluated first. Defaults cover {@code /actuator}, {@code /health}, {@code /metrics}.
- *   <li>{@link PulseProperties.TraceGuard#enabledWhen()} (since 1.1) — declarative
+ *   <li>{@link TraceGuardProperties#enabledWhen()} (since 1.1) — declarative
  *       header/path predicate compiled by {@code PulseRequestMatcherFactory}. Lets you skip the
  *       guard for synthetic monitoring traffic, smoke tests, or trusted internal callers without
  *       turning the feature off globally.
@@ -66,13 +65,13 @@ public class TraceGuardFilter extends OncePerRequestFilter implements Ordered {
     private static final String B3_TRACE_ID = "X-B3-TraceId";
 
     private final MeterRegistry registry;
-    private final PulseProperties.TraceGuard config;
+    private final TraceGuardProperties config;
     private final PulseRequestMatcher gate;
     private final PulseEnforcementMode enforcement;
 
     public TraceGuardFilter(
             MeterRegistry registry,
-            PulseProperties.TraceGuard config,
+            TraceGuardProperties config,
             PulseRequestMatcher gate,
             PulseEnforcementMode enforcement) {
         this.registry = registry;

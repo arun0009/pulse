@@ -1,7 +1,6 @@
 package io.github.arun0009.pulse.tenant.internal;
 
 import io.github.arun0009.pulse.autoconfigure.PulseAutoConfiguration;
-import io.github.arun0009.pulse.autoconfigure.PulseProperties;
 import io.github.arun0009.pulse.tenant.HeaderTenantExtractor;
 import io.github.arun0009.pulse.tenant.JwtClaimTenantExtractor;
 import io.github.arun0009.pulse.tenant.SubdomainTenantExtractor;
@@ -9,6 +8,7 @@ import io.github.arun0009.pulse.tenant.TenantContextFilter;
 import io.github.arun0009.pulse.tenant.TenantExtractor;
 import io.github.arun0009.pulse.tenant.TenantObservationFilter;
 import io.github.arun0009.pulse.tenant.TenantObservationRegistrar;
+import io.github.arun0009.pulse.tenant.TenantProperties;
 import io.github.arun0009.pulse.tenant.TenantSortedExtractorsHolder;
 import io.github.arun0009.pulse.tenant.TenantTagCardinalityFilter;
 import io.micrometer.core.instrument.config.MeterFilter;
@@ -31,7 +31,7 @@ import java.util.List;
  *
  * <p>Built-in extractors are registered as {@code @ConditionalOnProperty} beans so an
  * application opts each one in independently. The header extractor is on by default and
- * reads the header named by {@link PulseProperties.Tenant.Header#name()} (default
+ * reads the header named by {@link TenantProperties.Header#name()} (default
  * {@code Pulse-Tenant-Id}, RFC 6648 — no {@code X-} prefix).
  *
  * <p>Metric tagging (via {@link TenantObservationFilter}) is gated on the operator naming
@@ -49,22 +49,22 @@ public class PulseTenantConfiguration {
             name = "enabled",
             havingValue = "true",
             matchIfMissing = true)
-    public TenantExtractor pulseHeaderTenantExtractor(PulseProperties properties) {
-        return new HeaderTenantExtractor(properties.tenant().header().name());
+    public TenantExtractor pulseHeaderTenantExtractor(TenantProperties properties) {
+        return new HeaderTenantExtractor(properties.header().name());
     }
 
     @Bean
     @ConditionalOnMissingBean(name = "pulseJwtClaimTenantExtractor")
     @ConditionalOnProperty(prefix = "pulse.tenant.jwt", name = "enabled", havingValue = "true")
-    public TenantExtractor pulseJwtClaimTenantExtractor(PulseProperties properties) {
-        return new JwtClaimTenantExtractor(properties.tenant().jwt().claim());
+    public TenantExtractor pulseJwtClaimTenantExtractor(TenantProperties properties) {
+        return new JwtClaimTenantExtractor(properties.jwt().claim());
     }
 
     @Bean
     @ConditionalOnMissingBean(name = "pulseSubdomainTenantExtractor")
     @ConditionalOnProperty(prefix = "pulse.tenant.subdomain", name = "enabled", havingValue = "true")
-    public TenantExtractor pulseSubdomainTenantExtractor(PulseProperties properties) {
-        return new SubdomainTenantExtractor(properties.tenant().subdomain().index());
+    public TenantExtractor pulseSubdomainTenantExtractor(TenantProperties properties) {
+        return new SubdomainTenantExtractor(properties.subdomain().index());
     }
 
     @Configuration(proxyBeanMethods = false)
@@ -74,11 +74,11 @@ public class PulseTenantConfiguration {
 
         @Bean
         public FilterRegistrationBean<TenantContextFilter> pulseTenantContextFilter(
-                ObjectProvider<TenantExtractor> extractors, PulseProperties properties) {
+                ObjectProvider<TenantExtractor> extractors, TenantProperties properties) {
             List<TenantExtractor> ordered = extractors.orderedStream().toList();
             // orderedStream() honors @Order / Ordered, so the highest-priority extractor runs
             // first — the resolution order documented in the multi-tenant design note.
-            TenantContextFilter filter = new TenantContextFilter(ordered, properties.tenant());
+            TenantContextFilter filter = new TenantContextFilter(ordered, properties);
             FilterRegistrationBean<TenantContextFilter> reg = new FilterRegistrationBean<>(filter);
             reg.setOrder(filter.getOrder());
             reg.addUrlPatterns("/*");
@@ -88,8 +88,8 @@ public class PulseTenantConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public TenantTagCardinalityFilter pulseTenantTagCardinalityFilter(PulseProperties properties) {
-        return new TenantTagCardinalityFilter(properties.tenant());
+    public TenantTagCardinalityFilter pulseTenantTagCardinalityFilter(TenantProperties properties) {
+        return new TenantTagCardinalityFilter(properties);
     }
 
     @Bean
@@ -100,8 +100,8 @@ public class PulseTenantConfiguration {
     @Bean
     @ConditionalOnClass(ObservationRegistry.class)
     @ConditionalOnMissingBean(TenantObservationFilter.class)
-    public TenantObservationFilter pulseTenantObservationFilter(PulseProperties properties) {
-        return new TenantObservationFilter(properties.tenant().tagMeters());
+    public TenantObservationFilter pulseTenantObservationFilter(TenantProperties properties) {
+        return new TenantObservationFilter(properties.tagMeters());
     }
 
     @Bean

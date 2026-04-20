@@ -1,6 +1,5 @@
 package io.github.arun0009.pulse.guardrails;
 
-import io.github.arun0009.pulse.autoconfigure.PulseProperties;
 import io.github.arun0009.pulse.enforcement.PulseEnforcementMode;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Meter;
@@ -24,7 +23,7 @@ import java.util.function.Supplier;
  * The Pulse cardinality firewall.
  *
  * <p>For each meter, tracks the distinct values seen for each tag key. Once a tag key exceeds
- * {@link PulseProperties.Cardinality#maxTagValuesPerMeter()}, any further values are rewritten to a
+ * {@link CardinalityProperties#maxTagValuesPerMeter()}, any further values are rewritten to a
  * single {@code OVERFLOW} bucket. A one-time WARN log line fires for the offending {@code
  * meter:tag} combination so operators learn about the runaway tag without log spam.
  *
@@ -40,10 +39,10 @@ import java.util.function.Supplier;
  * <p>Scope:
  *
  * <ul>
- *   <li>If {@link PulseProperties.Cardinality#meterPrefixesToProtect()} is empty, all meters are
+ *   <li>If {@link CardinalityProperties#meterPrefixesToProtect()} is empty, all meters are
  *       protected.
  *   <li>Meters whose name starts with any prefix in {@link
- *       PulseProperties.Cardinality#exemptMeterPrefixes()} are skipped (useful for genuinely
+ *       CardinalityProperties#exemptMeterPrefixes()} are skipped (useful for genuinely
  *       high-cardinality business meters you've reasoned about).
  * </ul>
  *
@@ -54,14 +53,14 @@ import java.util.function.Supplier;
  * With the default {@code maxTagValuesPerMeter=1000}, ten protected meters with five tag keys
  * each at saturation costs roughly 3 MB. Services with very large meter inventories or memory
  * constraints should lower {@code maxTagValuesPerMeter} or use
- * {@link PulseProperties.Cardinality#meterPrefixesToProtect()} to opt only the high-risk meters
+ * {@link CardinalityProperties#meterPrefixesToProtect()} to opt only the high-risk meters
  * into protection.
  */
 public final class CardinalityFirewall implements MeterFilter {
 
     private static final Logger log = LoggerFactory.getLogger(CardinalityFirewall.class);
 
-    private final PulseProperties.Cardinality config;
+    private final CardinalityProperties config;
     private final PulseEnforcementMode enforcement;
     private final Supplier<MeterRegistry> registrySupplier;
 
@@ -90,9 +89,7 @@ public final class CardinalityFirewall implements MeterFilter {
      *     {@code MeterRegistryPostProcessor}, so eager resolution causes a circular bean reference.
      */
     public CardinalityFirewall(
-            PulseProperties.Cardinality config,
-            PulseEnforcementMode enforcement,
-            Supplier<MeterRegistry> registrySupplier) {
+            CardinalityProperties config, PulseEnforcementMode enforcement, Supplier<MeterRegistry> registrySupplier) {
         this.config = config;
         this.enforcement = enforcement;
         this.registrySupplier = registrySupplier;

@@ -1,19 +1,26 @@
 package io.github.arun0009.pulse.autoconfigure;
 
+import io.github.arun0009.pulse.async.AsyncProperties;
+import io.github.arun0009.pulse.container.ContainerMemoryProperties;
+import io.github.arun0009.pulse.core.ContextProperties;
+import io.github.arun0009.pulse.guardrails.CardinalityProperties;
+import io.github.arun0009.pulse.guardrails.SamplingProperties;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.autoconfigure.context.ConfigurationPropertiesAutoConfiguration;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.boot.validation.autoconfigure.ValidationAutoConfiguration;
 import org.springframework.context.annotation.Configuration;
 
 /**
- * Verifies that {@link PulseProperties} fails fast at startup when an out-of-range value is
- * supplied. Without this gate, a typo like {@code pulse.sampling.probability: 1.5} would silently
- * mis-configure the SDK; with {@link org.springframework.validation.annotation.Validated} on the
- * record root and JSR-380 constraints on individual components, Spring Boot rejects the binding
- * before the application context starts.
+ * Verifies that each per-feature {@code @ConfigurationProperties} record fails fast at startup when
+ * an out-of-range value is supplied. Without this gate, a typo like
+ * {@code pulse.sampling.probability: 1.5} would silently mis-configure the SDK; with
+ * {@link org.springframework.validation.annotation.Validated} on each record root and JSR-380
+ * constraints on individual fields, Spring Boot rejects the binding before the application context
+ * starts.
  */
 class PulsePropertiesValidationTest {
 
@@ -24,7 +31,13 @@ class PulsePropertiesValidationTest {
 
     @Test
     void defaults_pass_validation() {
-        runner.run(ctx -> Assertions.assertThat(ctx).hasNotFailed().hasSingleBean(PulseProperties.class));
+        runner.run(ctx -> Assertions.assertThat(ctx)
+                .hasNotFailed()
+                .hasSingleBean(SamplingProperties.class)
+                .hasSingleBean(CardinalityProperties.class)
+                .hasSingleBean(ContextProperties.class)
+                .hasSingleBean(AsyncProperties.class)
+                .hasSingleBean(ContainerMemoryProperties.class));
     }
 
     @Test
@@ -66,6 +79,12 @@ class PulsePropertiesValidationTest {
     }
 
     @Configuration(proxyBeanMethods = false)
-    @org.springframework.boot.context.properties.EnableConfigurationProperties(PulseProperties.class)
+    @EnableConfigurationProperties({
+        SamplingProperties.class,
+        CardinalityProperties.class,
+        ContextProperties.class,
+        AsyncProperties.class,
+        ContainerMemoryProperties.class,
+    })
     static class EnableProps {}
 }

@@ -11,7 +11,7 @@ import java.util.Set;
 /**
  * Stamps the {@code priority} tag on every {@link Observation} whose name matches an
  * operator-configured entry in
- * {@link io.github.arun0009.pulse.autoconfigure.PulseProperties.Priority#tagMeters()}.
+ * {@link PriorityProperties#tagMeters()}.
  *
  * <p>The tag value is the {@link RequestPriority#wireValue()} of the current request. Because
  * the vocabulary is bounded to five tiers, no cardinality firewall coupling is required — the

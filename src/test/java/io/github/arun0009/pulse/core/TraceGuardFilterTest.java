@@ -1,6 +1,5 @@
 package io.github.arun0009.pulse.core;
 
-import io.github.arun0009.pulse.autoconfigure.PulseProperties;
 import io.github.arun0009.pulse.autoconfigure.PulseRequestMatcherFactory;
 import io.github.arun0009.pulse.autoconfigure.PulseRequestMatcherProperties;
 import io.github.arun0009.pulse.enforcement.PulseEnforcementMode;
@@ -25,13 +24,13 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class TraceGuardFilterTest {
 
-    private static final PulseProperties.TraceGuard CONFIG_DEFAULT = new PulseProperties.TraceGuard(
+    private static final TraceGuardProperties CONFIG_DEFAULT = new TraceGuardProperties(
             true,
             false,
             List.of("/actuator", "/health", "/metrics"),
             new PulseRequestMatcherProperties(Map.of(), Map.of(), Map.of(), List.of(), List.of(), null));
 
-    private static final PulseProperties.TraceGuard CONFIG_SKIP_TEST_CLIENT = new PulseProperties.TraceGuard(
+    private static final TraceGuardProperties CONFIG_SKIP_TEST_CLIENT = new TraceGuardProperties(
             true,
             false,
             List.of("/actuator", "/health", "/metrics"),

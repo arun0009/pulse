@@ -8,7 +8,7 @@ import java.util.Map;
 
 /**
  * Declarative criteria for "should this feature run for this request?". Bound from any
- * {@code pulse.<feature>.enabled-when:} block — see {@code PulseProperties.TraceGuard#enabledWhen}
+ * {@code pulse.<feature>.enabled-when:} block — see {@code TraceGuardProperties#enabledWhen}
  * for the first feature that consumes it.
  *
  * <p>Semantics across fields are AND: every populated field must agree before the matcher

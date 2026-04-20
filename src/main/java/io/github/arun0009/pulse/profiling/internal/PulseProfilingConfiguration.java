@@ -1,7 +1,7 @@
 package io.github.arun0009.pulse.profiling.internal;
 
 import io.github.arun0009.pulse.autoconfigure.PulseAutoConfiguration;
-import io.github.arun0009.pulse.autoconfigure.PulseProperties;
+import io.github.arun0009.pulse.profiling.ProfilingProperties;
 import io.github.arun0009.pulse.profiling.ProfilingRegistration;
 import io.github.arun0009.pulse.profiling.PulseProfilingSpanProcessor;
 import io.github.arun0009.pulse.profiling.PyroscopeDetector;
@@ -48,9 +48,8 @@ public class PulseProfilingConfiguration {
     @Bean
     @ConditionalOnMissingBean
     public PulseProfilingSpanProcessor pulseProfilingSpanProcessor(
-            PulseProperties properties, @Value("${spring.application.name:unknown-service}") String serviceName) {
-        return new PulseProfilingSpanProcessor(
-                serviceName, properties.profiling().pyroscopeUrl());
+            ProfilingProperties profiling, @Value("${spring.application.name:unknown-service}") String serviceName) {
+        return new PulseProfilingSpanProcessor(serviceName, profiling.pyroscopeUrl());
     }
 
     @Bean

@@ -1,6 +1,5 @@
 package io.github.arun0009.pulse.db;
 
-import io.github.arun0009.pulse.autoconfigure.PulseProperties;
 import org.springframework.boot.hibernate.autoconfigure.HibernatePropertiesCustomizer;
 
 import java.util.Map;
@@ -28,9 +27,9 @@ public class PulseHibernatePropertiesCustomizer implements HibernatePropertiesCu
     private static final String INSPECTOR_KEY = "hibernate.session_factory.statement_inspector";
     private static final String SLOW_QUERY_KEY = "hibernate.session.events.log.LOG_QUERIES_SLOWER_THAN_MS";
 
-    private final PulseProperties.Db config;
+    private final DbProperties config;
 
-    public PulseHibernatePropertiesCustomizer(PulseProperties.Db config) {
+    public PulseHibernatePropertiesCustomizer(DbProperties config) {
         this.config = config;
     }
 

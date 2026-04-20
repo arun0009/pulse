@@ -1,6 +1,5 @@
 package io.github.arun0009.pulse.shutdown;
 
-import io.github.arun0009.pulse.autoconfigure.PulseProperties;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
@@ -37,18 +36,18 @@ public final class PulseDrainObservabilityLifecycle implements SmartLifecycle {
     private static final Logger log = LoggerFactory.getLogger(PulseDrainObservabilityLifecycle.class);
 
     private final IntSupplier inflightSupplier;
-    private final PulseProperties.Shutdown.Drain config;
+    private final ShutdownProperties.Drain config;
     private final Timer drainTimer;
     private final Counter droppedCounter;
     private volatile boolean running;
 
     public PulseDrainObservabilityLifecycle(
-            InflightRequestCounter inflightCounter, PulseProperties.Shutdown.Drain config, MeterRegistry registry) {
+            InflightRequestCounter inflightCounter, ShutdownProperties.Drain config, MeterRegistry registry) {
         this(inflightCounter::current, config, registry);
     }
 
     public PulseDrainObservabilityLifecycle(
-            IntSupplier inflightSupplier, PulseProperties.Shutdown.Drain config, MeterRegistry registry) {
+            IntSupplier inflightSupplier, ShutdownProperties.Drain config, MeterRegistry registry) {
         this.inflightSupplier = inflightSupplier;
         this.config = config;
         this.drainTimer = Timer.builder("pulse.shutdown.drain.duration")

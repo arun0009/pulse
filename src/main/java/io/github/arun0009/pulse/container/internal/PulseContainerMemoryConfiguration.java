@@ -1,10 +1,10 @@
 package io.github.arun0009.pulse.container.internal;
 
 import io.github.arun0009.pulse.autoconfigure.PulseAutoConfiguration;
-import io.github.arun0009.pulse.autoconfigure.PulseProperties;
 import io.github.arun0009.pulse.container.CgroupMemoryReader;
 import io.github.arun0009.pulse.container.ContainerMemoryHealthIndicator;
 import io.github.arun0009.pulse.container.ContainerMemoryMetrics;
+import io.github.arun0009.pulse.container.ContainerMemoryProperties;
 import io.micrometer.core.instrument.MeterRegistry;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -27,8 +27,8 @@ public class PulseContainerMemoryConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public CgroupMemoryReader pulseCgroupMemoryReader(PulseProperties properties) {
-        return new CgroupMemoryReader(properties.containerMemory().cgroupRoot());
+    public CgroupMemoryReader pulseCgroupMemoryReader(ContainerMemoryProperties properties) {
+        return new CgroupMemoryReader(properties.cgroupRoot());
     }
 
     @Bean
@@ -48,7 +48,7 @@ public class PulseContainerMemoryConfiguration {
             havingValue = "true",
             matchIfMissing = true)
     public HealthIndicator pulseContainerMemoryHealthIndicator(
-            ContainerMemoryMetrics metrics, PulseProperties properties) {
-        return new ContainerMemoryHealthIndicator(metrics, properties.containerMemory());
+            ContainerMemoryMetrics metrics, ContainerMemoryProperties properties) {
+        return new ContainerMemoryHealthIndicator(metrics, properties);
     }
 }

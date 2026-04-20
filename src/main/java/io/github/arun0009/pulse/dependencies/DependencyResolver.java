@@ -1,7 +1,5 @@
 package io.github.arun0009.pulse.dependencies;
 
-import io.github.arun0009.pulse.autoconfigure.PulseProperties;
-
 import java.net.URI;
 import java.util.LinkedHashMap;
 import java.util.Locale;
@@ -15,13 +13,13 @@ import java.util.Map;
  * <p>Two resolution strategies are tried in order:
  *
  * <ol>
- *   <li>Exact host match against {@link PulseProperties.Dependencies#map()}.
+ *   <li>Exact host match against {@link DependenciesProperties#map()}.
  *   <li>Suffix match — useful for environment variants where the application configures
  *       {@code payments.internal: payment-service} and the actual hosts are
  *       {@code api.payments.internal}, {@code grpc.payments.internal}.
  * </ol>
  *
- * <p>If neither matches, {@link PulseProperties.Dependencies#defaultName()} is returned. The
+ * <p>If neither matches, {@link DependenciesProperties#defaultName()} is returned. The
  * default value of {@code "unknown"} keeps the metric tag bounded so Prometheus does not get a
  * cardinality bomb when calls go to dynamic hosts (S3, AWS APIs, etc.).
  *
@@ -35,7 +33,7 @@ public class DependencyResolver implements DependencyClassifier {
     private final Map<String, String> suffixMap;
     private final String defaultName;
 
-    public DependencyResolver(PulseProperties.Dependencies config) {
+    public DependencyResolver(DependenciesProperties config) {
         Map<String, String> exact = new LinkedHashMap<>();
         Map<String, String> suffix = new LinkedHashMap<>();
         for (Map.Entry<String, String> entry : config.map().entrySet()) {

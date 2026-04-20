@@ -1,6 +1,5 @@
 package io.github.arun0009.pulse.dependencies;
 
-import io.github.arun0009.pulse.autoconfigure.PulseProperties;
 import io.github.arun0009.pulse.core.PulseRequestMatcher;
 import io.github.arun0009.pulse.core.RouteTags;
 import io.micrometer.core.instrument.Counter;
@@ -33,7 +32,7 @@ import java.io.IOException;
  *       touched. Combined with fan-out, this distinguishes "200 calls to the same cache" from
  *       "20 calls each across 10 services".
  *   <li>{@code pulse.request.fan_out_high} — counter that increments when a single request's
- *       outbound calls exceed {@link PulseProperties.Dependencies#fanOutWarnThreshold()}. Cheap
+ *       outbound calls exceed {@link DependenciesProperties#fanOutWarnThreshold()}. Cheap
  *       Boolean signal for an alert rule.
  * </ul>
  *
@@ -52,11 +51,11 @@ public final class RequestFanoutFilter extends OncePerRequestFilter {
     private final int fanOutWarnThreshold;
     private final PulseRequestMatcher gate;
 
-    public RequestFanoutFilter(MeterRegistry registry, PulseProperties.Dependencies config) {
+    public RequestFanoutFilter(MeterRegistry registry, DependenciesProperties config) {
         this(registry, config, PulseRequestMatcher.ALWAYS);
     }
 
-    public RequestFanoutFilter(MeterRegistry registry, PulseProperties.Dependencies config, PulseRequestMatcher gate) {
+    public RequestFanoutFilter(MeterRegistry registry, DependenciesProperties config, PulseRequestMatcher gate) {
         this.registry = registry;
         this.fanOutWarnThreshold = config.fanOutWarnThreshold();
         this.gate = gate;

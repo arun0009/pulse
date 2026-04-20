@@ -1,6 +1,5 @@
 package io.github.arun0009.pulse.dependencies;
 
-import io.github.arun0009.pulse.autoconfigure.PulseProperties;
 import io.github.arun0009.pulse.autoconfigure.PulseRequestMatcherProperties;
 import org.junit.jupiter.api.Test;
 
@@ -17,13 +16,13 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class DependencyClassifierTest {
 
-    private static final PulseProperties.Dependencies CONFIG = new PulseProperties.Dependencies(
+    private static final DependenciesProperties CONFIG = new DependenciesProperties(
             true,
             Map.of("api.payments.internal", "payment-service"),
             "unknown",
             20,
             PulseRequestMatcherProperties.empty(),
-            new PulseProperties.Dependencies.Health(true, List.of(), 0.05, false));
+            new DependenciesProperties.Health(true, List.of(), 0.05, false));
 
     @Test
     void default_resolver_implements_classifier() {

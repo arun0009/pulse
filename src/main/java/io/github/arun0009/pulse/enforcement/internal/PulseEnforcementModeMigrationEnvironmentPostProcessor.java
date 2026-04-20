@@ -15,7 +15,7 @@ import java.util.Map;
  * Bridge from the legacy 1.1-snapshot property {@code pulse.runtime.mode} to the canonical
  * {@code pulse.enforcement.mode}.
  *
- * <p>{@link io.github.arun0009.pulse.autoconfigure.PulseProperties.Enforcement} replaced an
+ * <p>{@link io.github.arun0009.pulse.enforcement.EnforcementProperties} replaced an
  * earlier {@code Runtime} record. To avoid breaking users who pinned to a {@code 1.1} snapshot,
  * this {@link EnvironmentPostProcessor} reads {@code pulse.runtime.mode} from any property
  * source and republishes it as {@code pulse.enforcement.mode} (only when the canonical key is

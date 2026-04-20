@@ -1,8 +1,11 @@
 package io.github.arun0009.pulse.propagation;
 
-import io.github.arun0009.pulse.autoconfigure.PulseProperties;
+import io.github.arun0009.pulse.core.ContextProperties;
 import io.github.arun0009.pulse.core.LogSanitizer;
 import io.github.arun0009.pulse.guardrails.TimeoutBudget;
+import io.github.arun0009.pulse.guardrails.TimeoutBudgetProperties;
+import io.github.arun0009.pulse.priority.PriorityProperties;
+import io.github.arun0009.pulse.resilience.RetryProperties;
 import io.opentelemetry.api.baggage.Baggage;
 import io.opentelemetry.context.Scope;
 import org.apache.kafka.clients.consumer.Consumer;
@@ -42,16 +45,23 @@ public class PulseKafkaRecordInterceptor implements RecordInterceptor<Object, Ob
     private final boolean timeoutBudgetEnabled;
     private final @Nullable KafkaConsumerTimeLagMetrics timeLagMetrics;
 
-    public PulseKafkaRecordInterceptor(PulseProperties properties) {
-        this(properties, null);
+    public PulseKafkaRecordInterceptor(
+            ContextProperties context,
+            RetryProperties retry,
+            PriorityProperties priority,
+            TimeoutBudgetProperties timeoutBudget) {
+        this(context, retry, priority, timeoutBudget, null);
     }
 
     public PulseKafkaRecordInterceptor(
-            PulseProperties properties, @Nullable KafkaConsumerTimeLagMetrics timeLagMetrics) {
-        this.headerToMdcKey =
-                HeaderPropagation.headerToMdcKey(properties.context(), properties.retry(), properties.priority());
-        this.timeoutBudgetHeader = properties.timeoutBudget().outboundHeader();
-        this.timeoutBudgetEnabled = properties.timeoutBudget().enabled();
+            ContextProperties context,
+            RetryProperties retry,
+            PriorityProperties priority,
+            TimeoutBudgetProperties timeoutBudget,
+            @Nullable KafkaConsumerTimeLagMetrics timeLagMetrics) {
+        this.headerToMdcKey = HeaderPropagation.headerToMdcKey(context, retry, priority);
+        this.timeoutBudgetHeader = timeoutBudget.outboundHeader();
+        this.timeoutBudgetEnabled = timeoutBudget.enabled();
         this.timeLagMetrics = timeLagMetrics;
     }
 

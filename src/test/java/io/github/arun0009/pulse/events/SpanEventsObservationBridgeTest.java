@@ -1,6 +1,5 @@
 package io.github.arun0009.pulse.events;
 
-import io.github.arun0009.pulse.autoconfigure.PulseProperties;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import io.micrometer.observation.Observation;
 import io.micrometer.observation.ObservationHandler;
@@ -35,8 +34,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class SpanEventsObservationBridgeTest {
 
-    private static final PulseProperties.WideEvents DEFAULT_CONFIG =
-            new PulseProperties.WideEvents(true, true, true, "pulse.events", "event");
+    private static final WideEventsProperties DEFAULT_CONFIG =
+            new WideEventsProperties(true, true, true, "pulse.events", "event");
 
     @Test
     void observation_handler_observes_pulse_events_when_registry_is_provided() {

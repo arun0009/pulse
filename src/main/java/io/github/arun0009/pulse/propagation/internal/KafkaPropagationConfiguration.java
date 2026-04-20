@@ -1,12 +1,16 @@
 package io.github.arun0009.pulse.propagation.internal;
 
 import io.github.arun0009.pulse.autoconfigure.PulseAutoConfiguration;
-import io.github.arun0009.pulse.autoconfigure.PulseProperties;
+import io.github.arun0009.pulse.core.ContextProperties;
+import io.github.arun0009.pulse.guardrails.TimeoutBudgetProperties;
+import io.github.arun0009.pulse.priority.PriorityProperties;
 import io.github.arun0009.pulse.propagation.HeaderPropagation;
 import io.github.arun0009.pulse.propagation.KafkaConsumerTimeLagMetrics;
 import io.github.arun0009.pulse.propagation.KafkaPropagationContext;
+import io.github.arun0009.pulse.propagation.KafkaPropagationProperties;
 import io.github.arun0009.pulse.propagation.PulseKafkaProducerInterceptor;
 import io.github.arun0009.pulse.propagation.PulseKafkaRecordInterceptor;
+import io.github.arun0009.pulse.resilience.RetryProperties;
 import io.micrometer.core.instrument.MeterRegistry;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -60,8 +64,13 @@ public class KafkaPropagationConfiguration {
 
         @Bean
         public KafkaPropagationContextInitializer pulseKafkaPropagationContextInitializer(
-                PulseProperties properties, ObjectProvider<MeterRegistry> registry) {
-            return new KafkaPropagationContextInitializer(properties, registry.getIfAvailable());
+                ContextProperties context,
+                RetryProperties retry,
+                PriorityProperties priority,
+                TimeoutBudgetProperties timeoutBudget,
+                ObjectProvider<MeterRegistry> registry) {
+            return new KafkaPropagationContextInitializer(
+                    context, retry, priority, timeoutBudget, registry.getIfAvailable());
         }
 
         @Bean
@@ -80,13 +89,17 @@ public class KafkaPropagationConfiguration {
          */
         @Bean
         public PulseKafkaRecordInterceptor pulseKafkaRecordInterceptor(
-                PulseProperties properties, ObjectProvider<MeterRegistry> registryProvider) {
+                ContextProperties context,
+                RetryProperties retry,
+                PriorityProperties priority,
+                TimeoutBudgetProperties timeoutBudget,
+                KafkaPropagationProperties kafka,
+                ObjectProvider<MeterRegistry> registryProvider) {
             MeterRegistry registry = registryProvider.getIfAvailable();
-            KafkaConsumerTimeLagMetrics lag =
-                    (registry != null && properties.kafka().consumerTimeLagEnabled())
-                            ? new KafkaConsumerTimeLagMetrics(registry)
-                            : null;
-            return new PulseKafkaRecordInterceptor(properties, lag);
+            KafkaConsumerTimeLagMetrics lag = (registry != null && kafka.consumerTimeLagEnabled())
+                    ? new KafkaConsumerTimeLagMetrics(registry)
+                    : null;
+            return new PulseKafkaRecordInterceptor(context, retry, priority, timeoutBudget, lag);
         }
 
         /**
@@ -178,10 +191,15 @@ public class KafkaPropagationConfiguration {
      */
     public static final class KafkaPropagationContextInitializer {
 
-        public KafkaPropagationContextInitializer(PulseProperties properties, @Nullable MeterRegistry registry) {
+        public KafkaPropagationContextInitializer(
+                ContextProperties context,
+                RetryProperties retry,
+                PriorityProperties priority,
+                TimeoutBudgetProperties timeoutBudget,
+                @Nullable MeterRegistry registry) {
             KafkaPropagationContext.initialize(
-                    HeaderPropagation.headerToMdcKey(properties.context(), properties.retry(), properties.priority()),
-                    properties.timeoutBudget().outboundHeader(),
+                    HeaderPropagation.headerToMdcKey(context, retry, priority),
+                    timeoutBudget.outboundHeader(),
                     registry);
         }
     }

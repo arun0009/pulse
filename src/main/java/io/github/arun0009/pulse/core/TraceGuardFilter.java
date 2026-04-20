@@ -1,6 +1,7 @@
 package io.github.arun0009.pulse.core;
 
 import io.github.arun0009.pulse.autoconfigure.PulseProperties;
+import io.github.arun0009.pulse.runtime.PulseRuntimeMode;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.opentelemetry.api.trace.Span;
@@ -67,15 +68,25 @@ public class TraceGuardFilter extends OncePerRequestFilter implements Ordered {
     private final MeterRegistry registry;
     private final PulseProperties.TraceGuard config;
     private final PulseRequestMatcher gate;
+    private final PulseRuntimeMode runtime;
 
     public TraceGuardFilter(MeterRegistry registry, PulseProperties.TraceGuard config) {
-        this(registry, config, PulseRequestMatcher.ALWAYS);
+        this(registry, config, PulseRequestMatcher.ALWAYS, new PulseRuntimeMode(PulseRuntimeMode.Mode.ENFORCING));
     }
 
     public TraceGuardFilter(MeterRegistry registry, PulseProperties.TraceGuard config, PulseRequestMatcher gate) {
+        this(registry, config, gate, new PulseRuntimeMode(PulseRuntimeMode.Mode.ENFORCING));
+    }
+
+    public TraceGuardFilter(
+            MeterRegistry registry,
+            PulseProperties.TraceGuard config,
+            PulseRequestMatcher gate,
+            PulseRuntimeMode runtime) {
         this.registry = registry;
         this.config = config;
         this.gate = gate;
+        this.runtime = runtime;
     }
 
     @Override
@@ -87,7 +98,7 @@ public class TraceGuardFilter extends OncePerRequestFilter implements Ordered {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
 
-        if (isExempt(request.getRequestURI(), config.excludePathPrefixes())) {
+        if (runtime.off() || isExempt(request.getRequestURI(), config.excludePathPrefixes())) {
             chain.doFilter(request, response);
             return;
         }
@@ -116,7 +127,7 @@ public class TraceGuardFilter extends OncePerRequestFilter implements Ordered {
                 .register(registry)
                 .increment();
 
-        if (config.failOnMissing()) {
+        if (config.failOnMissing() && !runtime.dryRun()) {
             throw new ServletException("Pulse TraceGuard: incoming request is missing trace-context headers ("
                     + TRACEPARENT
                     + " / "
@@ -124,7 +135,10 @@ public class TraceGuardFilter extends OncePerRequestFilter implements Ordered {
                     + "). Configure your upstream caller to propagate context, or set "
                     + "pulse.trace-guard.fail-on-missing=false.");
         }
-        log.warn("Pulse TraceGuard: missing trace context for route={}", routeTag);
+        log.warn(
+                "Pulse TraceGuard: missing trace context for route={}{}",
+                routeTag,
+                runtime.dryRun() ? " (dry-run: would have rejected)" : "");
         chain.doFilter(request, response);
     }
 

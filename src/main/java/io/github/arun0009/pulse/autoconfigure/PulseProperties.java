@@ -1,10 +1,12 @@
 package io.github.arun0009.pulse.autoconfigure;
 
+import io.github.arun0009.pulse.runtime.PulseRuntimeMode;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.PositiveOrZero;
 import org.jspecify.annotations.Nullable;
@@ -66,7 +68,8 @@ public record PulseProperties(
         @DefaultValue @Valid Priority priority,
         @DefaultValue @Valid ContainerMemory containerMemory,
         @DefaultValue @Valid OpenFeature openFeature,
-        @DefaultValue @Valid Cache cache) {
+        @DefaultValue @Valid Cache cache,
+        @DefaultValue @Valid Runtime runtime) {
 
     /** MDC enrichment from the inbound HTTP request. */
     public record Context(
@@ -641,4 +644,17 @@ public record PulseProperties(
 
         public record Caffeine(@DefaultValue("true") boolean enabled) {}
     }
+
+    /**
+     * Process-wide runtime mode. {@link PulseRuntimeMode.Mode#ENFORCING} (default) runs every
+     * Pulse feature normally; {@link PulseRuntimeMode.Mode#DRY_RUN} keeps observation but disables
+     * enforcement; {@link PulseRuntimeMode.Mode#OFF} is the killswitch — every feature
+     * short-circuits as if its individual {@code enabled=false} property had been set.
+     *
+     * <p>The mode can be flipped at runtime via
+     * {@code POST /actuator/pulse/mode} with body {@code {"value": "DRY_RUN"}}, which is the
+     * single most useful operational lever Pulse exposes during an incident.
+     */
+    public record Runtime(
+            @DefaultValue("ENFORCING") @NotNull PulseRuntimeMode.Mode mode) {}
 }

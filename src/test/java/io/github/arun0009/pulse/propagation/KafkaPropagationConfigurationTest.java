@@ -264,6 +264,7 @@ class KafkaPropagationConfigurationTest {
                 new PulseProperties.Priority(true, "Pulse-Priority", "normal", true, List.of()),
                 new PulseProperties.ContainerMemory(true, true, 0.10, "/sys/fs/cgroup"),
                 new PulseProperties.OpenFeature(true),
-                new PulseProperties.Cache(new PulseProperties.Cache.Caffeine(true)));
+                new PulseProperties.Cache(new PulseProperties.Cache.Caffeine(true)),
+                new PulseProperties.Runtime(io.github.arun0009.pulse.runtime.PulseRuntimeMode.Mode.ENFORCING));
     }
 }

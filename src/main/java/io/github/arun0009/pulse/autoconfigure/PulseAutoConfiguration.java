@@ -30,6 +30,7 @@ import io.github.arun0009.pulse.propagation.RestTemplatePropagationConfiguration
 import io.github.arun0009.pulse.propagation.WebClientPropagationConfiguration;
 import io.github.arun0009.pulse.resilience.PulseResilience4jConfiguration;
 import io.github.arun0009.pulse.resilience.PulseRetryAmplificationConfiguration;
+import io.github.arun0009.pulse.runtime.PulseRuntimeMode;
 import io.github.arun0009.pulse.scheduling.ContextPropagatingTaskScheduler;
 import io.github.arun0009.pulse.scheduling.PulseSchedulingConfigurer;
 import io.github.arun0009.pulse.shutdown.InflightRequestCounter;
@@ -109,15 +110,28 @@ import org.springframework.core.env.Environment;
 })
 public class PulseAutoConfiguration {
 
+    /**
+     * Process-wide runtime mode. Always created (regardless of {@code pulse.runtime.mode}) so that
+     * the actuator endpoint can flip from OFF -> ENFORCING just as easily as the reverse during an
+     * incident. The constructor seeds the initial mode from {@code pulse.runtime.mode}; subsequent
+     * runtime mutations are made through {@link PulseRuntimeMode#set(PulseRuntimeMode.Mode)} via
+     * {@code POST /actuator/pulse/mode}.
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    public PulseRuntimeMode pulseRuntimeMode(PulseProperties properties) {
+        return new PulseRuntimeMode(properties.runtime().mode());
+    }
+
     @Bean
     @ConditionalOnMissingBean
     @ConditionalOnProperty(prefix = "pulse.cardinality", name = "enabled", havingValue = "true", matchIfMissing = true)
     public CardinalityFirewall pulseCardinalityFirewall(
-            PulseProperties properties, ObjectProvider<MeterRegistry> meterRegistryProvider) {
+            PulseProperties properties, PulseRuntimeMode runtime, ObjectProvider<MeterRegistry> meterRegistryProvider) {
         // ObjectProvider keeps this lazy: Spring Boot's MeterRegistryPostProcessor resolves
         // MeterFilter beans during MeterRegistry construction. Eagerly injecting MeterRegistry
         // here would create a circular bean reference and fail context startup.
-        return new CardinalityFirewall(properties.cardinality(), meterRegistryProvider::getObject);
+        return new CardinalityFirewall(properties.cardinality(), runtime, meterRegistryProvider::getObject);
     }
 
     @Bean
@@ -136,8 +150,14 @@ public class PulseAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     @ConditionalOnProperty(prefix = "pulse.wide-events", name = "enabled", havingValue = "true", matchIfMissing = true)
-    public SpanEvents pulseSpanEvents(MeterRegistry registry, PulseProperties properties) {
-        return new SpanEvents(registry, properties.wideEvents());
+    public SpanEvents pulseSpanEvents(
+            MeterRegistry registry,
+            PulseProperties properties,
+            ObjectProvider<io.micrometer.observation.ObservationRegistry> observationRegistry) {
+        return new SpanEvents(
+                registry,
+                properties.wideEvents(),
+                observationRegistry.getIfAvailable(() -> io.micrometer.observation.ObservationRegistry.NOOP));
     }
 
     @Bean
@@ -172,7 +192,8 @@ public class PulseAutoConfiguration {
             @Value("${app.env:unknown-env}") String environment,
             ObjectProvider<CardinalityFirewall> cardinalityFirewall,
             ObjectProvider<SloProjector> sloProjector,
-            ObjectProvider<JobRegistry> jobRegistry) {
+            ObjectProvider<JobRegistry> jobRegistry,
+            PulseRuntimeMode runtime) {
         String version = getClass().getPackage().getImplementationVersion();
         return new PulseDiagnostics(
                 properties,
@@ -181,7 +202,8 @@ public class PulseAutoConfiguration {
                 version == null ? "dev" : version,
                 cardinalityFirewall.getIfAvailable(),
                 sloProjector.getIfAvailable(),
-                jobRegistry.getIfAvailable());
+                jobRegistry.getIfAvailable(),
+                runtime);
     }
 
     @Bean

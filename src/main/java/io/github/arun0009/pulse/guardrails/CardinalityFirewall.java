@@ -1,6 +1,7 @@
 package io.github.arun0009.pulse.guardrails;
 
 import io.github.arun0009.pulse.autoconfigure.PulseProperties;
+import io.github.arun0009.pulse.runtime.PulseRuntimeMode;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Meter;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -61,6 +62,7 @@ public final class CardinalityFirewall implements MeterFilter {
     private static final Logger log = LoggerFactory.getLogger(CardinalityFirewall.class);
 
     private final PulseProperties.Cardinality config;
+    private final PulseRuntimeMode runtime;
     private final Supplier<MeterRegistry> registrySupplier;
 
     /** Cached after first resolve — Spring's {@code ObjectProvider} returns the same singleton. */
@@ -77,14 +79,30 @@ public final class CardinalityFirewall implements MeterFilter {
             new ConcurrentHashMap<>();
 
     /**
+     * Backwards-compatible constructor. Defaults the runtime mode to a fresh
+     * {@link PulseRuntimeMode.Mode#ENFORCING} instance — useful for tests and for users wiring
+     * the firewall directly without going through Pulse's auto-configuration.
+     */
+    public CardinalityFirewall(PulseProperties.Cardinality config, Supplier<MeterRegistry> registrySupplier) {
+        this(config, new PulseRuntimeMode(PulseRuntimeMode.Mode.ENFORCING), registrySupplier);
+    }
+
+    /**
      * @param config firewall configuration
+     * @param runtime process-wide killswitch / dry-run lever. When {@code OFF} the filter passes
+     *     every {@link Meter.Id} through unchanged. When {@code DRY_RUN} the firewall still counts
+     *     overflow rewrites and warns on the offender, but returns the original tag value so the
+     *     metric pipeline observes what would have been clamped — a low-risk way to roll the
+     *     firewall into an existing fleet.
      * @param registrySupplier lazy accessor for the {@link MeterRegistry} the overflow diagnostic
      *     counter will be registered against. <strong>Must be lazy</strong> — the firewall is itself
      *     a {@link MeterFilter} resolved <em>during</em> registry construction by Spring Boot's
      *     {@code MeterRegistryPostProcessor}, so eager resolution causes a circular bean reference.
      */
-    public CardinalityFirewall(PulseProperties.Cardinality config, Supplier<MeterRegistry> registrySupplier) {
+    public CardinalityFirewall(
+            PulseProperties.Cardinality config, PulseRuntimeMode runtime, Supplier<MeterRegistry> registrySupplier) {
         this.config = config;
+        this.runtime = runtime;
         this.registrySupplier = registrySupplier;
     }
 
@@ -99,10 +117,11 @@ public final class CardinalityFirewall implements MeterFilter {
 
     @Override
     public Meter.Id map(Meter.Id id) {
-        if (!config.enabled() || !shouldProtect(id.getName())) {
+        if (!config.enabled() || runtime.off() || !shouldProtect(id.getName())) {
             return id;
         }
 
+        boolean dryRun = runtime.dryRun();
         Iterable<Tag> originalTags = id.getTagsAsIterable();
         List<Tag> rewritten = null;
         ConcurrentHashMap<String, Set<String>> tagsForMeter =
@@ -117,9 +136,12 @@ public final class CardinalityFirewall implements MeterFilter {
                 values.add(tag.getValue());
                 mappedValue = tag.getValue();
             } else {
-                mappedValue = config.overflowValue();
+                // Even in dry-run we record the would-have-clamped event so the operator can see
+                // the impact in pulse.cardinality.overflow before flipping ENFORCING. The tag
+                // value itself is left unchanged so the underlying metric is still correct.
                 warnOnce(id.getName(), tag.getKey());
                 countOverflow(id.getName(), tag.getKey());
+                mappedValue = dryRun ? tag.getValue() : config.overflowValue();
             }
 
             if (!mappedValue.equals(tag.getValue())) {

@@ -10,6 +10,7 @@ import io.github.arun0009.pulse.core.TraceGuardFilter;
 import io.github.arun0009.pulse.exception.ErrorFingerprintStrategy;
 import io.github.arun0009.pulse.exception.PulseExceptionHandler;
 import io.github.arun0009.pulse.guardrails.TimeoutBudgetFilter;
+import io.github.arun0009.pulse.runtime.PulseRuntimeMode;
 import io.github.arun0009.pulse.slo.SloRuleGenerator;
 import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.servlet.Filter;
@@ -68,10 +69,13 @@ public class PulseWebAutoConfiguration {
     @ConditionalOnMissingBean
     @ConditionalOnProperty(prefix = "pulse.trace-guard", name = "enabled", havingValue = "true", matchIfMissing = true)
     public TraceGuardFilter pulseTraceGuardFilter(
-            MeterRegistry registry, PulseProperties properties, PulseRequestMatcherFactory matcherFactory) {
+            MeterRegistry registry,
+            PulseProperties properties,
+            PulseRequestMatcherFactory matcherFactory,
+            PulseRuntimeMode runtime) {
         PulseRequestMatcher gate =
                 matcherFactory.build("trace-guard", properties.traceGuard().enabledWhen());
-        return new TraceGuardFilter(registry, properties.traceGuard(), gate);
+        return new TraceGuardFilter(registry, properties.traceGuard(), gate, runtime);
     }
 
     @Bean
@@ -82,10 +86,10 @@ public class PulseWebAutoConfiguration {
             havingValue = "true",
             matchIfMissing = true)
     public TimeoutBudgetFilter pulseTimeoutBudgetFilter(
-            PulseProperties properties, PulseRequestMatcherFactory matcherFactory) {
+            PulseProperties properties, PulseRequestMatcherFactory matcherFactory, PulseRuntimeMode runtime) {
         PulseRequestMatcher gate = matcherFactory.build(
                 "timeout-budget", properties.timeoutBudget().enabledWhen());
-        return new TimeoutBudgetFilter(properties.timeoutBudget(), gate);
+        return new TimeoutBudgetFilter(properties.timeoutBudget(), gate, runtime);
     }
 
     @Bean

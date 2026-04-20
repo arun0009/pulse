@@ -4,6 +4,7 @@ import io.github.arun0009.pulse.autoconfigure.PulseProperties;
 import io.github.arun0009.pulse.guardrails.CardinalityFirewall;
 import io.github.arun0009.pulse.jobs.JobRegistry;
 import io.github.arun0009.pulse.propagation.KafkaPropagationContext;
+import io.github.arun0009.pulse.runtime.PulseRuntimeMode;
 import io.github.arun0009.pulse.slo.SloProjector;
 import org.jspecify.annotations.Nullable;
 
@@ -25,7 +26,9 @@ public final class PulseDiagnostics {
     private final @Nullable CardinalityFirewall cardinalityFirewall;
     private final @Nullable SloProjector sloProjector;
     private final @Nullable JobRegistry jobRegistry;
+    private final @Nullable PulseRuntimeMode runtimeMode;
 
+    /** Pre-1.1 constructor — kept for backwards compatibility with users wiring beans by hand. */
     public PulseDiagnostics(
             PulseProperties properties,
             String serviceName,
@@ -34,6 +37,18 @@ public final class PulseDiagnostics {
             @Nullable CardinalityFirewall cardinalityFirewall,
             @Nullable SloProjector sloProjector,
             @Nullable JobRegistry jobRegistry) {
+        this(properties, serviceName, environment, version, cardinalityFirewall, sloProjector, jobRegistry, null);
+    }
+
+    public PulseDiagnostics(
+            PulseProperties properties,
+            String serviceName,
+            String environment,
+            String version,
+            @Nullable CardinalityFirewall cardinalityFirewall,
+            @Nullable SloProjector sloProjector,
+            @Nullable JobRegistry jobRegistry,
+            @Nullable PulseRuntimeMode runtimeMode) {
         this.properties = properties;
         this.serviceName = serviceName;
         this.environment = environment;
@@ -41,6 +56,7 @@ public final class PulseDiagnostics {
         this.cardinalityFirewall = cardinalityFirewall;
         this.sloProjector = sloProjector;
         this.jobRegistry = jobRegistry;
+        this.runtimeMode = runtimeMode;
     }
 
     public Map<String, Object> snapshot() {
@@ -48,10 +64,20 @@ public final class PulseDiagnostics {
         root.put("pulse.version", version);
         root.put("service", serviceName);
         root.put("environment", environment);
+        root.put("mode", runtimeMode == null ? "ENFORCING" : runtimeMode.get().name());
         root.put("subsystems", subsystems());
         root.put("effectiveConfig", effectiveConfig());
         root.put("runtime", runtime());
         return root;
+    }
+
+    /**
+     * Returns the live runtime mode bean, or {@code null} when none was wired (older
+     * constructor). Public so {@link PulseEndpoint} can mutate it via the
+     * {@code POST /actuator/pulse/mode} write operation.
+     */
+    public @Nullable PulseRuntimeMode runtimeMode() {
+        return runtimeMode;
     }
 
     public Map<String, Object> effectiveConfig() {

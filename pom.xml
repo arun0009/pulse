@@ -58,7 +58,6 @@
         <error-prone-core.version>2.49.0</error-prone-core.version>
         <java.version>21</java.version>
         <jreleaser-maven-plugin.version>1.23.0</jreleaser-maven-plugin.version>
-        <jspecify.version>1.0.0</jspecify.version>
         <!-- Build / publish toolchain — versions aligned with arun0009/idempotent for
          consistency across the io.github.arun0009 namespace. -->
         <maven-jar-plugin.version>3.5.0</maven-jar-plugin.version>
@@ -352,7 +351,10 @@
         <dependency>
             <groupId>org.apache.httpcomponents.client5</groupId>
             <artifactId>httpclient5</artifactId>
-            <version>5.6.1</version>
+            <!-- Version from spring-boot-dependencies (httpclient5.version). Do not float ahead
+                 of the Boot train — Spring Framework's HttpComponents integration is validated
+                 against that pairing; an unrelated bump (e.g. Dependabot to 5.6.x) can break
+                 RestTemplate outbound calls at runtime while compile still succeeds. -->
             <optional>true</optional>
         </dependency>
         <dependency>
@@ -382,7 +384,6 @@
         <dependency>
             <groupId>com.github.ben-manes.caffeine</groupId>
             <artifactId>caffeine</artifactId>
-            <version>3.2.3</version>
             <optional>true</optional>
         </dependency>
         <dependency>
@@ -431,7 +432,6 @@
         <dependency>
             <groupId>org.jspecify</groupId>
             <artifactId>jspecify</artifactId>
-            <version>${jspecify.version}</version>
             <scope>provided</scope>
             <optional>true</optional>
         </dependency>

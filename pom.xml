@@ -66,7 +66,7 @@
         <maven-source-plugin.version>3.4.0</maven-source-plugin.version>
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
-        <nullaway.version>0.13.3</nullaway.version>
+        <nullaway.version>0.13.4</nullaway.version>
         <opentelemetry.semconv.version>1.40.0</opentelemetry.semconv.version>
         <!-- Reproducible builds: byte-identical artifacts across rebuilds.
              Override per-release via -Dproject.build.outputTimestamp=… or set to a

@@ -5,7 +5,7 @@
 
     <groupId>io.github.arun0009</groupId>
     <artifactId>pulse-spring-boot-starter</artifactId>
-    <version>2.0.1-SNAPSHOT</version>
+    <version>2.0.2-SNAPSHOT</version>
     <packaging>jar</packaging>
 
     <name>Pulse — Production correctness for Spring Boot</name>
@@ -71,7 +71,7 @@
         <!-- Reproducible builds: byte-identical artifacts across rebuilds.
              Override per-release via -Dproject.build.outputTimestamp=… or set to a
              commit SHA / commit time. See https://maven.apache.org/guides/mini/guide-reproducible-builds.html -->
-        <project.build.outputTimestamp>2026-04-20T17:08:32Z</project.build.outputTimestamp>
+        <project.build.outputTimestamp>2026-04-25T05:02:14Z</project.build.outputTimestamp>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <resilience4j.version>2.4.0</resilience4j.version>

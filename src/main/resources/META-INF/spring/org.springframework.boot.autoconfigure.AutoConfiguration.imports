@@ -19,3 +19,4 @@ io.github.arun0009.pulse.propagation.internal.WebClientPropagationConfiguration
 io.github.arun0009.pulse.resilience.internal.PulseResilience4jConfiguration
 io.github.arun0009.pulse.resilience.internal.PulseRetryAmplificationConfiguration
 io.github.arun0009.pulse.tenant.internal.PulseTenantConfiguration
+io.github.arun0009.pulse.ext.internal.PulseFeatureConfiguration

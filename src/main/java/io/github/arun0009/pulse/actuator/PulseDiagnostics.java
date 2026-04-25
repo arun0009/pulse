@@ -10,6 +10,7 @@ import io.github.arun0009.pulse.dependencies.DependenciesProperties;
 import io.github.arun0009.pulse.enforcement.PulseEnforcementMode;
 import io.github.arun0009.pulse.events.WideEventsProperties;
 import io.github.arun0009.pulse.exception.ExceptionHandlerProperties;
+import io.github.arun0009.pulse.ext.PulseFeature;
 import io.github.arun0009.pulse.guardrails.CardinalityFirewall;
 import io.github.arun0009.pulse.guardrails.CardinalityProperties;
 import io.github.arun0009.pulse.guardrails.SamplingProperties;
@@ -89,6 +90,7 @@ public final class PulseDiagnostics {
     private final @Nullable JobRegistry jobRegistry;
     private final @Nullable PulseEnforcementMode enforcementMode;
     private final @Nullable ResourceAttributeResolver resourceAttributeResolver;
+    private final List<PulseFeature> userFeatures;
 
     /**
      * Single primary constructor. {@code samplingProbability} is sourced from
@@ -107,7 +109,8 @@ public final class PulseDiagnostics {
             @Nullable SloProjector sloProjector,
             @Nullable JobRegistry jobRegistry,
             @Nullable PulseEnforcementMode enforcementMode,
-            @Nullable ResourceAttributeResolver resourceAttributeResolver) {
+            @Nullable ResourceAttributeResolver resourceAttributeResolver,
+            List<PulseFeature> userFeatures) {
         this.p = p;
         this.serviceName = serviceName;
         this.environment = environment;
@@ -118,6 +121,7 @@ public final class PulseDiagnostics {
         this.jobRegistry = jobRegistry;
         this.enforcementMode = enforcementMode;
         this.resourceAttributeResolver = resourceAttributeResolver;
+        this.userFeatures = List.copyOf(userFeatures);
     }
 
     /**
@@ -138,9 +142,33 @@ public final class PulseDiagnostics {
                 "mode",
                 enforcementMode == null ? "ENFORCING" : enforcementMode.get().name());
         root.put("subsystems", subsystems());
+        root.put("userFeatures", userFeaturesSnapshot());
         root.put("effectiveConfig", effectiveConfig());
         root.put("runtime", runtime());
         return root;
+    }
+
+    private List<Map<String, Object>> userFeaturesSnapshot() {
+        return userFeatures.stream().map(this::userFeatureRow).toList();
+    }
+
+    private Map<String, Object> userFeatureRow(PulseFeature feature) {
+        Map<String, Object> row = new LinkedHashMap<>();
+        try {
+            row.put("id", feature.id());
+            row.put("displayName", feature.displayName());
+            row.put("description", feature.description());
+            row.put("enabled", feature.enabled());
+        } catch (RuntimeException ex) {
+            row.put("id", feature.getClass().getName());
+            row.put("displayName", feature.getClass().getSimpleName());
+            row.put(
+                    "description",
+                    "PulseFeature metadata lookup failed: " + ex.getClass().getSimpleName());
+            row.put("enabled", false);
+            row.put("error", true);
+        }
+        return row;
     }
 
     /**

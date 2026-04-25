@@ -83,6 +83,32 @@ public class PulseUiEndpoint {
         }
         html.append("</table>");
 
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> userFeatures =
+                (List<Map<String, Object>>) snap.getOrDefault("userFeatures", List.of());
+        if (!userFeatures.isEmpty()) {
+            html.append("<h2>User features</h2>");
+            html.append("<table><tr><th>Id</th><th>State</th><th>Description</th></tr>");
+            for (Map<String, Object> row : userFeatures) {
+                Object en = row.get("enabled");
+                boolean on = en instanceof Boolean b && b;
+                html.append("<tr><td><code>")
+                        .append(escape(String.valueOf(row.get("id"))))
+                        .append("</code><br><span class=\"meta\">")
+                        .append(escape(String.valueOf(row.get("displayName"))))
+                        .append("</span></td>");
+                html.append("<td><span class=\"pill ")
+                        .append(on ? "on" : "off")
+                        .append("\">")
+                        .append(on ? "on" : "off")
+                        .append("</span></td>");
+                html.append("<td>")
+                        .append(escape(String.valueOf(row.get("description"))))
+                        .append("</td></tr>");
+            }
+            html.append("</table>");
+        }
+
         html.append("<h2>Runtime</h2>");
         @SuppressWarnings("unchecked")
         Map<String, Object> runtime = (Map<String, Object>) snap.getOrDefault("runtime", Map.of());

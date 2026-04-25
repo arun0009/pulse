@@ -23,13 +23,14 @@ version bump:
   `PulseEventContext`, `DependencyClassifier`, `ErrorFingerprintStrategy`,
   `TenantExtractor`, `ContextContributor`, `PulseRequestMatcher`,
   `HostNameProvider`, `ResourceAttributeResolver`,
-  `PulseEnforcementMode`).
+  `PulseEnforcementMode`, `PulseFeature`, `PulseFeatureSupport`).
 - **Metric names** and their tag keys: `pulse.*` meters and their
   low-cardinality tags are pinned. Tag **values** may expand (e.g. a new
   `reason` bucket) within a minor release.
 - **Actuator endpoint shapes**: `/actuator/pulse`,
   `/actuator/pulse/{slo,effective-config,runtime,config-hash,enforcement}`.
-  Existing JSON keys keep their meaning; new keys may be added.
+  Existing JSON keys keep their meaning; new keys may be added (e.g. the
+  `userFeatures` array on the root `GET /actuator/pulse` payload).
 - **Auto-configuration activation contract**: each feature's top-level
   enable toggle (`pulse.<feature>.enabled`) and, where declared, its
   `enabled-when` block.

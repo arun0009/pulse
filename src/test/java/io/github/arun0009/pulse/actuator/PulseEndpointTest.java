@@ -1,14 +1,74 @@
 package io.github.arun0009.pulse.actuator;
 
+import io.github.arun0009.pulse.ext.PulseFeature;
 import io.github.arun0009.pulse.logging.ResourceAttributeResolver;
 import io.github.arun0009.pulse.slo.SloRuleGenerator;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 class PulseEndpointTest {
+
+    @Test
+    void snapshot_includes_user_features_from_pulse_feature_beans() {
+        PulseDiagnostics.AllProperties props = TestAllProperties.bindEmpty();
+        PulseFeature demo = new PulseFeature() {
+            @Override
+            public String id() {
+                return "acme.demo";
+            }
+
+            @Override
+            public String description() {
+                return "demo extension";
+            }
+
+            @Override
+            public boolean enabled() {
+                return false;
+            }
+        };
+        PulseDiagnostics diagnostics = new PulseDiagnostics(
+                props, "test-svc", "test-env", "0.0.1", 1.0, null, null, null, null, null, List.of(demo));
+        PulseEndpoint endpoint = new PulseEndpoint(diagnostics, null);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> snap = (Map<String, Object>) endpoint.read();
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> ufs = (List<Map<String, Object>>) snap.get("userFeatures");
+        assertThat(ufs).hasSize(1);
+        assertThat(ufs.get(0))
+                .containsEntry("id", "acme.demo")
+                .containsEntry("description", "demo extension")
+                .containsEntry("enabled", false);
+    }
+
+    @Test
+    void snapshot_keeps_working_when_user_feature_metadata_throws() {
+        PulseDiagnostics.AllProperties props = TestAllProperties.bindEmpty();
+        PulseFeature broken = new PulseFeature() {
+            @Override
+            public String id() {
+                throw new IllegalStateException("boom");
+            }
+        };
+        PulseDiagnostics diagnostics = new PulseDiagnostics(
+                props, "test-svc", "test-env", "0.0.1", 1.0, null, null, null, null, null, List.of(broken));
+        PulseEndpoint endpoint = new PulseEndpoint(diagnostics, null);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> snap = (Map<String, Object>) endpoint.read();
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> ufs = (List<Map<String, Object>>) snap.get("userFeatures");
+        assertThat(ufs).hasSize(1);
+        assertThat(ufs.get(0))
+                .containsEntry("id", broken.getClass().getName())
+                .containsEntry("displayName", broken.getClass().getSimpleName())
+                .containsEntry("enabled", false)
+                .containsEntry("error", true);
+        assertThat(String.valueOf(ufs.get(0).get("description"))).contains("IllegalStateException");
+    }
 
     @Test
     void exposes_effective_config_and_runtime_segments() {
@@ -53,8 +113,8 @@ class PulseEndpointTest {
             }
         };
         PulseDiagnostics.AllProperties props = TestAllProperties.bindEmpty();
-        PulseDiagnostics diag =
-                new PulseDiagnostics(props, "test-svc", "test-env", "0.0.1", 1.0, null, null, null, null, resolver);
+        PulseDiagnostics diag = new PulseDiagnostics(
+                props, "test-svc", "test-env", "0.0.1", 1.0, null, null, null, null, resolver, List.of());
         PulseEndpoint endpoint = new PulseEndpoint(diag, null);
         @SuppressWarnings("unchecked")
         Map<String, Object> runtime = (Map<String, Object>) endpoint.read("runtime");
@@ -94,6 +154,7 @@ class PulseEndpointTest {
     }
 
     private static PulseDiagnostics diagnostics(PulseDiagnostics.AllProperties props) {
-        return new PulseDiagnostics(props, "test-svc", "test-env", "0.0.1", 1.0, null, null, null, null, null);
+        return new PulseDiagnostics(
+                props, "test-svc", "test-env", "0.0.1", 1.0, null, null, null, null, null, List.of());
     }
 }

@@ -42,6 +42,43 @@ is the surface intended to be extended *frequently*.
 
 ---
 
+## Application extensions (`PulseFeature`)
+
+For **organization-specific** guardrails or observability hooks, implement
+`PulseFeature` on a Spring `@Bean`. Pulse lists every such bean under the
+`userFeatures` array in `GET /actuator/pulse` and in the pulse UI so operators
+see your extensions next to built-in subsystems.
+
+This is **metadata + discovery** only — attach real behaviour with ordinary
+Spring (`Filter`, `HandlerInterceptor`, `ObservationHandler`, etc.). Inject
+`PulseFeatureSupport` for the same **enforcement semantics** as built-in Pulse
+code (`enforcing()`, `dryRun()`, `runEither(enforce, observe)`) and for
+`meters()` / `tracer()` access.
+
+| Type                   | Package                        | Role                                              |
+| ---------------------- | ------------------------------ | ------------------------------------------------- |
+| `PulseFeature`         | `io.github.arun0009.pulse.ext` | Stable id, display name, description, `enabled()` |
+| `PulseFeatureSupport`  | `io.github.arun0009.pulse.ext` | `PulseEnforcementMode` + Micrometer `Tracer` / `MeterRegistry` |
+
+```java
+@Bean
+PulseFeature acmeIngressPolicy() {
+    return new PulseFeature() {
+        @Override
+        public String id() {
+            return "acme.ingress-policy";
+        }
+
+        @Override
+        public String description() {
+            return "Acme-specific ingress validation + metrics";
+        }
+    };
+}
+```
+
+---
+
 ## DependencyClassifier — tag outbound calls
 
 Maps an outbound URI (or raw host) to the logical `dep` tag stamped on every

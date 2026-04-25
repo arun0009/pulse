@@ -17,6 +17,7 @@ import io.github.arun0009.pulse.events.internal.PulseEventCounterObservationHand
 import io.github.arun0009.pulse.events.internal.PulseEventLoggingObservationHandler;
 import io.github.arun0009.pulse.events.internal.PulseEventSpanObservationHandler;
 import io.github.arun0009.pulse.exception.ExceptionHandlerProperties;
+import io.github.arun0009.pulse.ext.PulseFeature;
 import io.github.arun0009.pulse.fleet.ConfigHashGauge;
 import io.github.arun0009.pulse.fleet.ConfigHasher;
 import io.github.arun0009.pulse.guardrails.CardinalityFirewall;
@@ -74,6 +75,8 @@ import org.springframework.boot.info.GitProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ImportRuntimeHints;
 import org.springframework.core.env.Environment;
+
+import java.util.List;
 
 /**
  * Root Pulse auto-configuration.
@@ -276,7 +279,8 @@ public class PulseAutoConfiguration {
             ObjectProvider<SloProjector> sloProjector,
             ObjectProvider<JobRegistry> jobRegistry,
             PulseEnforcementMode enforcement,
-            ObjectProvider<ResourceAttributeResolver> resourceAttributeResolver) {
+            ObjectProvider<ResourceAttributeResolver> resourceAttributeResolver,
+            List<PulseFeature> userFeatures) {
         String version = getClass().getPackage().getImplementationVersion();
         return new PulseDiagnostics(
                 all,
@@ -288,7 +292,8 @@ public class PulseAutoConfiguration {
                 sloProjector.getIfAvailable(),
                 jobRegistry.getIfAvailable(),
                 enforcement,
-                resourceAttributeResolver.getIfAvailable());
+                resourceAttributeResolver.getIfAvailable(),
+                userFeatures);
     }
 
     /**

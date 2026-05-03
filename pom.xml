@@ -57,7 +57,7 @@
              packages so it's incremental-friendly. -->
         <error-prone-core.version>2.49.0</error-prone-core.version>
         <java.version>21</java.version>
-        <jreleaser-maven-plugin.version>1.23.0</jreleaser-maven-plugin.version>
+        <jreleaser-maven-plugin.version>1.24.0</jreleaser-maven-plugin.version>
         <jspecify.version>1.0.0</jspecify.version>
         <!-- Build / publish toolchain — versions aligned with arun0009/idempotent for
          consistency across the io.github.arun0009 namespace. -->

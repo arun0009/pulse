@@ -6,7 +6,7 @@
 
 <p align="center">
 	<strong>Batteries-included production observability for Spring Boot.</strong><br/>
-	One dependency. Zero agents. Everything your default stack quietly forgets.
+	One dependency. Zero agents—Micrometer-native, OTLP-friendly. Everything your default stack quietly forgets.
 </p>
 
 <p align="center">

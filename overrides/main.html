@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{# Early Open Graph like hand-authored pages: append to site_meta so OG runs before title/CSS/JS #}
+{# Material puts extrahead last in <head>; Slack unfurls reliably with tags high in the document. #}
+
+{% block site_meta %}
+{{ super() }}
+{% if page.is_homepage %}
+  {% set og_title = config.site_name %}
+{% elif page.title and page.title != config.site_name %}
+  {% set og_title = page.title ~ " – " ~ config.site_name %}
+{% else %}
+  {% set og_title = config.site_name %}
+{% endif %}
+{% if page.meta and page.meta.description %}
+  {% set og_desc = page.meta.description %}
+{% else %}
+  {% set og_desc = config.site_description %}
+{% endif %}
+{% set og_url = page.canonical_url %}
+{% set og_img = config.site_url.rstrip('/') ~ '/assets/og-image.png' %}
+
+<meta property="og:title" content="{{ og_title | e }}"/>
+<meta property="og:description" content="{{ og_desc | e }}"/>
+<meta property="og:url" content="{{ og_url }}"/>
+<meta property="og:image" content="{{ og_img }}"/>
+
+<meta property="og:type" content="website"/>
+<meta property="og:locale" content="en_US"/>
+<meta property="og:site_name" content="{{ config.site_name | e }}"/>
+<meta property="og:image:width" content="1200"/>
+<meta property="og:image:height" content="630"/>
+<meta property="og:image:type" content="image/png"/>
+<meta property="og:image:alt"
+      content="{{ (config.site_name ~ ' — ' ~ config.site_description) | e }}"/>
+
+<meta name="twitter:card" content="summary_large_image"/>
+<meta name="twitter:title" content="{{ og_title | e }}"/>
+<meta name="twitter:description" content="{{ og_desc | e }}"/>
+<meta name="twitter:url" content="{{ og_url }}"/>
+<meta name="twitter:image" content="{{ og_img }}"/>
+<meta name="twitter:image:alt"
+      content="{{ (config.site_name ~ ' — ' ~ config.site_description) | e }}"/>
+
+<script type="application/ld+json">
+{{ {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebSite",
+      "@id": (config.site_url ~ "#website"),
+      "url": config.site_url,
+      "name": config.site_name,
+      "description": config.site_description,
+      "inLanguage": "en-US",
+      "publisher": {"@type": "Person", "name": config.site_author},
+    },
+    {
+      "@type": "SoftwareSourceCode",
+      "name": (config.site_name ~ " Spring Boot starter"),
+      "description": config.site_description,
+      "programmingLanguage": ["Java"],
+      "runtimePlatform": "Java Virtual Machine",
+      "url": config.site_url,
+      "codeRepository": config.repo_url,
+      "license": "https://opensource.org/license/MIT",
+    },
+  ],
+} | tojson }}
+</script>
+{% endblock %}

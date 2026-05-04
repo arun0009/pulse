@@ -1,6 +1,6 @@
 # Cardinality firewall
 
-> **TL;DR.** Hard cap per `(meter, tag)`. The first 1 000 distinct values
+> **TL;DR.** Hard cap per `(meter, tag)`. The first 1000 distinct values
 > pass through; the rest bucket to `OVERFLOW`. One bad tag can't 10× your
 > metrics bill. Default on, ~17 ns/op.
 

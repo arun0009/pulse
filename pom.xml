@@ -75,7 +75,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <resilience4j.version>2.4.0</resilience4j.version>
-        <spotless.version>3.4.0</spotless.version>
+        <spotless.version>3.5.0</spotless.version>
         <spring.boot.version>4.0.6</spring.boot.version>
         <versions-maven-plugin.version>2.21.0</versions-maven-plugin.version>
         <wiremock.version>3.13.2</wiremock.version>

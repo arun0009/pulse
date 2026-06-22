@@ -75,7 +75,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <resilience4j.version>2.4.0</resilience4j.version>
-        <spotless.version>3.5.1</spotless.version>
+        <spotless.version>3.7.0</spotless.version>
         <spring.boot.version>4.0.6</spring.boot.version>
         <versions-maven-plugin.version>2.21.0</versions-maven-plugin.version>
         <wiremock.version>3.13.2</wiremock.version>
@@ -567,7 +567,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-dependency-plugin</artifactId>
-                <version>3.10.0</version>
+                <version>3.11.0</version>
                 <executions>
                     <execution>
                         <id>resolve-agent-jars</id>
@@ -637,7 +637,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
-                <version>3.5.5</version>
+                <version>3.5.6</version>
                 <configuration>
                     <!-- `@{argLine}` threads through the jacoco:prepare-agent output so
                          JaCoCo's -javaagent isn't clobbered. `-javaagent:${mockito}` pins
@@ -668,7 +668,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-failsafe-plugin</artifactId>
-                <version>3.5.5</version>
+                <version>3.5.6</version>
                 <configuration>
                     <!-- Mirror surefire — Mockito javaagent + silenced SLF4J internals
                          + Log4j2 pin during integration tests.
@@ -767,7 +767,7 @@
             <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
-                <version>0.8.14</version>
+                <version>0.8.15</version>
                 <configuration>
                     <skip>${skipTests}</skip>
                 </configuration>
@@ -868,7 +868,7 @@
             <plugin>
                 <groupId>org.cyclonedx</groupId>
                 <artifactId>cyclonedx-maven-plugin</artifactId>
-                <version>2.9.1</version>
+                <version>2.9.2</version>
                 <configuration>
                     <projectType>library</projectType>
                     <schemaVersion>1.5</schemaVersion>

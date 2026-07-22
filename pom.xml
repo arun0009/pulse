@@ -57,16 +57,16 @@
              packages so it's incremental-friendly. -->
         <error-prone-core.version>2.50.0</error-prone-core.version>
         <java.version>21</java.version>
-        <jreleaser-maven-plugin.version>1.24.0</jreleaser-maven-plugin.version>
+        <jreleaser-maven-plugin.version>1.25.0</jreleaser-maven-plugin.version>
         <jspecify.version>1.0.1</jspecify.version>
         <!-- Build / publish toolchain — versions aligned with arun0009/idempotent for
          consistency across the io.github.arun0009 namespace. -->
-        <maven-jar-plugin.version>3.5.0</maven-jar-plugin.version>
+        <maven-jar-plugin.version>3.5.1</maven-jar-plugin.version>
         <maven-javadoc-plugin.version>3.12.0</maven-javadoc-plugin.version>
         <maven-source-plugin.version>3.4.0</maven-source-plugin.version>
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
-        <nullaway.version>0.13.4</nullaway.version>
+        <nullaway.version>0.13.8</nullaway.version>
         <opentelemetry.semconv.version>1.42.0</opentelemetry.semconv.version>
         <!-- Reproducible builds: byte-identical artifacts across rebuilds.
              Override per-release via -Dproject.build.outputTimestamp=… or set to a
@@ -75,7 +75,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <resilience4j.version>2.4.0</resilience4j.version>
-        <spotless.version>3.5.1</spotless.version>
+        <spotless.version>3.8.0</spotless.version>
         <spring.boot.version>4.1.0</spring.boot.version>
         <versions-maven-plugin.version>2.21.0</versions-maven-plugin.version>
         <wiremock.version>3.13.2</wiremock.version>
@@ -567,7 +567,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-dependency-plugin</artifactId>
-                <version>3.10.0</version>
+                <version>3.11.0</version>
                 <executions>
                     <execution>
                         <id>resolve-agent-jars</id>
@@ -637,7 +637,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
-                <version>3.5.5</version>
+                <version>3.5.6</version>
                 <configuration>
                     <!-- `@{argLine}` threads through the jacoco:prepare-agent output so
                          JaCoCo's -javaagent isn't clobbered. `-javaagent:${mockito}` pins
@@ -668,7 +668,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-failsafe-plugin</artifactId>
-                <version>3.5.5</version>
+                <version>3.5.6</version>
                 <configuration>
                     <!-- Mirror surefire — Mockito javaagent + silenced SLF4J internals
                          + Log4j2 pin during integration tests.
@@ -767,7 +767,7 @@
             <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
-                <version>0.8.14</version>
+                <version>0.8.15</version>
                 <configuration>
                     <skip>${skipTests}</skip>
                 </configuration>
@@ -868,7 +868,7 @@
             <plugin>
                 <groupId>org.cyclonedx</groupId>
                 <artifactId>cyclonedx-maven-plugin</artifactId>
-                <version>2.9.1</version>
+                <version>2.9.2</version>
                 <configuration>
                     <projectType>library</projectType>
                     <schemaVersion>1.5</schemaVersion>

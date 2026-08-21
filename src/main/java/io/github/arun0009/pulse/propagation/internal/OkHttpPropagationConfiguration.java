@@ -117,10 +117,12 @@ public class OkHttpPropagationConfiguration {
                     }
                 });
             }
-            if (budgetEnabled && original.header(budgetHeader) == null) {
-                budgetHelper
-                        .remainingForOutbound("okhttp")
-                        .ifPresent(remaining -> builder.header(budgetHeader, Long.toString(remaining.toMillis())));
+            if (budgetEnabled) {
+                budgetHelper.stampHeaders(budgetHeader, "okhttp", true, (name, value) -> {
+                    if (original.header(name) == null) {
+                        builder.header(name, value);
+                    }
+                });
             }
             Request outgoing = builder.build();
             Optional<Duration> clientTimeout = budgetHelper.remainingForClientTimeout();

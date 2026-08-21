@@ -106,6 +106,37 @@ class TimeoutBudgetOutboundAbortTest {
     }
 
     @Test
+    void stamp_headers_writes_remaining_and_absolute_deadline() {
+        TimeoutBudgetOutbound outbound = new TimeoutBudgetOutbound(new SimpleMeterRegistry(), props(false));
+        TimeoutBudget budget = TimeoutBudget.withRemaining(Duration.ofSeconds(2));
+        java.util.Map<String, String> headers = new java.util.LinkedHashMap<>();
+
+        try (Scope ignored = openBudget(budget)) {
+            outbound.stampHeaders("Pulse-Timeout-Ms", "restclient", true, headers::putIfAbsent);
+        }
+
+        assertThat(Long.parseLong(headers.get("Pulse-Timeout-Ms"))).isBetween(1500L, 2000L);
+        assertThat(Long.parseLong(headers.get(TimeoutBudget.DEADLINE_HEADER)))
+                .isGreaterThan(System.currentTimeMillis());
+    }
+
+    @Test
+    void stamp_headers_does_not_overwrite_existing() {
+        TimeoutBudgetOutbound outbound = new TimeoutBudgetOutbound(new SimpleMeterRegistry(), props(false));
+        TimeoutBudget budget = TimeoutBudget.withRemaining(Duration.ofSeconds(2));
+        java.util.Map<String, String> headers = new java.util.LinkedHashMap<>();
+        headers.put("Pulse-Timeout-Ms", "999");
+        headers.put(TimeoutBudget.DEADLINE_HEADER, "1");
+
+        try (Scope ignored = openBudget(budget)) {
+            outbound.stampHeaders("Pulse-Timeout-Ms", "okhttp", true, headers::putIfAbsent);
+        }
+
+        assertThat(headers.get("Pulse-Timeout-Ms")).isEqualTo("999");
+        assertThat(headers.get(TimeoutBudget.DEADLINE_HEADER)).isEqualTo("1");
+    }
+
+    @Test
     void apply_client_timeout_on_skips_zero_remaining() {
         TimeoutBudgetOutbound outbound = new TimeoutBudgetOutbound(new SimpleMeterRegistry(), props(false, true));
         TimeoutBudget budget = TimeoutBudget.atDeadline(Instant.now().minusSeconds(1));

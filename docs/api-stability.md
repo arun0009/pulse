@@ -39,7 +39,8 @@ version bump:
 - **MDC keys** Pulse writes: `traceId`, `requestId`, `userId`, `tenantId`,
   `priority`, `retry.depth`, `service.name`, `deployment.environment`.
 - **HTTP headers** Pulse reads / stamps: `traceparent`, `tracestate`,
-  `baggage`, `Pulse-Request-Id`, `Pulse-Timeout-Ms`, `Pulse-Tenant-Id`,
+  `baggage`, `Pulse-Request-Id`, `Pulse-Timeout-Ms`,
+  `Pulse-Timeout-Deadline-Ms`, `Pulse-Tenant-Id`,
   `Pulse-Priority`, `Pulse-Retry-Depth`.
 - **Kafka headers** Pulse stamps: the same identity / retry / priority
   headers plus `Pulse-Timeout-Ms` (remaining) and

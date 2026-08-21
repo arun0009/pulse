@@ -50,18 +50,16 @@ public class PulseKafkaProducerInterceptor implements ProducerInterceptor<Object
 
             String budgetHeader = KafkaPropagationContext.timeoutBudgetHeader();
             TimeoutBudgetOutbound budgetHelper = KafkaPropagationContext.budgetHelper();
-            if (budgetHelper != null && headers.lastHeader(budgetHeader) == null) {
-                budgetHelper
-                        .resolveRemaining("kafka")
-                        .ifPresent(remaining -> headers.add(
-                                budgetHeader,
-                                Long.toString(remaining.toMillis()).getBytes(StandardCharsets.UTF_8)));
-            }
-            // Absolute deadline so the consumer does not restart remaining-ms at consume time.
-            if (headers.lastHeader(TimeoutBudget.KAFKA_DEADLINE_HEADER) == null) {
+            if (budgetHelper != null) {
+                budgetHelper.stampHeaders(budgetHeader, "kafka", false, (name, value) -> {
+                    if (headers.lastHeader(name) == null) {
+                        headers.add(name, value.getBytes(StandardCharsets.UTF_8));
+                    }
+                });
+            } else if (headers.lastHeader(TimeoutBudget.DEADLINE_HEADER) == null) {
                 TimeoutBudget.current()
                         .ifPresent(budget -> headers.add(
-                                TimeoutBudget.KAFKA_DEADLINE_HEADER,
+                                TimeoutBudget.DEADLINE_HEADER,
                                 budget.toBaggageValue().getBytes(StandardCharsets.UTF_8)));
             }
         } catch (RuntimeException e) {

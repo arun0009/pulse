@@ -3,9 +3,9 @@
     Pulse Logback configuration.
 
     Spring Boot's LoggingSystem auto-loads this file when Logback is the chosen
-    logging system (consumers exclude `spring-boot-starter-log4j2` from Pulse and
-    add `spring-boot-starter-logging`). The Log4j2 path remains the default; this
-    file is only consulted when Log4j2 is *not* on the classpath.
+    Pulse's `logback-spring.xml` is the default consumer path (Spring Boot's
+    logging system). The Log4j2 path is used when the application puts
+    Log4j2 on the classpath instead of Logback.
 
     The PulseLogbackEncoder produces the same JSON shape as the Log4j2
     pulse-json-layout.json so dashboards built on either logging stack work

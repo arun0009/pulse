@@ -29,31 +29,39 @@ Pulse is on
     implementation 'io.github.arun0009:pulse-spring-boot-starter:2.0.0'
     ```
 
-??? note "Logback users — opt out of Log4j2"
+??? note "Log4j2 users — add it yourself"
 
-    Pulse defaults to Log4j2 (Spring Boot's higher-throughput logging
-    backend). To use Logback instead:
+    Pulse follows Spring Boot: **Logback is the default.** The starter no
+    longer pulls `spring-boot-starter-log4j2`. Pulse's `logback-spring.xml`
+    produces the JSON field set, PII masking, and resource attributes.
+
+    To use Log4j2 instead, exclude Boot's logging starter and add Log4j2 as
+    you would in any Boot app:
 
     ```xml
     <dependency>
       <groupId>io.github.arun0009</groupId>
       <artifactId>pulse-spring-boot-starter</artifactId>
+      <version>2.0.0</version>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-web</artifactId>
       <exclusions>
         <exclusion>
           <groupId>org.springframework.boot</groupId>
-          <artifactId>spring-boot-starter-log4j2</artifactId>
+          <artifactId>spring-boot-starter-logging</artifactId>
         </exclusion>
       </exclusions>
     </dependency>
     <dependency>
       <groupId>org.springframework.boot</groupId>
-      <artifactId>spring-boot-starter-logging</artifactId>
+      <artifactId>spring-boot-starter-log4j2</artifactId>
     </dependency>
     ```
 
-    Pulse's `logback-spring.xml` produces the **exact same** JSON shape as
-    the Log4j2 path. Same field set, same PII masking, same resource
-    attributes. Dashboards work unchanged.
+    Pulse's `log4j2-spring.xml` produces the **exact same** JSON shape as
+    the Logback path. Dashboards work unchanged.
 
 ## 2. Point at your OTel Collector
 

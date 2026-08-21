@@ -38,6 +38,7 @@ class PulseOkHttpInterceptorTimeoutTest {
         assertThat(recorded.readTimeoutMs).isEqualTo(recorded.connectTimeoutMs);
         assertThat(recorded.writeTimeoutMs).isEqualTo(recorded.connectTimeoutMs);
         assertThat(recorded.proceeded.header("Pulse-Timeout-Ms")).isNotBlank();
+        assertThat(recorded.proceeded.header(TimeoutBudget.DEADLINE_HEADER)).isNotBlank();
     }
 
     @Test

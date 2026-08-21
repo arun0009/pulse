@@ -14,8 +14,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * The filter is the entry point that establishes a request's deadline. Tests cover (1) inbound
  * header is honored, (2) absent header falls back to default, (3) the safety margin is subtracted,
- * (4) a tiny inbound budget is floored at the configured minimum, (5) downstream code reads the
- * budget via {@link TimeoutBudget#current()} during the chain.
+ * (4) an explicit tiny or zero remaining-ms must not mint a fresh default / minimum, (5) absolute
+ * deadline header wins over remaining-ms, (6) downstream code reads the budget via
+ * {@link TimeoutBudget#current()} during the chain.
  */
 class TimeoutBudgetFilterTest {
 
@@ -61,9 +62,29 @@ class TimeoutBudgetFilterTest {
     }
 
     @Test
-    void tiny_inbound_budget_is_floored_at_minimum() throws Exception {
+    void tiny_inbound_budget_is_not_floored_up_to_minimum() throws Exception {
         MockHttpServletRequest request = new MockHttpServletRequest("GET", "/orders");
         request.addHeader("Pulse-Timeout-Ms", "10");
+        AtomicReference<Duration> observed = new AtomicReference<>();
+        AtomicReference<Boolean> present = new AtomicReference<>();
+
+        FilterChain chain = (req, resp) -> {
+            present.set(TimeoutBudget.current().isPresent());
+            observed.set(TimeoutBudget.current().orElseThrow().remaining());
+        };
+
+        filter.doFilter(request, new MockHttpServletResponse(), chain);
+
+        assertThat(present.get()).isTrue();
+        assertThat(observed.get())
+                .as("explicit 10ms minus 50ms margin is expired — must not mint minimum-budget (100ms)")
+                .isEqualTo(Duration.ZERO);
+    }
+
+    @Test
+    void zero_inbound_remaining_is_expired_not_a_fresh_default() throws Exception {
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/orders");
+        request.addHeader("Pulse-Timeout-Ms", "0");
         AtomicReference<Duration> observed = new AtomicReference<>();
 
         FilterChain chain = (req, resp) ->
@@ -71,7 +92,42 @@ class TimeoutBudgetFilterTest {
 
         filter.doFilter(request, new MockHttpServletResponse(), chain);
 
-        assertThat(observed.get()).isGreaterThanOrEqualTo(Duration.ofMillis(95));
+        assertThat(observed.get())
+                .as("Pulse-Timeout-Ms: 0 must not fall back to the 2s default")
+                .isEqualTo(Duration.ZERO);
+    }
+
+    @Test
+    void absolute_deadline_header_is_preferred_over_remaining_ms() throws Exception {
+        long deadlineEpoch = System.currentTimeMillis() + 800;
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/orders");
+        request.addHeader("Pulse-Timeout-Ms", "2000");
+        request.addHeader(TimeoutBudget.DEADLINE_HEADER, Long.toString(deadlineEpoch));
+        AtomicReference<Duration> observed = new AtomicReference<>();
+
+        FilterChain chain = (req, resp) ->
+                observed.set(TimeoutBudget.current().orElseThrow().remaining());
+
+        filter.doFilter(request, new MockHttpServletResponse(), chain);
+
+        assertThat(observed.get())
+                .as("absolute deadline (~800ms) must win over remaining-ms 2000")
+                .isLessThanOrEqualTo(Duration.ofMillis(800))
+                .isGreaterThan(Duration.ofMillis(400));
+    }
+
+    @Test
+    void past_absolute_deadline_stays_expired() throws Exception {
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/orders");
+        request.addHeader(TimeoutBudget.DEADLINE_HEADER, Long.toString(System.currentTimeMillis() - 5_000));
+        AtomicReference<Duration> observed = new AtomicReference<>();
+
+        FilterChain chain = (req, resp) ->
+                observed.set(TimeoutBudget.current().orElseThrow().remaining());
+
+        filter.doFilter(request, new MockHttpServletResponse(), chain);
+
+        assertThat(observed.get()).isEqualTo(Duration.ZERO);
     }
 
     @Test

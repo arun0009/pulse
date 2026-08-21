@@ -17,9 +17,10 @@ import java.io.IOException;
  * <p>When {@link TimeoutBudgetProperties#abortOnExhaustion()} is {@code true} and the remaining
  * budget is at or below {@code minimum-budget}, the interceptor throws
  * {@link TimeoutBudgetExhaustedException} and does not execute the call. The default is to stamp
- * the remaining budget (including {@code 0}) and still make the call. RestTemplate / RestClient
- * have no per-request timeout API, so {@code apply-client-timeout} does not apply here — use
- * abort-on-exhaustion, or OkHttp / WebClient / Apache HttpClient 5.
+ * the remaining budget (including {@code 0}) and the absolute {@link TimeoutBudget#DEADLINE_HEADER}
+ * and still make the call. RestTemplate / RestClient have no per-request timeout API, so
+ * {@code apply-client-timeout} does not apply here — use abort-on-exhaustion, or OkHttp /
+ * WebClient / Apache HttpClient 5.
  *
  * <p>When the remaining budget is zero (the upstream caller's deadline has already passed) the
  * {@code pulse.timeout_budget.exhausted} counter is incremented, tagged with the {@code transport}
@@ -41,11 +42,11 @@ public final class TimeoutBudgetOutboundInterceptor implements ClientHttpRequest
     @Override
     public ClientHttpResponse intercept(HttpRequest request, byte[] body, ClientHttpRequestExecution execution)
             throws IOException {
-        if (request.getHeaders().getFirst(config.outboundHeader()) == null) {
-            budgetHelper.remainingForOutbound(transport).ifPresent(remaining -> {
-                request.getHeaders().add(config.outboundHeader(), Long.toString(remaining.toMillis()));
-            });
-        }
+        budgetHelper.stampHeaders(config.outboundHeader(), transport, true, (name, value) -> {
+            if (request.getHeaders().getFirst(name) == null) {
+                request.getHeaders().add(name, value);
+            }
+        });
         return execution.execute(request, body);
     }
 }

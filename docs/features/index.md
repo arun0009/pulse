@@ -52,9 +52,8 @@ through for the full page.
 ## Day-one drivers
 
 Six things every Spring app should have on day one. None of them ship in
-Spring Boot or the OTel Java agent, all cost less than a microsecond on the
-hot path, and all of them decide whether observability actually works at
-3 AM.
+Spring Boot or the OTel Java agent, the cardinality hot path is ~17 ns, and
+all of them decide whether observability actually works at 3 AM.
 
 <div class="grid cards" markdown>
 
@@ -70,8 +69,9 @@ hot path, and all of them decide whether observability actually works at
     ---
 
     The deadline travels with the request. `RestTemplate`, `WebClient`,
-    `OkHttp`, Kafka all forward the *remaining* budget. Opt-in: fail fast,
-    bound the socket. Kafka does not drop business events on HTTP expiry.
+    `OkHttp`, Kafka stamp remaining-ms **and** an absolute deadline.
+    Opt-in: fail fast, bound the socket. Kafka does not drop business
+    events on HTTP expiry.
 
 -   :material-merge:{ .lg .middle } **[Context propagation](context-propagation.md)**
 

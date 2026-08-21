@@ -90,7 +90,7 @@ defaults, and gotchas. The high-traffic ones:
 | Spring Boot | 4.0+ |
 | Micrometer | The version Boot 4 brings transitively (no override needed) |
 | OpenTelemetry SDK | The version `io.opentelemetry.instrumentation:opentelemetry-spring-boot-starter` brings |
-| Logging | Log4j2 by default; Logback supported via opt-in |
+| Logging | Logback (Boot default); Log4j2 supported if you add `spring-boot-starter-log4j2` |
 | GraalVM native | Reflection / proxy / resource hints registered via `RuntimeHints`; CI runs a native-image smoke workflow (`native-smoke.yml`) |
 
 Pulse uses Boot 4's repackaged actuator API, the new Micrometer + OTel

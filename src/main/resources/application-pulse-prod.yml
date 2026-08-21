@@ -52,11 +52,10 @@ pulse:
     enabled: true
     fan-out-warn-threshold: 20
 
-  # Strict tenant cardinality — multi-tenant SaaS often runs at 100s of
-  # tenants but the metric tag must be capped to keep Prometheus happy.
-  tenant:
-    enabled: true
-    max-tag-cardinality: 100
+  # Tenant context stays opt-in. A client-supplied Pulse-Tenant-Id is not something
+  # a generic prod service should trust just because it activated this preset.
+  # Set pulse.tenant.enabled=true (and max-tag-cardinality) when you are actually
+  # multi-tenant.
 
   # OTel exporter health is a real signal in prod — flag stalls promptly.
   health:

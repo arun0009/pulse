@@ -106,12 +106,13 @@ The only legitimate reason to disable masking is "I'm running in a sealed
 dev environment with synthetic data and the masked outputs make debugging
 harder."
 
-## Logback users
+## Log4j2 users
 
-Pulse defaults to Log4j2 (Spring Boot's higher-throughput logging backend)
-but supports Logback via opt-in — see the [quick start](../quickstart.md#1-add-the-dependency)
-for the dependency exclusion. The Logback path produces the **exact same**
-JSON shape as the Log4j2 path. Dashboards work unchanged either way.
+Pulse follows Spring Boot: **Logback is the default.** Add
+`spring-boot-starter-log4j2` (and exclude `spring-boot-starter-logging`) if
+you want Log4j2 — see the [quick start](../quickstart.md#1-add-the-dependency).
+Both paths produce the **exact same** JSON shape. Dashboards work unchanged
+either way.
 
 ## Where do `service.version` and the git revision come from?
 

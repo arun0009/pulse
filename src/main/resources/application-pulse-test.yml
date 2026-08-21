@@ -4,9 +4,8 @@
 #
 #     spring.profiles.active: test,pulse-test
 #
-# Or — when pulse.profile-presets.auto-apply is true (the default) — Pulse
-# detects "test" in the active profiles and adds "pulse-test" automatically,
-# so just @ActiveProfiles("test") is enough.
+# Auto-detect of "test" (adding pulse-test for you) is opt-in:
+# pulse.profile-presets.auto-apply=true. The default is not to auto-apply.
 #
 # Optimised for: silence, speed, and reproducibility. Pulse stays loaded so
 # auto-configuration is exercised, but enforcement and noisy diagnostics are off.

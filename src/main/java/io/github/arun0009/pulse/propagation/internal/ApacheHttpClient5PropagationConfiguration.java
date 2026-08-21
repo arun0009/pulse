@@ -147,10 +147,12 @@ public class ApacheHttpClient5PropagationConfiguration {
                     }
                 });
             }
-            if (budgetEnabled && !request.containsHeader(budgetHeader)) {
-                budgetHelper
-                        .remainingForOutbound("apache-hc5")
-                        .ifPresent(remaining -> request.setHeader(budgetHeader, Long.toString(remaining.toMillis())));
+            if (budgetEnabled) {
+                budgetHelper.stampHeaders(budgetHeader, "apache-hc5", true, (name, value) -> {
+                    if (!request.containsHeader(name)) {
+                        request.setHeader(name, value);
+                    }
+                });
             }
             budgetHelper.remainingForClientTimeout().ifPresent(remaining -> applyResponseTimeout(context, remaining));
         }

@@ -22,17 +22,23 @@ Pulse was doing too many things on by default. The day-one core is unchanged (ca
 
 Restore previous behaviour with the matching `enabled: true` (and `auto-apply: true` / `health-indicator-enabled: true`) keys.
 
+- **Logging follows Spring Boot.** `spring-boot-starter-log4j2` and `log4j-layout-template-json` are now **optional**. Adding Pulse no longer replaces Logback. Pulse's `logback-spring.xml` is the default consumer path. Add Log4j2 yourself if you want that backend (and exclude `spring-boot-starter-logging` as in any Boot app).
+- **`application-pulse-prod.yml` no longer sets `pulse.tenant.enabled: true`.** Tenant stays opt-in even when you activate the prod preset.
+
 ### Added
 
 - **`pulse.timeout-budget.abort-on-exhaustion`** (default `false`). When true, outbound HTTP calls throw `TimeoutBudgetExhaustedException` once remaining budget is at or below `minimum-budget` instead of still executing. Kafka produces are never aborted.
 - **`pulse.timeout-budget.apply-client-timeout`** (default `false`). When true, OkHttp connect/read/write timeouts, WebClient reactor timeout, and Apache HttpClient 5 response timeout are set to the remaining budget. RestTemplate and RestClient have no per-request timeout API — abort is the fail-fast path there. Do not enable with the shipped 2s default unless that is your real latency envelope.
-- **Kafka absolute RPC deadline.** Producer stamps `Pulse-Timeout-Deadline-Ms` (epoch-millis). Consumer prefers it over remaining-ms so a message that sat in the topic does not get a fresh budget. Kafka record timestamps are not used (they are often event-time). HTTP timeout-budget abort is never applied to Kafka consume: a `202` + "charge later" event must still run.
+- **Absolute RPC deadline on HTTP and Kafka.** Producer / HTTP clients stamp `Pulse-Timeout-Deadline-Ms` (epoch-millis). Inbound prefers it over remaining-ms so a Kafka lag or a slow HTTP proxy does not mint a fresh budget. Kafka record timestamps are not used (they are often event-time). HTTP timeout-budget abort is never applied to Kafka consume: a `202` + "charge later" event must still run.
 - **`pulse.kafka.skip-stale-records`** (default `false`) and **`pulse.kafka.skip-stale-max-age`** (default `5m`). Event-freshness clock: drop records older than max-age (`RecordInterceptor` returns `null`). Increments `pulse.kafka.stale_skipped{topic}`. Independent of the HTTP deadline.
 
 ### Fixed
 
 - Timeout-budget docs claimed outbound calls were aborted when remaining budget was below `minimum-budget`. The interceptors stamped `0` and still made the call. The docs now match the default; abort is the new opt-in flag.
 - Kafka consume treated `Pulse-Timeout-Ms` remaining duration as a fresh budget from consume time. A record that sat in the topic for longer than the original remaining time still opened a full remaining window on the listener. New produces stamp an absolute deadline header; consume prefers it.
+- HTTP inbound treated `Pulse-Timeout-Ms: 0` (and other non-positive values) as "no header" and applied the 2s default — the next hop got a new life after the caller had already expired. Explicit remaining now opens an expired budget. Tiny inbound values are no longer floored up to `minimum-budget`; that floor applies only to the implicit default.
+- Homepage copy claimed timeout-budget "fails fast" by default. Fail-fast is opt-in.
+- Preset YAML comments claimed `pulse.profile-presets.auto-apply` defaulted to true.
 
 ## [2.0.0] — 2026-04-20
 

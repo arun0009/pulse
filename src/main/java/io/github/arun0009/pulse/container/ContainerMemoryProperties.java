@@ -17,7 +17,7 @@ import org.springframework.validation.annotation.Validated;
 @ConfigurationProperties(prefix = "pulse.container-memory")
 public record ContainerMemoryProperties(
         @DefaultValue("true") boolean enabled,
-        @DefaultValue("true") boolean healthIndicatorEnabled,
+        @DefaultValue("false") boolean healthIndicatorEnabled,
 
         @DefaultValue("0.10") @DecimalMin("0.0") @DecimalMax("1.0") double headroomCriticalRatio,
 

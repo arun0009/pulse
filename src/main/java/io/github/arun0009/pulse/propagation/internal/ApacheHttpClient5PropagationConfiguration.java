@@ -67,7 +67,7 @@ public class ApacheHttpClient5PropagationConfiguration {
                     headerMap,
                     timeoutBudget.outboundHeader(),
                     timeoutBudget.enabled(),
-                    new TimeoutBudgetOutbound(registry.getIfAvailable()));
+                    new TimeoutBudgetOutbound(registry.getIfAvailable(), timeoutBudget));
             return new BeanPostProcessor() {
                 @Override
                 public Object postProcessBeforeInitialization(Object bean, String beanName) {
@@ -102,7 +102,7 @@ public class ApacheHttpClient5PropagationConfiguration {
                     HeaderPropagation.headerToMdcKey(context, retry, priority),
                     timeoutBudget.outboundHeader(),
                     timeoutBudget.enabled(),
-                    new TimeoutBudgetOutbound(registry.getIfAvailable()));
+                    new TimeoutBudgetOutbound(registry.getIfAvailable(), timeoutBudget));
         }
     }
 
@@ -146,7 +146,7 @@ public class ApacheHttpClient5PropagationConfiguration {
             }
             if (budgetEnabled && !request.containsHeader(budgetHeader)) {
                 budgetHelper
-                        .resolveRemaining("apache-hc5")
+                        .remainingForOutbound("apache-hc5")
                         .ifPresent(remaining -> request.setHeader(budgetHeader, Long.toString(remaining.toMillis())));
             }
         }

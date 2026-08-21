@@ -46,7 +46,7 @@ public class PulseContainerMemoryConfiguration {
             prefix = "pulse.container-memory",
             name = "health-indicator-enabled",
             havingValue = "true",
-            matchIfMissing = true)
+            matchIfMissing = false)
     public HealthIndicator pulseContainerMemoryHealthIndicator(
             ContainerMemoryMetrics metrics, ContainerMemoryProperties properties) {
         return new ContainerMemoryHealthIndicator(metrics, properties);

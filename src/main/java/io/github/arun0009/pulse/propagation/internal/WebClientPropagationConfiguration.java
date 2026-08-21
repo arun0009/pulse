@@ -57,7 +57,7 @@ public class WebClientPropagationConfiguration {
             Map<String, String> headerMap = HeaderPropagation.headerToMdcKey(context, retry, priority);
             String budgetHeader = timeoutBudget.outboundHeader();
             boolean budgetEnabled = timeoutBudget.enabled();
-            TimeoutBudgetOutbound budgetHelper = new TimeoutBudgetOutbound(registry.getIfAvailable());
+            TimeoutBudgetOutbound budgetHelper = new TimeoutBudgetOutbound(registry.getIfAvailable(), timeoutBudget);
             return builder -> builder.filter(filter(headerMap, budgetHeader, budgetEnabled, budgetHelper));
         }
 
@@ -79,7 +79,7 @@ public class WebClientPropagationConfiguration {
                 }
                 if (budgetEnabled && request.headers().getFirst(budgetHeader) == null) {
                     budgetHelper
-                            .resolveRemaining("webclient")
+                            .remainingForOutbound("webclient")
                             .ifPresent(remaining -> builder.header(budgetHeader, Long.toString(remaining.toMillis())));
                 }
                 return next.exchange(builder.build());

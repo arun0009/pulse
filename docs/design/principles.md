@@ -9,28 +9,32 @@ should answer before opening the PR.
 
 ---
 
-## 1. Opt-out, never opt-in
+## 1. Core is opt-out. Niche is opt-in.
 
-**Pulse on the classpath = Pulse on.** Every feature ships with
-`enabled: true` and a sensible default. Users opt *out* with
-`enabled: false`. The day-one experience is "add the dependency, get
-production observability." The day-two experience is "turn off the one
-thing that's noisy for my workload."
+**Pulse on the classpath = the day-one core is on.** Cardinality firewall, timeout-budget
+propagation, async/Kafka context, trace-context guard, structured logs, exception fingerprints,
+and the diagnostic actuator ship with `enabled: true`. Users opt *out* of those with
+`enabled: false`.
 
-This rules out:
+Features that only make sense for a specific architecture are **opt-in**. Adding a starter
+must not extract a tenant from a client-supplied header, stamp profiler IDs on every span,
+silently change the prod sampling rate, or flip Kubernetes readiness on container memory.
+Those stay in the jar; they start when the operator sets `pulse.<feature>.enabled=true`
+(or, for classpath-gated integrations like Kafka / Hibernate / Resilience4j, when that
+library is already on the classpath).
+
+This still rules out:
 
 - Annotations that have to be sprinkled to activate a feature
   (`@EnableXxx`). Spring already auto-configures everything; piling on
   more annotations tells users "we don't trust our defaults."
-- Configuration that requires choosing a profile or `spring.config.import`
-  to activate. The starter is the activation.
 - Per-bean opt-in. If you have to add `@Observable` to every controller,
   the feature isn't really "batteries included."
 
-The exceptions are features that have *real* operational cost and no
-sensible default — `pulse.dependencies.health.critical` is a list, and
-the empty list is the only safe default. There's no toggle hiding a
-behaviour change.
+Classpath-conditional extras (Kafka time-lag, Hibernate N+1, Resilience4j,
+OpenFeature) remain "on when the library is present" except OpenFeature,
+which is opt-in even with the SDK on the classpath — flag values on MDC
+are a product choice, not a default.
 
 ## 2. Declarative-first, with an imperative escape hatch
 
@@ -183,7 +187,11 @@ storage layer, or a query language.
 
 If you're adding a new feature to Pulse, the checklist is:
 
-- [ ] `pulse.<feature>.enabled` exists, defaults to `true`, gates everything in this feature.
+- [ ] `pulse.<feature>.enabled` exists. Core features default to `true`;
+  architecture-specific features default to `false` and document how to
+  turn them on. Classpath-gated integrations (`@ConditionalOnClass`) stay
+  on when the library is present unless they have a side effect on a
+  generic Spring app.
 - [ ] If the feature is per-request, `enabled-when` is wired through `PulseRequestMatcherFactory`.
 - [ ] Decision points are SPIs (`@FunctionalInterface` + default impl), not annotations.
 - [ ] The bean is `@ConditionalOnMissingBean` so users can override it.

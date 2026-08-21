@@ -27,6 +27,7 @@ class TimeoutBudgetFilterTest {
             Duration.ofSeconds(30),
             Duration.ofMillis(50),
             Duration.ofMillis(100),
+            false,
             PulseRequestMatcherProperties.empty());
 
     private final TimeoutBudgetFilter filter = new TimeoutBudgetFilter(CONFIG);
@@ -99,6 +100,7 @@ class TimeoutBudgetFilterTest {
                 Duration.ofSeconds(30),
                 Duration.ofMillis(50),
                 Duration.ofMillis(100),
+                false,
                 PulseRequestMatcherProperties.empty()));
 
         MockHttpServletRequest request = new MockHttpServletRequest("GET", "/orders");
@@ -123,6 +125,7 @@ class TimeoutBudgetFilterTest {
                 Duration.ofSeconds(30),
                 Duration.ofMillis(50),
                 Duration.ofMillis(100),
+                false,
                 PulseRequestMatcherProperties.empty()));
 
         MockHttpServletRequest request = new MockHttpServletRequest("GET", "/orders");

@@ -21,6 +21,7 @@ Declare the objective:
 ```yaml
 pulse:
   slo:
+    enabled: true
     objectives:
       - name: orders-availability
         sli: availability
@@ -45,7 +46,7 @@ curl -s localhost:8080/actuator/pulse/runtime | jq .slo
 
 ## Turn it on
 
-It's on by default; you just declare objectives. Two SLI flavours ship out
+It's opt-in; declare `enabled: true` plus objectives. Two SLI flavours ship out
 of the box:
 
 | `sli` | Definition |

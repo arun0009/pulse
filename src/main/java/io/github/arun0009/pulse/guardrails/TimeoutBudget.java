@@ -14,14 +14,16 @@ import java.util.Optional;
  * {@code pulse.timeout-budget.inbound-header} resolves to), anchors a deadline to the request
  * start, and stores the deadline (as epoch-millis) on the OTel {@link Baggage} so it propagates
  * across every async hop and downstream call the OTel SDK touches. Application code reads the
- * remaining budget via {@link #current()} and downstream HTTP/gRPC interceptors translate that
- * remaining budget into per-call timeouts.
+ * remaining budget via {@link #current()} and downstream HTTP interceptors stamp that remaining
+ * budget on the outbound header. They do <em>not</em> rewrite client read/connect timeouts.
+ * Set {@code pulse.timeout-budget.abort-on-exhaustion=true} to skip the outbound call when the
+ * remaining budget is below {@code minimum-budget}.
  *
  * <p>Why this matters: without budget propagation, one slow downstream eats the caller's entire
  * remaining time. Each successive hop falls back to its platform default (often 30s on the first
  * try, then retries). A 2-second inbound SLA blows up into a 30-second cascading hang. With Pulse,
- * every hop receives the <em>actual</em> remaining time and fails fast when there is not enough
- * left to be useful.
+ * every hop receives the <em>actual</em> remaining time. Enable abort-on-exhaustion to fail fast
+ * instead of issuing a doomed call.
  */
 public final class TimeoutBudget {
 

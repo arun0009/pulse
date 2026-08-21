@@ -6,7 +6,7 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
 import org.springframework.validation.annotation.Validated;
 
 /**
- * Continuous-profiling correlation. When enabled (default), Pulse stamps {@code profile.id}
+ * Continuous-profiling correlation. Opt-in via {@code pulse.profiling.enabled=true}. When on, Pulse stamps {@code profile.id}
  * and {@code pyroscope.profile_id} attributes on every span using the trace id.
  *
  * <p>Pulse never bundles or starts a profiler. {@link io.github.arun0009.pulse.profiling.PyroscopeDetector}
@@ -15,4 +15,4 @@ import org.springframework.validation.annotation.Validated;
 @Validated
 @ConfigurationProperties(prefix = "pulse.profiling")
 public record ProfilingProperties(
-        @DefaultValue("true") boolean enabled, @Nullable String pyroscopeUrl) {}
+        @DefaultValue("false") boolean enabled, @Nullable String pyroscopeUrl) {}

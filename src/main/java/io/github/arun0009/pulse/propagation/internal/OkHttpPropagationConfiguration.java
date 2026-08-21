@@ -55,7 +55,7 @@ public class OkHttpPropagationConfiguration {
                     headerMap,
                     timeoutBudget.outboundHeader(),
                     timeoutBudget.enabled(),
-                    new TimeoutBudgetOutbound(registry.getIfAvailable()));
+                    new TimeoutBudgetOutbound(registry.getIfAvailable(), timeoutBudget));
             return new BeanPostProcessor() {
                 @Override
                 public Object postProcessBeforeInitialization(Object bean, String beanName) {
@@ -79,7 +79,7 @@ public class OkHttpPropagationConfiguration {
                     HeaderPropagation.headerToMdcKey(context, retry, priority),
                     timeoutBudget.outboundHeader(),
                     timeoutBudget.enabled(),
-                    new TimeoutBudgetOutbound(registry.getIfAvailable()));
+                    new TimeoutBudgetOutbound(registry.getIfAvailable(), timeoutBudget));
         }
     }
 
@@ -116,7 +116,7 @@ public class OkHttpPropagationConfiguration {
             }
             if (budgetEnabled && original.header(budgetHeader) == null) {
                 budgetHelper
-                        .resolveRemaining("okhttp")
+                        .remainingForOutbound("okhttp")
                         .ifPresent(remaining -> builder.header(budgetHeader, Long.toString(remaining.toMillis())));
             }
             return chain.proceed(builder.build());

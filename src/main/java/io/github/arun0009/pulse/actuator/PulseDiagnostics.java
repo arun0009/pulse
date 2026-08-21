@@ -295,7 +295,8 @@ public final class PulseDiagnostics {
                                         p.timeoutBudget().maximumBudget().toString(),
                                 "safetyMargin", p.timeoutBudget().safetyMargin().toString(),
                                 "minimumBudget",
-                                        p.timeoutBudget().minimumBudget().toString())));
+                                        p.timeoutBudget().minimumBudget().toString(),
+                                "abortOnExhaustion", p.timeoutBudget().abortOnExhaustion())));
         map.put(
                 "wideEvents",
                 entry(

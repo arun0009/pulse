@@ -30,7 +30,8 @@ import java.util.List;
  * Wires the multi-tenant context subsystem.
  *
  * <p>Built-in extractors are registered as {@code @ConditionalOnProperty} beans so an
- * application opts each one in independently. The header extractor is on by default and
+ * application opts each one in independently. When the tenant feature is on, the header
+ * extractor is on by default and
  * reads the header named by {@link TenantProperties.Header#name()} (default
  * {@code Pulse-Tenant-Id}, RFC 6648 — no {@code X-} prefix).
  *
@@ -39,7 +40,7 @@ import java.util.List;
  * which keeps the default cardinality cost at zero.
  */
 @AutoConfiguration(after = PulseAutoConfiguration.class)
-@ConditionalOnProperty(prefix = "pulse.tenant", name = "enabled", havingValue = "true", matchIfMissing = true)
+@ConditionalOnProperty(prefix = "pulse.tenant", name = "enabled", havingValue = "true")
 public class PulseTenantConfiguration {
 
     @Bean

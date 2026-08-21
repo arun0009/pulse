@@ -151,7 +151,9 @@ class PulseProfilePresetsTest {
     @Test
     void epp_appends_pulse_profile_when_environment_name_matches() {
         for (String envName : new String[] {"dev", "prod", "test", "canary"}) {
-            MockEnvironment env = new MockEnvironment().withProperty("spring.profiles.active", envName);
+            MockEnvironment env = new MockEnvironment()
+                    .withProperty("pulse.profile-presets.auto-apply", "true")
+                    .withProperty("spring.profiles.active", envName);
             env.setActiveProfiles(envName);
 
             new PulseProfilePresetEnvironmentPostProcessor().postProcessEnvironment(env, new SpringApplication());
@@ -173,7 +175,7 @@ class PulseProfilePresetsTest {
                 new Case("shadow", "pulse-canary"));
 
         for (Case c : cases) {
-            MockEnvironment env = new MockEnvironment();
+            MockEnvironment env = new MockEnvironment().withProperty("pulse.profile-presets.auto-apply", "true");
             env.setActiveProfiles(c.envProfile());
 
             new PulseProfilePresetEnvironmentPostProcessor().postProcessEnvironment(env, new SpringApplication());
@@ -197,6 +199,18 @@ class PulseProfilePresetsTest {
         assertThat(pulseProdCount)
                 .as("must not duplicate an explicitly-listed pulse profile")
                 .isEqualTo(1L);
+    }
+
+    @Test
+    void epp_is_inert_by_default() {
+        MockEnvironment env = new MockEnvironment();
+        env.setActiveProfiles("prod");
+
+        new PulseProfilePresetEnvironmentPostProcessor().postProcessEnvironment(env, new SpringApplication());
+
+        assertThat(env.getActiveProfiles())
+                .as("auto-apply defaults to false so a host prod profile must not silently pull pulse-prod")
+                .containsExactly("prod");
     }
 
     @Test
@@ -225,7 +239,9 @@ class PulseProfilePresetsTest {
 
     @Test
     void epp_honours_user_override_mapping() {
-        MockEnvironment env = new MockEnvironment().withProperty("pulse.profile-presets.presets.prod", "pulse-canary");
+        MockEnvironment env = new MockEnvironment()
+                .withProperty("pulse.profile-presets.auto-apply", "true")
+                .withProperty("pulse.profile-presets.presets.prod", "pulse-canary");
         env.setActiveProfiles("prod");
 
         new PulseProfilePresetEnvironmentPostProcessor().postProcessEnvironment(env, new SpringApplication());
@@ -248,6 +264,10 @@ class PulseProfilePresetsTest {
                 .withUserConfiguration(EnableProps.class)
                 .withInitializer(ctx -> {
                     ctx.getEnvironment().setActiveProfiles("prod");
+                    ctx.getEnvironment()
+                            .getPropertySources()
+                            .addFirst(new org.springframework.core.env.MapPropertySource(
+                                    "pulse-test", java.util.Map.of("pulse.profile-presets.auto-apply", "true")));
                     new PulseProfilePresetEnvironmentPostProcessor()
                             .postProcessEnvironment(ctx.getEnvironment(), new SpringApplication());
                 })

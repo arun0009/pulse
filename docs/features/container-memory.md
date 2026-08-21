@@ -29,8 +29,18 @@ oom-kill event (rare, but happens with cgroup v2 memory.events), you see it.
 
 ## Turn it on
 
-Nothing. On by default. cgroup v1 and v2 are both detected automatically,
+Metrics are on by default. cgroup v1 and v2 are both detected automatically,
 no JNI or agent.
+
+The health indicator that flips Kubernetes readiness to `OUT_OF_SERVICE`
+at 10% headroom is **off** by default — that is a traffic-shedding decision,
+not an observability default:
+
+```yaml
+pulse:
+  container-memory:
+    health-indicator-enabled: true
+```
 
 ## What it adds
 

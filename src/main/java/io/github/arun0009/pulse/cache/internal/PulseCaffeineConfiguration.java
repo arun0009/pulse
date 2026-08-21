@@ -30,11 +30,11 @@ import org.springframework.context.annotation.Bean;
  * anyway and the resulting hit/miss meters simply report zero — Pulse logs a one-time WARN per
  * manager bean so the missing call is visible.
  *
- * <p>Opt out via {@code pulse.cache.caffeine.enabled=false}.
+ * <p>Opt in via {@code pulse.cache.caffeine.enabled=true}.
  */
 @AutoConfiguration(after = PulseAutoConfiguration.class)
 @ConditionalOnClass({CaffeineCacheManager.class, Caffeine.class})
-@ConditionalOnProperty(prefix = "pulse.cache.caffeine", name = "enabled", havingValue = "true", matchIfMissing = true)
+@ConditionalOnProperty(prefix = "pulse.cache.caffeine", name = "enabled", havingValue = "true")
 public class PulseCaffeineConfiguration {
 
     private static final Logger log = LoggerFactory.getLogger(PulseCaffeineConfiguration.class);

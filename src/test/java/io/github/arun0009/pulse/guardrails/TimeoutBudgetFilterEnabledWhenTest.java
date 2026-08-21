@@ -27,6 +27,7 @@ class TimeoutBudgetFilterEnabledWhenTest {
             Duration.ofSeconds(30),
             Duration.ofMillis(50),
             Duration.ofMillis(100),
+            false,
             PulseRequestMatcherProperties.empty());
 
     @Test

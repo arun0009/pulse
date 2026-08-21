@@ -30,8 +30,13 @@ single LogQL query, instead of grepping log files and joining by trace ID.
 
 ## Turn it on
 
-Nothing. When `dev.openfeature:sdk` is on the classpath, Pulse registers
-the hook automatically.
+Opt-in, even when the OpenFeature SDK is on the classpath:
+
+```yaml
+pulse:
+  open-feature:
+    enabled: true
+```
 
 ## What it adds
 

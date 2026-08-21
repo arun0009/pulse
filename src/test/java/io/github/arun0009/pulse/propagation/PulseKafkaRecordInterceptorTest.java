@@ -129,6 +129,7 @@ class PulseKafkaRecordInterceptorTest {
                 Duration.ofSeconds(30),
                 Duration.ofMillis(50),
                 Duration.ofMillis(100),
+                false,
                 io.github.arun0009.pulse.autoconfigure.PulseRequestMatcherProperties.empty());
     }
 }

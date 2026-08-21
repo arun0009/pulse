@@ -5,6 +5,31 @@ All notable changes to Pulse are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 and follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format.
 
+## [Unreleased]
+
+### Behavior changes
+
+Pulse was doing too many things on by default. The day-one core is unchanged (cardinality firewall, timeout-budget *propagation*, async/Kafka context, trace-context guard, structured logs, exception fingerprints, actuator). Architecture-specific extras are now **opt-in**:
+
+- `pulse.tenant.enabled` defaults to `false` — extracting a tenant from a client-supplied header is not safe for a generic Spring app.
+- `pulse.priority.enabled` defaults to `false` — priority is a header with no load-shedder attached.
+- `pulse.profiling.enabled` defaults to `false` — profiler IDs on every span are noise without a profiler.
+- `pulse.slo.enabled` defaults to `false` — SLO YAML generation is a no-op until you declare objectives.
+- `pulse.open-feature.enabled` defaults to `false`.
+- `pulse.cache.caffeine.enabled` defaults to `false` — Micrometer already binds Caffeine when `recordStats()` is set; Pulse never forced that.
+- `pulse.profile-presets.auto-apply` defaults to `false` — `SPRING_PROFILES_ACTIVE=prod` no longer silently adds `pulse-prod` (and its 10% sampling rate). Activate `pulse-prod` yourself, or set `auto-apply: true`.
+- `pulse.container-memory.health-indicator-enabled` defaults to `false` — metrics stay on; readiness no longer flips `OUT_OF_SERVICE` at 10% headroom unless you ask.
+
+Restore previous behaviour with the matching `enabled: true` (and `auto-apply: true` / `health-indicator-enabled: true`) keys.
+
+### Added
+
+- **`pulse.timeout-budget.abort-on-exhaustion`** (default `false`). When true, outbound HTTP calls throw `TimeoutBudgetExhaustedException` once remaining budget is at or below `minimum-budget` instead of still executing. Kafka produces are never aborted. Pulse still does **not** rewrite client read/connect timeouts; abort is skip-before-call, not mid-call cancellation.
+
+### Fixed
+
+- Timeout-budget docs claimed outbound calls were aborted when remaining budget was below `minimum-budget`. The interceptors stamped `0` and still made the call. The docs now match the default; abort is the new opt-in flag.
+
 ## [2.0.0] — 2026-04-20
 
 ### Breaking changes

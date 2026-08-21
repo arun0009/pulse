@@ -23,7 +23,8 @@ version bump:
   `PulseEventContext`, `DependencyClassifier`, `ErrorFingerprintStrategy`,
   `TenantExtractor`, `ContextContributor`, `PulseRequestMatcher`,
   `HostNameProvider`, `ResourceAttributeResolver`,
-  `PulseEnforcementMode`, `PulseFeature`, `PulseFeatureSupport`).
+  `PulseEnforcementMode`, `PulseFeature`, `PulseFeatureSupport`,
+  `TimeoutBudgetExhaustedException`).
 - **Metric names** and their tag keys: `pulse.*` meters and their
   low-cardinality tags are pinned. Tag **values** may expand (e.g. a new
   `reason` bucket) within a minor release.

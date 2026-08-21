@@ -142,7 +142,7 @@
     {
       "name": "pulse.profile-presets",
       "type": "io.github.arun0009.pulse.autoconfigure.ProfilePresetsProperties",
-      "description": "Auto-applies Pulse-shipped profile presets (pulse-dev / pulse-prod / pulse-test / pulse-canary) whenever the matching base profile (dev / prod / test / canary) is active. Set auto-apply=false to keep Pulse hands-off. Extend the presets map to teach Pulse about your own profile names (e.g. stage → pulse-prod)."
+      "description": "Auto-applies Pulse-shipped profile presets (pulse-dev / pulse-prod / pulse-test / pulse-canary) whenever the matching base profile (dev / prod / test / canary) is active. Default false — silently adding pulse-prod (and its 10% sampling rate) when SPRING_PROFILES_ACTIVE=prod is a surprising behaviour change. Set auto-apply=true or activate pulse-prod yourself."
     },
     {
       "name": "pulse.enforcement",
@@ -206,7 +206,13 @@
     },
     {
       "name": "pulse.timeout-budget.minimum-budget",
-      "description": "Floor for the propagated budget. If the remaining budget falls below this value, Pulse increments pulse.timeout_budget.exhausted{transport=…} and propagates the floor anyway so the downstream call still gets a sane deadline."
+      "description": "Floor used as the exhaustion threshold on outbound hops. Remaining budget at or below this value increments pulse.timeout_budget.exhausted{transport=…}. The outbound call still proceeds unless abort-on-exhaustion is true."
+    },
+    {
+      "name": "pulse.timeout-budget.abort-on-exhaustion",
+      "type": "java.lang.Boolean",
+      "defaultValue": false,
+      "description": "When true, outbound HTTP calls (RestTemplate, RestClient, WebClient, OkHttp, Apache HttpClient 5) throw TimeoutBudgetExhaustedException instead of executing once remaining budget is at or below minimum-budget. Kafka produces are never aborted. Default false: Pulse stamps the remaining budget and still makes the call. It does not rewrite client read/connect timeouts."
     },
     {
       "name": "pulse.histograms.slo-buckets",

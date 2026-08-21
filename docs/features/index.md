@@ -1,51 +1,53 @@
 # Features
 
-Every feature below is **on by default**, and every one is opt-out via
-`pulse.<feature>.enabled=false`. Each page is short on jargon and answers
-the same four questions:
+The **day-one core** is on by default and opt-out via
+`pulse.<feature>.enabled=false`. Architecture-specific extras are **opt-in**.
+Classpath-gated integrations (Kafka, Hibernate, Resilience4j) activate when
+that library is on the classpath.
+
+Each page is short on jargon and answers the same four questions:
 
 - **What problem does this solve?** (Lead sentence)
 - **What you get** — the metric, log line, or dashboard you actually see
-- **Turn it on** — usually nothing; the right defaults are already there
+- **Turn it on** — nothing for the core; an `enabled: true` line for extras
 - **When to skip it** — honest opt-out reasons + the exact YAML
 
 ## All 29 features at a glance
 
 Scan the table for the feature that solves your current problem; click
-through for the full page. Every feature is on by default and opt-out via
-`pulse.<feature>.enabled=false` (column omitted to save space).
+through for the full page.
 
-| Feature | What it gives you | Skip when |
-| --- | --- | --- |
-| [Cardinality firewall](cardinality-firewall.md) | Hard cap per `(meter, tag)`; one bad tag can't 100× the metrics bill | You already enforce this in the OTel Collector |
-| [Timeout-budget propagation](timeout-budget.md) | The remaining deadline travels with the request across `RestTemplate` / `WebClient` / Kafka | You manage budgets at the gateway |
-| [Context propagation](context-propagation.md) | MDC + OTel context restored on every `TaskExecutor`, `TaskScheduler`, Kafka listener | You only run synchronous request handlers |
-| [Trace-context guard](trace-context-guard.md) | `pulse.trace.received` vs `pulse.trace.missing` per route + alert | Your platform already enforces ingress trace headers |
-| [Structured logs](structured-logs.md) | OTel-aligned JSON; deploy/commit/pod stamped; PII masked | You already ship a custom JSON layout |
-| [Stable exception fingerprints](exception-fingerprints.md) | SHA-256 over `(type + top frames)` so the same bug groups across deploys | You only run a single service and grep logs |
-| [Conditional features (`enabled-when`)](conditional-features.md) | Skip any Pulse feature for synthetic monitoring / smoke tests / trusted callers | You don't need per-request gating |
-| [Dependency health map](dependencies.md) | Per-downstream RED metrics from the caller; health flips DEGRADED on error spikes | You only call one downstream and own its health endpoint |
-| [Retry amplification](retry-amplification.md) | `Pulse-Retry-Depth` baggage + alert *before* the retry storm becomes an incident | You don't use Resilience4j retries |
-| [Multi-tenant context](multi-tenant.md) | Tenant id from header / JWT / subdomain → MDC + baggage + outbound headers + opt-in meter tag | You're not multi-tenant |
-| [Request priority](priority.md) | `Pulse-Priority` on MDC + baggage + outbound; `RequestPriority.current()` for shedding | You don't load-shed by request class |
-| [Container-aware memory](container-memory.md) | cgroup v1/v2 reader, OOM-kill counter, accurate memory metrics in containers | You run on bare metal |
-| [Kafka time-based lag](kafka-time-lag.md) | `now() − record.timestamp()` as the SLO, not raw offset lag | You don't run Kafka consumers |
-| [Request fan-out](fan-out.md) | `pulse.request.fan_out` per endpoint so you spot routes that call thirty services | You only call one downstream |
-| [SLO-as-code](slo-as-code.md) | Declare SLOs in YAML; `/actuator/pulse/slo` emits a multi-burn-rate `PrometheusRule` | You don't run Prometheus |
-| [Resilience4j auto-instrumentation](resilience4j.md) | Circuit breaker / retry / bulkhead events → metrics + span events with no annotations | You don't use Resilience4j |
-| [Background-job observability](jobs.md) | RED metrics + in-flight gauge + health indicator per `@Scheduled` job | You don't run scheduled jobs |
-| [Database (N+1, slow query)](database.md) | Hibernate hook counts statements per request; alerts on threshold cross | You don't use Hibernate / JPA |
-| [Cache observability (Caffeine)](cache.md) | Every `CaffeineCacheManager` bound to Micrometer with hit/miss/eviction counts | You don't use Caffeine |
-| [OpenFeature correlation](openfeature.md) | Every flag evaluation lands on MDC + span event | You don't use OpenFeature SDKs |
-| [Continuous-profiling correlation](profiling.md) | Every span carries `profile.id`, `pyroscope.profile_id`, deep link | You don't run a continuous profiler |
-| [Wide-event API](wide-events.md) | `events.emit("order.placed", attrs)` → span event + counter + structured log in one call | You already standardised on a custom event helper |
-| [Graceful drain + OTel flush](graceful-shutdown.md) | Readiness drain visible; JVM exit blocks until the last span batch is exported | You don't care about losing the last second of traces on rolling deploys |
-| [Fleet config-drift detection](fleet-config-drift.md) | Deterministic hash of resolved `pulse.*` tree; alert fires when one deployment has > 1 hash | You only run a single replica |
-| [Live diagnostic actuator](actuator.md) | `/actuator/pulse` (JSON) + `/actuator/pulseui` (HTML) — what's on, off, why | You forbid actuator endpoints in production |
-| [Sampling](sampling.md) | `management.tracing.sampling.probability` (Boot's standard knob) + `pulse.sampling.prefer-sampling-on-error` upgrades errors past the head sampler | You enforce sampling in the OTel Collector |
-| [Dry-run / enforcement mode](enforcement-mode.md) | `POST /actuator/pulse/enforcement` flips Pulse process-wide between ENFORCING and DRY_RUN | You're confident every Pulse feature is correctly tuned |
-| [Profile presets](profile-presets.md) | One-line `spring.config.import` for tuned `dev` / `prod` / `test` / `canary` configurations | You manage all configuration centrally |
-| [Configuration validation](configuration-validation.md) | JSR-380 constraints on every `pulse.*` property; typos fail at startup, not 3 AM | You template all config and pre-validate it |
+| Feature | Default | What it gives you | Skip when |
+| --- | --- | --- | --- |
+| [Cardinality firewall](cardinality-firewall.md) | on | Hard cap per `(meter, tag)`; one bad tag can't 100× the metrics bill | You already enforce this in the OTel Collector |
+| [Timeout-budget propagation](timeout-budget.md) | on | Remaining deadline header across `RestTemplate` / `WebClient` / Kafka; abort is opt-in | You manage budgets at the gateway |
+| [Context propagation](context-propagation.md) | on | MDC + OTel context restored on every `TaskExecutor`, `TaskScheduler`, Kafka listener | You only run synchronous request handlers |
+| [Trace-context guard](trace-context-guard.md) | on | `pulse.trace.received` vs `pulse.trace.missing` per route + alert | Your platform already enforces ingress trace headers |
+| [Structured logs](structured-logs.md) | on | OTel-aligned JSON; deploy/commit/pod stamped; PII masked | You already ship a custom JSON layout |
+| [Stable exception fingerprints](exception-fingerprints.md) | on | SHA-256 over `(type + top frames)` so the same bug groups across deploys | You only run a single service and grep logs |
+| [Conditional features (`enabled-when`)](conditional-features.md) | on | Skip any Pulse feature for synthetic monitoring / smoke tests / trusted callers | You don't need per-request gating |
+| [Dependency health map](dependencies.md) | on | Per-downstream RED metrics from the caller; health flips DEGRADED on error spikes | You only call one downstream and own its health endpoint |
+| [Retry amplification](retry-amplification.md) | on | `Pulse-Retry-Depth` baggage + alert *before* the retry storm becomes an incident | You don't use Resilience4j retries |
+| [Multi-tenant context](multi-tenant.md) | **opt-in** | Tenant id from header / JWT / subdomain → MDC + baggage + outbound headers + opt-in meter tag | You're not multi-tenant |
+| [Request priority](priority.md) | **opt-in** | `Pulse-Priority` on MDC + baggage + outbound; `RequestPriority.current()` for shedding | You don't load-shed by request class |
+| [Container-aware memory](container-memory.md) | metrics on; readiness **opt-in** | cgroup v1/v2 reader, OOM-kill counter, accurate memory metrics in containers | You run on bare metal |
+| [Kafka time-based lag](kafka-time-lag.md) | on if Kafka | `now() − record.timestamp()` as the SLO, not raw offset lag | You don't run Kafka consumers |
+| [Request fan-out](fan-out.md) | on | `pulse.request.fan_out` per endpoint so you spot routes that call thirty services | You only call one downstream |
+| [SLO-as-code](slo-as-code.md) | **opt-in** | Declare SLOs in YAML; `/actuator/pulse/slo` emits a multi-burn-rate `PrometheusRule` | You don't run Prometheus |
+| [Resilience4j auto-instrumentation](resilience4j.md) | on if R4j | Circuit breaker / retry / bulkhead events → metrics + span events with no annotations | You don't use Resilience4j |
+| [Background-job observability](jobs.md) | on | RED metrics + in-flight gauge + health indicator per `@Scheduled` job | You don't run scheduled jobs |
+| [Database (N+1, slow query)](database.md) | on if Hibernate | Hibernate hook counts statements per request; alerts on threshold cross | You don't use Hibernate / JPA |
+| [Cache observability (Caffeine)](cache.md) | **opt-in** | Every `CaffeineCacheManager` bound to Micrometer with hit/miss/eviction counts | You don't use Caffeine |
+| [OpenFeature correlation](openfeature.md) | **opt-in** | Every flag evaluation lands on MDC + span event | You don't use OpenFeature SDKs |
+| [Continuous-profiling correlation](profiling.md) | **opt-in** | Every span carries `profile.id`, `pyroscope.profile_id`, deep link | You don't run a continuous profiler |
+| [Wide-event API](wide-events.md) | on (no-op until called) | `events.emit("order.placed", attrs)` → span event + counter + structured log in one call | You already standardised on a custom event helper |
+| [Graceful drain + OTel flush](graceful-shutdown.md) | on | Readiness drain visible; JVM exit blocks until the last span batch is exported | You don't care about losing the last second of traces on rolling deploys |
+| [Fleet config-drift detection](fleet-config-drift.md) | on | Deterministic hash of resolved `pulse.*` tree; alert fires when one deployment has > 1 hash | You only run a single replica |
+| [Live diagnostic actuator](actuator.md) | on | `/actuator/pulse` (JSON) + `/actuator/pulseui` (HTML) — what's on, off, why | You forbid actuator endpoints in production |
+| [Sampling](sampling.md) | on | `management.tracing.sampling.probability` (Boot's standard knob) + `pulse.sampling.prefer-sampling-on-error` upgrades errors past the head sampler | You enforce sampling in the OTel Collector |
+| [Dry-run / enforcement mode](enforcement-mode.md) | on | `POST /actuator/pulse/enforcement` flips Pulse process-wide between ENFORCING and DRY_RUN | You're confident every Pulse feature is correctly tuned |
+| [Profile presets](profile-presets.md) | files shipped; auto-apply **opt-in** | `application-pulse-{dev,prod,test,canary}.yml` — activate the profile yourself | You manage all configuration centrally |
+| [Configuration validation](configuration-validation.md) | on | JSR-380 constraints on every `pulse.*` property; typos fail at startup, not 3 AM | You template all config and pre-validate it |
 
 ## Day-one drivers
 

@@ -205,7 +205,8 @@ public class KafkaPropagationConfiguration {
             KafkaPropagationContext.initialize(
                     HeaderPropagation.headerToMdcKey(context, retry, priority),
                     timeoutBudget.outboundHeader(),
-                    registry);
+                    registry,
+                    timeoutBudget);
         }
     }
 

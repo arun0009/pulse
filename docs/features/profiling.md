@@ -27,12 +27,13 @@ extra wiring. In other UIs, the URL is one copy-paste.
 
 ## Turn it on
 
-Set the URL of your Pyroscope-compatible UI; Pulse builds the per-trace
-deep link on root spans:
+Opt-in — stamping profiler IDs on every span is noise unless you run a
+profiler:
 
 ```yaml
 pulse:
   profiling:
+    enabled: true
     pyroscope-url: "https://pyroscope.example.com"
 ```
 

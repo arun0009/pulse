@@ -15,7 +15,7 @@ import java.util.List;
 @Validated
 @ConfigurationProperties(prefix = "pulse.priority")
 public record PriorityProperties(
-        @DefaultValue("true") boolean enabled,
+        @DefaultValue("false") boolean enabled,
         @DefaultValue("Pulse-Priority") @NotBlank String headerName,
         @DefaultValue("normal") @NotBlank String defaultPriority,
         @DefaultValue("true") boolean warnOnCriticalTimeoutExhaustion,

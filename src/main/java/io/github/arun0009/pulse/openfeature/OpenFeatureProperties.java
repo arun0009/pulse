@@ -11,4 +11,4 @@ import org.springframework.validation.annotation.Validated;
  */
 @Validated
 @ConfigurationProperties(prefix = "pulse.open-feature")
-public record OpenFeatureProperties(@DefaultValue("true") boolean enabled) {}
+public record OpenFeatureProperties(@DefaultValue("false") boolean enabled) {}

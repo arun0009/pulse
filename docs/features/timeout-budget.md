@@ -24,8 +24,10 @@ Edge       ──GET /stock     Pulse-Timeout-Ms: 1850──▶  Inventory     (
 Edge       ──POST /charge   Pulse-Timeout-Ms: 1500──▶  Payment       (350ms elapsed)
 ```
 
-When something is slow and the budget runs out, Pulse aborts the next call
-*before* it goes out — and a single Prometheus query lights up:
+When something is slow and the budget runs out, Pulse increments a counter
+and still makes the call by default (it does **not** rewrite the HTTP
+client's read/connect timeout, and it does **not** cancel an in-flight
+call). A single Prometheus query lights up:
 
 ```promql
 sum by (transport) (rate(pulse_timeout_budget_exhausted_total[5m]))
@@ -36,7 +38,8 @@ This is the leading indicator of a cascading failure. With the shipped
 
 ## Turn it on
 
-Nothing. It's on by default with a 2 second budget per request.
+On by default with a 2 second budget per request. Outbound calls still
+execute when the budget is exhausted; see abort-on-exhaustion below.
 
 To set a different default, or to forward a different header name to match an
 existing convention:
@@ -65,10 +68,22 @@ TimeoutBudget.current().ifPresent(budget -> {
 | HTTP header (in / out) | `Pulse-Timeout-Ms` | Milliseconds remaining on the deadline |
 | OTel baggage | `pulse.timeout.deadline_ms` | Absolute epoch-millis deadline |
 | MDC (logs) | `timeout_remaining_ms` | Snapshot at log time |
-| Metric | `pulse.timeout_budget.exhausted` (tag: `transport`) | Aborted outbound calls |
+| Metric | `pulse.timeout_budget.exhausted` (tag: `transport`) | Outbound calls made (or aborted) with remaining budget at or below `minimum-budget` |
 
 The metric is tagged by transport: `resttemplate`, `restclient`, `webclient`,
 `okhttp`, `apache-hc5`, `kafka`. So you can see *which* client gave up.
+
+To skip the doomed call instead of only recording it:
+
+```yaml
+pulse:
+  timeout-budget:
+    abort-on-exhaustion: true
+```
+
+Enable abort only after you have confirmed the default 2s budget (or your
+own) matches the service's real latency envelope. Combined with abort, a
+2s default will fail slow legitimate endpoints.
 
 ## When to skip it
 
@@ -116,9 +131,14 @@ Three pieces work together:
 2. An interceptor on the way out — wired into every supported HTTP and Kafka
    client — computes `remaining − safety-margin` and writes the outbound
    header.
-3. If the remaining budget is below `minimum-budget` *before* the call fires,
-   Pulse aborts the call, increments the exhausted counter, and emits a
-   `WARN` log.
+3. If the remaining budget is at or below `minimum-budget` *before* the
+   call fires, Pulse increments `pulse.timeout_budget.exhausted` and
+   stamps the remaining value (including `0`). The call still executes.
+   Set `pulse.timeout-budget.abort-on-exhaustion=true` to throw
+   `TimeoutBudgetExhaustedException` instead — HTTP only; Kafka produces
+   are never aborted. Pulse still does not set RestTemplate/WebClient
+   read timeouts and cannot cancel a call that has already left the
+   socket.
 
 The header name follows RFC 6648 (no `X-` prefix). `inbound-header` and
 `outbound-header` can be configured separately if you need to bridge between

@@ -2,8 +2,8 @@
 
 > **TL;DR.** Four shipped Spring profiles (`pulse-dev`, `pulse-prod`,
 > `pulse-test`, `pulse-canary`) tune Pulse for that environment. Activate
-> the matching profile (or just let Pulse auto-detect `dev`/`prod`/`test`/
-> `canary` in your active profiles) and you get the right defaults for free.
+> the matching profile yourself. Auto-detect of `dev`/`prod`/`test`/`canary`
+> is opt-in via `pulse.profile-presets.auto-apply=true`.
 
 Adopting Pulse means deciding what every knob should be in dev vs prod vs
 canary. Most teams default everything and discover the wrong choices in
@@ -29,27 +29,8 @@ the matching profile is active. Everything is overridable.
 
 Two ways. Pick one.
 
-**1. Just activate your environment profile (auto-detect).** Pulse ships an
-`EnvironmentPostProcessor` that recognises common environment names in
-`spring.profiles.active` and appends the matching `pulse-*` profile so the
-preset YAML gets picked up. Defaults to **on**.
-
-```bash
-SPRING_PROFILES_ACTIVE=prod ./mvnw spring-boot:run
-```
-
-Pulse sees `prod` in the active profiles and quietly adds `pulse-prod`.
-Spring Boot then loads `application-pulse-prod.yml` from the classpath.
-
-The recognised names (extensible — see "Customising" below):
-
-- `dev` / `development` / `local` → `pulse-dev`
-- `prod` / `production` → `pulse-prod`
-- `test` / `integration` → `pulse-test`
-- `canary` / `shadow` → `pulse-canary`
-
-**2. Be explicit.** Pulse ships these as ordinary Spring profiles, so the
-plain Spring activation works and nothing about Pulse is special:
+**1. Activate a Pulse preset explicitly.** Pulse ships these as ordinary
+Spring profiles:
 
 ```yaml
 spring:
@@ -57,7 +38,16 @@ spring:
     active: prod,pulse-prod
 ```
 
-Or, equivalently, on the command line:
+**2. Auto-detect (opt-in).** Pulse can append the matching `pulse-*`
+profile when it sees `dev` / `prod` / `test` / `canary` in
+`spring.profiles.active`. This is **off** by default because silently
+adding `pulse-prod` (and its 10% sampling rate) is a surprising change.
+
+```yaml
+pulse:
+  profile-presets:
+    auto-apply: true
+```
 
 ```bash
 SPRING_PROFILES_ACTIVE=prod,pulse-prod ./mvnw spring-boot:run
@@ -73,18 +63,10 @@ Teach Pulse about your own profile names:
 ```yaml
 pulse:
   profile-presets:
+    auto-apply: true
     presets:
       stage: pulse-prod
       qa: pulse-test
-```
-
-Or turn the auto-detection off entirely and force everyone to opt in
-explicitly:
-
-```yaml
-pulse:
-  profile-presets:
-    auto-apply: false
 ```
 
 ## What it adds

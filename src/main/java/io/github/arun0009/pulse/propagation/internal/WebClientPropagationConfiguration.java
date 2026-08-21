@@ -79,10 +79,12 @@ public class WebClientPropagationConfiguration {
                         }
                     });
                 }
-                if (budgetEnabled && request.headers().getFirst(budgetHeader) == null) {
-                    budgetHelper
-                            .remainingForOutbound("webclient")
-                            .ifPresent(remaining -> builder.header(budgetHeader, Long.toString(remaining.toMillis())));
+                if (budgetEnabled) {
+                    budgetHelper.stampHeaders(budgetHeader, "webclient", true, (name, value) -> {
+                        if (request.headers().getFirst(name) == null) {
+                            builder.header(name, value);
+                        }
+                    });
                 }
                 var exchange = next.exchange(builder.build());
                 Optional<Duration> clientTimeout = budgetHelper.remainingForClientTimeout();

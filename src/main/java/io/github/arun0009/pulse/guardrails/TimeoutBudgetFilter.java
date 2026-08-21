@@ -25,15 +25,17 @@ import java.util.Optional;
  * <p>Resolution order:
  *
  * <ol>
- *   <li>If the inbound request carries the configured header (default {@code Pulse-Timeout-Ms}), parse
- *       it.
- *   <li>Otherwise, fall back to the configured default budget.
+ *   <li>{@link TimeoutBudget#DEADLINE_HEADER} (absolute epoch-millis) — preferred. Reconstructs
+ *       the same deadline the caller had; does not restart remaining-ms from this hop.
+ *   <li>Configured remaining-ms header (default {@code Pulse-Timeout-Ms}). {@code 0} is expired,
+ *       not "no header". Tiny values are not floored up to {@code minimum-budget}.
+ *   <li>Configured default budget, minus safety margin, floored at {@code minimum-budget}.
  * </ol>
  *
- * <p>Floors the budget at {@link TimeoutBudgetProperties#minimumBudget()} and applies {@link
- * TimeoutBudgetProperties#safetyMargin()} so the inbound work has a small buffer before the
- * upstream caller cancels. Inbound values above {@link TimeoutBudgetProperties#maximumBudget()}
- * are clamped before the margin is applied.
+ * <p>{@link TimeoutBudgetProperties#safetyMargin()} applies when a remaining-ms header or the
+ * default establishes a new deadline. An absolute deadline is not taxed again — the origin hop
+ * already applied the margin. Values above {@link TimeoutBudgetProperties#maximumBudget()} are
+ * clamped.
  */
 public class TimeoutBudgetFilter extends OncePerRequestFilter implements Ordered {
 
@@ -73,7 +75,7 @@ public class TimeoutBudgetFilter extends OncePerRequestFilter implements Ordered
             return;
         }
 
-        Optional<Duration> budget = resolveBudget(request);
+        Optional<TimeoutBudget> budget = resolveBudget(request);
         if (budget.isEmpty()) {
             // No inbound header and no positive default — leave baggage untouched so callers
             // observing TimeoutBudget.current() see Optional.empty() (no implicit safety net).
@@ -81,9 +83,8 @@ public class TimeoutBudgetFilter extends OncePerRequestFilter implements Ordered
             return;
         }
 
-        TimeoutBudget current = TimeoutBudget.withRemaining(budget.get());
         Baggage updated = Baggage.current().toBuilder()
-                .put(TimeoutBudget.BAGGAGE_KEY, current.toBaggageValue())
+                .put(TimeoutBudget.BAGGAGE_KEY, budget.get().toBaggageValue())
                 .build();
 
         try (Scope ignored = updated.storeInContext(Context.current()).makeCurrent()) {
@@ -91,9 +92,46 @@ public class TimeoutBudgetFilter extends OncePerRequestFilter implements Ordered
         }
     }
 
-    private Optional<Duration> resolveBudget(HttpServletRequest request) {
-        Optional<Duration> inbound = parseHeader(request.getHeader(config.inboundHeader()));
-        Duration raw = inbound.orElse(config.defaultBudget());
+    private Optional<TimeoutBudget> resolveBudget(HttpServletRequest request) {
+        Optional<TimeoutBudget> fromDeadline = TimeoutBudget.parse(request.getHeader(TimeoutBudget.DEADLINE_HEADER));
+        if (fromDeadline.isPresent()) {
+            return Optional.of(clampToMaximum(fromDeadline.get()));
+        }
+
+        String remainingHeader = request.getHeader(config.inboundHeader());
+        if (remainingHeader != null && !remainingHeader.isBlank()) {
+            Optional<Long> ms = parseMillis(remainingHeader);
+            if (ms.isPresent()) {
+                return Optional.of(fromExplicitRemaining(ms.get()));
+            }
+        }
+
+        return fromDefaultBudget();
+    }
+
+    /**
+     * An explicit remaining-ms header, including {@code 0}. Never falls back to the default and
+     * never floors up to {@code minimum-budget} — that would mint time the caller no longer has.
+     */
+    private TimeoutBudget fromExplicitRemaining(long remainingMs) {
+        if (remainingMs <= 0) {
+            return TimeoutBudget.withRemaining(Duration.ZERO);
+        }
+        Duration raw = Duration.ofMillis(remainingMs);
+        Duration maximum = config.maximumBudget();
+        if (maximum != null && maximum.isPositive() && raw.compareTo(maximum) > 0) {
+            log.debug("Pulse timeout-budget above maximum ({} > {}), clamping", raw, maximum);
+            raw = maximum;
+        }
+        Duration adjusted = raw.minus(config.safetyMargin());
+        if (adjusted.isNegative() || adjusted.isZero()) {
+            return TimeoutBudget.withRemaining(Duration.ZERO);
+        }
+        return TimeoutBudget.withRemaining(adjusted);
+    }
+
+    private Optional<TimeoutBudget> fromDefaultBudget() {
+        Duration raw = config.defaultBudget();
         if (raw == null || raw.isZero() || raw.isNegative()) {
             return Optional.empty();
         }
@@ -105,16 +143,23 @@ public class TimeoutBudgetFilter extends OncePerRequestFilter implements Ordered
         Duration adjusted = raw.minus(config.safetyMargin());
         if (adjusted.compareTo(config.minimumBudget()) < 0) {
             log.debug("Pulse timeout-budget below minimum ({} < {}), flooring", adjusted, config.minimumBudget());
-            return Optional.of(config.minimumBudget());
+            return Optional.of(TimeoutBudget.withRemaining(config.minimumBudget()));
         }
-        return Optional.of(adjusted);
+        return Optional.of(TimeoutBudget.withRemaining(adjusted));
     }
 
-    private static Optional<Duration> parseHeader(String value) {
-        if (value == null || value.isBlank()) return Optional.empty();
+    private TimeoutBudget clampToMaximum(TimeoutBudget budget) {
+        Duration maximum = config.maximumBudget();
+        if (maximum != null && maximum.isPositive() && budget.remaining().compareTo(maximum) > 0) {
+            log.debug("Pulse timeout-budget above maximum ({} > {}), clamping", budget.remaining(), maximum);
+            return TimeoutBudget.withRemaining(maximum);
+        }
+        return budget;
+    }
+
+    private static Optional<Long> parseMillis(String value) {
         try {
-            long ms = Long.parseLong(value.trim());
-            return ms > 0 ? Optional.of(Duration.ofMillis(ms)) : Optional.empty();
+            return Optional.of(Long.parseLong(value.trim()));
         } catch (NumberFormatException e) {
             return Optional.empty();
         }

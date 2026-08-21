@@ -5,8 +5,8 @@
 #
 #     spring.profiles.active: canary,pulse-canary
 #
-# Or — when pulse.profile-presets.auto-apply is true (the default) — Pulse
-# detects "canary" in the active profiles and adds "pulse-canary" automatically.
+# Auto-detect of "canary" (adding pulse-canary for you) is opt-in:
+# pulse.profile-presets.auto-apply=true. The default is not to auto-apply.
 #
 # Optimised for: maximum signal at zero customer risk. Pulse runs in DRY_RUN
 # so every guardrail (trace-guard, cardinality, etc.) still emits diagnostics

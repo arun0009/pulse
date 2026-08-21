@@ -47,6 +47,16 @@ class PulseRuntimeHintsTest {
     }
 
     @Test
+    void skips_pii_masking_converter_when_log4j2_not_on_classpath() {
+        RuntimeHints hints = new RuntimeHints();
+        ClassLoader withoutLog4j2 = new ClassLoader(null) {};
+        new PulseRuntimeHints().registerHints(hints, withoutLog4j2);
+
+        Assertions.assertThat(reflection().onType(PiiMaskingConverter.class).test(hints))
+                .isFalse();
+    }
+
+    @Test
     void registers_pii_masking_converter_for_reflection() {
         // Log4j2's plugin scanner uses reflection to discover the @Plugin-annotated converter.
         RuntimeHints hints = new RuntimeHints();
@@ -63,6 +73,9 @@ class PulseRuntimeHintsTest {
         Assertions.assertThat(resource().forResource("pulse-json-layout.json")).accepts(hints);
         Assertions.assertThat(resource().forResource("log4j2-spring.xml")).accepts(hints);
         Assertions.assertThat(resource().forResource("logback-spring.xml")).accepts(hints);
+        Assertions.assertThat(resource()
+                        .forResource("META-INF/org/apache/logging/log4j/core/config/plugins/Log4j2Plugins.dat"))
+                .accepts(hints);
     }
 
     @Test

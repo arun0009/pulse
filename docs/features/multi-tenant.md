@@ -58,6 +58,11 @@ pulse:
 
 Defaults to header-only.
 
+The JWT extractor **does not verify the signature**. It base64-decodes the
+payload and reads a string claim. That is observability metadata, not
+authentication — Spring Security (or your gateway) must have already
+accepted the token. Do not enable `jwt` on an unauthenticated surface.
+
 ## What it adds
 
 | Where | Key |

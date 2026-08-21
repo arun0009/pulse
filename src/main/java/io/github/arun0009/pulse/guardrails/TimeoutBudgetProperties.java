@@ -10,15 +10,15 @@ import org.springframework.validation.annotation.Validated;
 import java.time.Duration;
 
 /**
- * Timeout-budget propagation — extracts the configured inbound header (default
- * {@code Pulse-Timeout-Ms}, RFC 6648 — no {@code X-} prefix), places remaining-budget on
- * OTel baggage, and exposes it via {@code TimeoutBudget#current}. Downstream calls subtract
- * elapsed time so a 2s inbound budget with 800ms spent in business logic gives the next
- * downstream call exactly 1.2s — not the platform default. Inbound headers are clamped to
- * {@link #maximumBudget()} for edge safety. Outbound HTTP calls still execute by default when
- * the remaining budget is exhausted; set {@link #abortOnExhaustion()} to skip them. Set
- * {@link #applyClientTimeout()} to bound OkHttp / WebClient / Apache HttpClient 5 to the
- * remaining budget; RestTemplate and RestClient cannot do this per request.
+ * Timeout-budget propagation — prefers inbound {@link TimeoutBudget#DEADLINE_HEADER} (absolute
+ * epoch-millis), else the remaining-ms header (default {@code Pulse-Timeout-Ms}), else
+ * {@link #defaultBudget()}. The deadline is stored on OTel baggage and exposed via
+ * {@code TimeoutBudget#current}. An explicit remaining-ms of {@code 0} is an expired deadline,
+ * not "no header": the next hop must not mint a fresh default. {@link #minimumBudget()} floors
+ * only the implicit default, never an explicit inbound value. Outbound HTTP still executes by
+ * default when remaining is exhausted; set {@link #abortOnExhaustion()} to skip those calls.
+ * Set {@link #applyClientTimeout()} to bound OkHttp / WebClient / Apache HttpClient 5;
+ * RestTemplate and RestClient cannot do this per request.
  */
 @Validated
 @ConfigurationProperties(prefix = "pulse.timeout-budget")

@@ -100,7 +100,9 @@ class PulseProfilePresetsTest {
             assertThat(ctx.getBean(CardinalityProperties.class).maxTagValuesPerMeter())
                     .isEqualTo(1000);
             assertThat(ctx.getBean(BannerProperties.class).enabled()).isFalse();
-            assertThat(ctx.getBean(TenantProperties.class).maxTagCardinality()).isEqualTo(100);
+            assertThat(ctx.getBean(TenantProperties.class).enabled())
+                    .as("pulse-prod must not flip the niche tenant extractor on")
+                    .isFalse();
             assertThat(ctx.getBean(DependenciesProperties.class).fanOutWarnThreshold())
                     .isEqualTo(20);
         });

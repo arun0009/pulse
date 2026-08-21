@@ -42,7 +42,7 @@
     {
       "name": "pulse.timeout-budget",
       "type": "io.github.arun0009.pulse.guardrails.TimeoutBudgetProperties",
-      "description": "End-to-end deadline propagation. Inbound header is clamped to maximum-budget; the remaining budget at egress is propagated as outbound-header, minus safety-margin to give downstream a chance to respond before the parent times out."
+      "description": "End-to-end deadline propagation. Prefers inbound Pulse-Timeout-Deadline-Ms (absolute epoch-millis); else remaining-ms; else default-budget. An explicit remaining of 0 is expired, not a missing header. Outbound stamps both remaining-ms and the absolute deadline. Abort and client socket timeout are opt-in."
     },
     {
       "name": "pulse.wide-events",

@@ -7,7 +7,7 @@ and follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format.
 
 ## [Unreleased]
 
-See the repository root [`CHANGELOG.md`](https://github.com/arun0009/pulse/blob/main/CHANGELOG.md#unreleased). Core stays on by default; tenant, priority, profiling, SLO generation, OpenFeature, Caffeine bind, and profile-preset auto-apply are now opt-in. Timeout-budget abort-on-exhaustion is a new opt-in flag (default still stamps the remaining budget and makes the call).
+See the repository root [`CHANGELOG.md`](https://github.com/arun0009/pulse/blob/main/CHANGELOG.md#unreleased). Core stays on by default; tenant, priority, profiling, SLO generation, OpenFeature, Caffeine bind, and profile-preset auto-apply are opt-in. Timeout-budget abort is opt-in. Logging follows Boot (Logback); Log4j2 is optional. HTTP and Kafka stamp an absolute deadline header.
 
 ## [2.0.0] — 2026-04-20
 

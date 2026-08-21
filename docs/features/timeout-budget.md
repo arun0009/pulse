@@ -11,16 +11,18 @@ every downstream service uses. The original caller may have already given up
 after 2 seconds. The chain doesn't know, holds connections open, and feeds
 the retry storm that takes the cluster down.
 
-**Pulse propagates the deadline, not the timeout.** Each hop sees the real
-remaining budget. On HTTP, you can opt in to fail fast and to bound the
-client's own socket. On Kafka, the consumer reconstructs an *absolute*
-deadline so a message that sat in the topic does not get a fresh 2s budget.
+**Pulse propagates the deadline, not the timeout.** Each hop reconstructs the
+same absolute deadline (`Pulse-Timeout-Deadline-Ms`) and also stamps remaining
+milliseconds for legacy hops. On HTTP, fail-fast and socket bounding are
+**opt-in**. On Kafka, the consumer prefers the absolute header so a message
+that sat in the topic does not get a fresh 2s budget. An explicit remaining of
+`0` is expired — it is not "no header", and Pulse will not mint the 2s default.
 
 ## Two clocks
 
 | Clock | What it answers | Default | How Pulse implements it |
 | --- | --- | --- | --- |
-| **RPC / request deadline** | The HTTP caller is still waiting. Should this hop even fire? | Observe only (stamp remaining, still call) | `Pulse-Timeout-Ms` on HTTP. On Kafka, `Pulse-Timeout-Deadline-Ms` (absolute epoch-millis) plus remaining for legacy records. Opt-in: `abort-on-exhaustion`, `apply-client-timeout`. |
+| **RPC / request deadline** | The HTTP caller is still waiting. Should this hop even fire? | Observe only (stamp remaining + absolute deadline, still call) | `Pulse-Timeout-Deadline-Ms` (absolute epoch-millis) plus `Pulse-Timeout-Ms` (remaining) on HTTP and Kafka. Inbound prefers the absolute header. Opt-in: `abort-on-exhaustion`, `apply-client-timeout`. |
 | **Event freshness** | Is this Kafka record too old to act on? | Off | `pulse.kafka.skip-stale-records` + `skip-stale-max-age`. Independent of the HTTP budget. |
 
 A handler that returns `202 Accepted` and publishes "charge the card later"
@@ -32,7 +34,8 @@ older than N".
 Kafka record timestamps are **not** used to reconstruct the RPC deadline.
 They are often event-time (`order.placed_at`), not produce wall-clock.
 The producer stamps `Pulse-Timeout-Deadline-Ms` from the in-process
-`TimeoutBudget` instead.
+`TimeoutBudget` instead. HTTP outbound interceptors stamp the same header so
+a slow reverse proxy cannot restart remaining-ms on the next service.
 
 ## What you get
 
@@ -83,8 +86,8 @@ TimeoutBudget.current().ifPresent(budget -> {
 
 | Where | Key | Value |
 | --- | --- | --- |
-| HTTP header (in / out) | `Pulse-Timeout-Ms` | Milliseconds remaining on the deadline |
-| Kafka header | `Pulse-Timeout-Deadline-Ms` | Absolute epoch-millis deadline (RPC clock). Preferred on consume. |
+| HTTP header (in / out) | `Pulse-Timeout-Ms` | Milliseconds remaining on the deadline. `0` means expired, not "use the default". |
+| HTTP / Kafka header | `Pulse-Timeout-Deadline-Ms` | Absolute epoch-millis deadline (RPC clock). Preferred on inbound. |
 | Kafka header (legacy + HTTP-shaped) | `Pulse-Timeout-Ms` | Remaining ms at produce time. Consume falls back to "remaining from now" only when the deadline header is absent. |
 | OTel baggage | `pulse.timeout-budget.deadline.epoch.ms` | Absolute epoch-millis deadline |
 | MDC (logs) | `timeout_remaining_ms` | Snapshot at log time |
@@ -172,12 +175,14 @@ your code already handles that.
 
 Three pieces work together:
 
-1. A filter on the way in reads the deadline header (or applies the default),
-   places it on a thread-local and on OTel baggage, and clears it in a
-   `finally`.
+1. A filter on the way in prefers `Pulse-Timeout-Deadline-Ms`, else remaining-ms,
+   else the default. An explicit `0` (or a past deadline) opens an *expired*
+   budget — it does not fall back to 2s. `minimum-budget` floors only the
+   implicit default, never an inbound header. `safety-margin` is subtracted
+   when remaining-ms or the default establishes a new deadline; an absolute
+   deadline is not taxed again.
 2. An interceptor on the way out — wired into every supported HTTP and Kafka
-   client — computes `remaining − safety-margin` and writes the outbound
-   header. Kafka also writes `Pulse-Timeout-Deadline-Ms` (absolute).
+   client — stamps remaining-ms *and* `Pulse-Timeout-Deadline-Ms`.
 3. If the remaining budget is at or below `minimum-budget` *before* the
    call fires, Pulse increments `pulse.timeout_budget.exhausted` and
    stamps the remaining value (including `0`). The call still executes.
@@ -187,12 +192,24 @@ Three pieces work together:
    Apache HttpClient 5 cannot wait longer than remaining. RestTemplate and
    RestClient still cannot set a per-request socket timeout.
 
-The header name follows RFC 6648 (no `X-` prefix). `inbound-header` and
-`outbound-header` can be configured separately if you need to bridge between
-two conventions.
+The remaining-ms header name follows RFC 6648 (no `X-` prefix).
+`inbound-header` and `outbound-header` can be configured separately if you
+need to bridge between two conventions. The absolute deadline header name is
+fixed.
 
 Kafka event freshness (skip stale records) is documented with
 [Kafka time-based lag](kafka-time-lag.md).
+
+## Why this shape in 2026
+
+There is still no IETF HTTP deadline header. gRPC sends a remaining timeout
+and the server converts it to an absolute deadline on receipt — Pulse does
+the same, then *forwards the absolute value* so a proxy cannot restart the
+clock. OpenTelemetry baggage already carries the deadline in-process; the
+headers are the hop that OTel does not own. In-process cardinality still
+beats Collector views: the bill is incurred before the pipeline. Async
+propagation stays on Micrometer `ContextSnapshot` (what Spring MVC / Boot 4
+actually run); Java `ScopedValue` is not on that request path yet.
 
 ---
 

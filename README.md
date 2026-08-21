@@ -76,14 +76,14 @@ brings up the full pipeline in one command.
 ## Six reasons to install Pulse on day one
 
 The boring, unglamorous things that decide whether observability actually
-works at 3 AM. Every one is on by default, none costs more than a
-nanosecond on the hot path, and none ships in Spring Boot or the OTel
-agent.
+works at 3 AM. Every one is on by default. None of them ships in Spring Boot
+or the OTel agent. The cardinality hot path is ~17 ns/op; request filters are
+ordinary servlet filters, not a nanosecond tax.
 
 | Driver | What it does | Read more |
 |---|---|---|
 | **Cardinality firewall** | Hard cap per `(meter, tag)` with overflow bucket and one-time WARN. ~17 ns/op cached. | [features/cardinality-firewall](https://arun0009.github.io/pulse/features/cardinality-firewall/) |
-| **Timeout-budget propagation** | Deadline travels with the request — HTTP remaining-ms, Kafka absolute deadline. Abort and client-timeout are opt-in. | [features/timeout-budget](https://arun0009.github.io/pulse/features/timeout-budget/) |
+| **Timeout-budget propagation** | Deadline travels with the request — HTTP and Kafka stamp remaining-ms **and** an absolute deadline. Abort and client-timeout are opt-in. | [features/timeout-budget](https://arun0009.github.io/pulse/features/timeout-budget/) |
 | **Context across `@Async` / `@Scheduled` / Kafka** | Every `TaskExecutor` and `TaskScheduler` is wrapped automatically. No `MDC` ritual. | [features/context-propagation](https://arun0009.github.io/pulse/features/context-propagation/) |
 | **Trace-context guard** | `pulse.trace.received` vs `pulse.trace.missing` per route, with shipped alert. Find the upstream stripping `traceparent`. | [features/trace-context-guard](https://arun0009.github.io/pulse/features/trace-context-guard/) |
 | **Structured logs (OTel-aligned)** | OTel-semconv JSON on every line — deploy / commit / pod / cloud region stamped automatically. PII masking on by default. | [features/structured-logs](https://arun0009.github.io/pulse/features/structured-logs/) |
@@ -149,7 +149,7 @@ docs.</sup>
 |---|---|
 | Java | 21, 25 (CI runs both) |
 | Spring Boot | 4.0+ |
-| Logging | Log4j2 by default; Logback supported via opt-in |
+| Logging | Logback (Boot default); Log4j2 supported if you add `spring-boot-starter-log4j2` |
 | GraalVM native | Reflection / proxy / resource hints registered (best-effort) |
 
 ## Build quality

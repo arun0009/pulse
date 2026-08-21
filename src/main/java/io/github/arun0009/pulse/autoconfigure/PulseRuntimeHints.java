@@ -21,10 +21,10 @@ import org.springframework.util.ClassUtils;
  *       string class name in {@code ProducerConfig.INTERCEPTOR_CLASSES_CONFIG}; Spring never
  *       sees it as a bean and therefore never adds reflection metadata for it. Registered only
  *       when the Kafka client is on the classpath ({@code spring-kafka} is optional for Pulse).
- *   <li>{@link PiiMaskingConverter} — discovered by Log4j2 via its plugin scanner. In native
- *       image we register it explicitly because the scanner's classpath walking is brittle
- *       under closed-world.
- *   <li>The two JSON layout templates and the {@code log4j2-spring.xml} that pull them in,
+ *   <li>{@link PiiMaskingConverter} — discovered by Log4j2 via its plugin scanner. Registered
+ *       only when log4j-core is present; the converter extends Log4j2 types and must not load
+ *       on a Logback-only native image.
+ *   <li>JSON layout templates and {@code log4j2-spring.xml} / {@code logback-spring.xml},
  *       registered as resources because GraalVM does not bundle classpath resources unless
  *       hinted.
  * </ul>
@@ -41,6 +41,9 @@ public class PulseRuntimeHints implements RuntimeHintsRegistrar {
     /** Marker type: Kafka is an optional dependency; do not touch {@link PulseKafkaProducerInterceptor} without it. */
     private static final String KAFKA_PRODUCER_INTERCEPTOR = "org.apache.kafka.clients.producer.ProducerInterceptor";
 
+    /** Marker type: Log4j2 is optional; do not load {@link PiiMaskingConverter} on a Logback-only native image. */
+    private static final String LOG4J2_CONVERTER = "org.apache.logging.log4j.core.pattern.LogEventPatternConverter";
+
     @Override
     public void registerHints(RuntimeHints hints, @Nullable ClassLoader classLoader) {
         ClassLoader cl = classLoader != null ? classLoader : PulseRuntimeHints.class.getClassLoader();
@@ -56,13 +59,19 @@ public class PulseRuntimeHints implements RuntimeHintsRegistrar {
                             MemberCategory.INVOKE_PUBLIC_METHODS);
         }
 
-        // Log4j2 plugin discovered by classpath scan.
-        hints.reflection()
-                .registerType(
-                        PiiMaskingConverter.class,
-                        MemberCategory.INVOKE_DECLARED_CONSTRUCTORS,
-                        MemberCategory.INVOKE_PUBLIC_METHODS,
-                        MemberCategory.INVOKE_DECLARED_METHODS);
+        // Log4j2 plugin discovered by classpath scan. The converter extends log4j-core; loading
+        // the class on a Logback-only app blows AOT with ClassNotFoundException:
+        // LogEventPatternConverter.
+        if (ClassUtils.isPresent(LOG4J2_CONVERTER, cl)) {
+            hints.reflection()
+                    .registerType(
+                            PiiMaskingConverter.class,
+                            MemberCategory.INVOKE_DECLARED_CONSTRUCTORS,
+                            MemberCategory.INVOKE_PUBLIC_METHODS,
+                            MemberCategory.INVOKE_DECLARED_METHODS);
+            hints.resources()
+                    .registerPattern("META-INF/org/apache/logging/log4j/core/config/plugins/Log4j2Plugins.dat");
+        }
 
         // Logback encoder — instantiated by Logback's JoranConfigurator from a class name in
         // logback-spring.xml; native image needs the public constructor and methods reachable.
@@ -76,9 +85,5 @@ public class PulseRuntimeHints implements RuntimeHintsRegistrar {
         hints.resources().registerPattern("pulse-json-layout.json");
         hints.resources().registerPattern("log4j2-spring.xml");
         hints.resources().registerPattern("logback-spring.xml");
-
-        // Log4j2's own plugin descriptor cache (generated at build time by log4j-core's annotation
-        // processor) — required for native image to find any plugin including ours.
-        hints.resources().registerPattern("META-INF/org/apache/logging/log4j/core/config/plugins/Log4j2Plugins.dat");
     }
 }

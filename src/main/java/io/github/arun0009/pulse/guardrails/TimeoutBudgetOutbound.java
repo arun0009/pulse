@@ -73,6 +73,25 @@ public final class TimeoutBudgetOutbound {
     }
 
     /**
+     * Set a header only when it is not already present. Existing application headers win.
+     */
+    @FunctionalInterface
+    public interface HeaderSink {
+        void putIfAbsent(String name, String value);
+    }
+
+    /**
+     * Stamps remaining-ms and the absolute deadline. HTTP callers pass {@code honorAbort=true};
+     * Kafka must pass {@code false} so a produce is never dropped.
+     */
+    public void stampHeaders(String remainingHeader, String transport, boolean honorAbort, HeaderSink sink) {
+        Optional<Duration> remaining = honorAbort ? remainingForOutbound(transport) : resolveRemaining(transport);
+        remaining.ifPresent(r -> sink.putIfAbsent(remainingHeader, Long.toString(r.toMillis())));
+        TimeoutBudget.current()
+                .ifPresent(budget -> sink.putIfAbsent(TimeoutBudget.DEADLINE_HEADER, budget.toBaggageValue()));
+    }
+
+    /**
      * Remaining budget to apply as a client-side timeout. Empty when the flag is off, there is
      * no current budget, or remaining time is below 1 ms (a 0 ms OkHttp/HC5 timeout means
      * "infinite", which is the opposite of what we want).

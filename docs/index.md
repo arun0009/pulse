@@ -25,7 +25,7 @@ hide:
 
 ## Why Pulse?
 
-Spring Boot, the OpenTelemetry Java agent, Micrometer, and Log4j2 get you a
+Spring Boot, the OpenTelemetry Java agent, Micrometer, and Logback get you a
 long way. But you'll still write — or wish you'd written — the boring,
 unglamorous things that decide whether observability actually works at 3 AM.
 
@@ -43,8 +43,9 @@ metric+tag with a one-line alert. Costs ~17 ns per call.
 
 <div class="pulse-card" markdown>
 ### :material-timer-sand: Timeout-budget propagation
-The deadline travels with the request. Every hop sees the time remaining and
-fails fast instead of holding doomed connections open.
+The deadline travels with the request. Pulse stamps remaining-ms
+**and** an absolute deadline. Fail-fast and socket bounding are
+opt-in. Kafka does not drop business events on HTTP expiry.
 
 [Read more →](features/timeout-budget.md)
 </div>

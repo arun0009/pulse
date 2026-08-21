@@ -30,7 +30,7 @@ is the surface intended to be extended *frequently*.
 | `ErrorFingerprintStrategy`   | `io.github.arun0009.pulse.exception`    | yes (chain)     | always                                          |
 | `HostNameProvider`           | `io.github.arun0009.pulse.logging`      | no              | startup (EPP) + runtime bean                    |
 | `ResourceAttributeResolver`  | `io.github.arun0009.pulse.logging`      | no              | startup (EPP) + runtime bean                    |
-| `TenantExtractor`            | `io.github.arun0009.pulse.tenant`       | yes (ordered)   | `pulse.tenant.enabled=true` (default)           |
+| `TenantExtractor`            | `io.github.arun0009.pulse.tenant`       | yes (ordered)   | `pulse.tenant.enabled=true` (opt-in)            |
 | `ContextContributor`         | `io.github.arun0009.pulse.core`         | yes (additive)  | every inbound request                           |
 | `PulseRequestMatcher`        | `io.github.arun0009.pulse.core`         | per feature     | any feature with an `enabled-when:` block       |
 

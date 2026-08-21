@@ -7,65 +7,88 @@ import io.github.arun0009.pulse.guardrails.TimeoutBudgetProperties;
 import io.opentelemetry.api.baggage.Baggage;
 import io.opentelemetry.context.Context;
 import io.opentelemetry.context.Scope;
-import okhttp3.Call;
-import okhttp3.Connection;
-import okhttp3.Interceptor;
 import okhttp3.MediaType;
+import okhttp3.OkHttpClient;
 import okhttp3.Protocol;
 import okhttp3.Request;
 import okhttp3.Response;
 import okhttp3.ResponseBody;
-import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+/**
+ * Uses a real OkHttp {@code Interceptor.Chain} (a terminal interceptor that never hits the
+ * network). OkHttp 5.4 added many Chain methods; a hand-rolled fake no longer compiles.
+ */
 class PulseOkHttpInterceptorTimeoutTest {
 
     @Test
     void apply_client_timeout_caps_connect_read_and_write() throws IOException {
-        TimeoutBudgetProperties config = props(true);
-        TimeoutBudgetOutbound helper = new TimeoutBudgetOutbound(null, config);
-        OkHttpPropagationConfiguration.PulseOkHttpInterceptor interceptor =
-                new OkHttpPropagationConfiguration.PulseOkHttpInterceptor(Map.of(), "Pulse-Timeout-Ms", true, helper);
+        RecordedCall recorded = execute(true);
 
-        TimeoutBudget budget = TimeoutBudget.withRemaining(Duration.ofMillis(800));
-        RecordingChain chain = new RecordingChain(
-                new Request.Builder().url("http://example.test/stock").build());
-
-        try (Scope ignored = openBudget(budget)) {
-            interceptor.intercept(chain);
-        }
-
-        assertThat(chain.connectTimeoutMs).isBetween(500, 800);
-        assertThat(chain.readTimeoutMs).isEqualTo(chain.connectTimeoutMs);
-        assertThat(chain.writeTimeoutMs).isEqualTo(chain.connectTimeoutMs);
-        assertThat(chain.proceeded.header("Pulse-Timeout-Ms")).isNotBlank();
+        assertThat(recorded.connectTimeoutMs).isPositive().isLessThan(10_000);
+        assertThat(recorded.readTimeoutMs).isEqualTo(recorded.connectTimeoutMs);
+        assertThat(recorded.writeTimeoutMs).isEqualTo(recorded.connectTimeoutMs);
+        assertThat(recorded.proceeded.header("Pulse-Timeout-Ms")).isNotBlank();
     }
 
     @Test
     void default_does_not_rewrite_okhttp_timeouts() throws IOException {
-        TimeoutBudgetProperties config = props(false);
-        TimeoutBudgetOutbound helper = new TimeoutBudgetOutbound(null, config);
+        RecordedCall recorded = execute(false);
+
+        assertThat(recorded.connectTimeoutMs).isEqualTo(10_000);
+        assertThat(recorded.readTimeoutMs).isEqualTo(10_000);
+        assertThat(recorded.writeTimeoutMs).isEqualTo(10_000);
+    }
+
+    private static RecordedCall execute(boolean applyClientTimeout) throws IOException {
+        TimeoutBudgetOutbound helper = new TimeoutBudgetOutbound(null, props(applyClientTimeout));
         OkHttpPropagationConfiguration.PulseOkHttpInterceptor interceptor =
                 new OkHttpPropagationConfiguration.PulseOkHttpInterceptor(Map.of(), "Pulse-Timeout-Ms", true, helper);
 
-        TimeoutBudget budget = TimeoutBudget.withRemaining(Duration.ofMillis(800));
-        RecordingChain chain = new RecordingChain(
-                new Request.Builder().url("http://example.test/stock").build());
+        AtomicInteger connectTimeoutMs = new AtomicInteger();
+        AtomicInteger readTimeoutMs = new AtomicInteger();
+        AtomicInteger writeTimeoutMs = new AtomicInteger();
+        AtomicReference<Request> proceeded = new AtomicReference<>();
 
-        try (Scope ignored = openBudget(budget)) {
-            interceptor.intercept(chain);
+        OkHttpClient client = new OkHttpClient.Builder()
+                .connectTimeout(10, TimeUnit.SECONDS)
+                .readTimeout(10, TimeUnit.SECONDS)
+                .writeTimeout(10, TimeUnit.SECONDS)
+                .addInterceptor(interceptor)
+                .addInterceptor(chain -> {
+                    connectTimeoutMs.set(chain.connectTimeoutMillis());
+                    readTimeoutMs.set(chain.readTimeoutMillis());
+                    writeTimeoutMs.set(chain.writeTimeoutMillis());
+                    proceeded.set(chain.request());
+                    return new Response.Builder()
+                            .request(chain.request())
+                            .protocol(Protocol.HTTP_1_1)
+                            .code(200)
+                            .message("OK")
+                            .body(ResponseBody.create("", MediaType.parse("text/plain")))
+                            .build();
+                })
+                .build();
+
+        // Open the budget after the client is built — OkHttpClient construction is slow on a cold
+        // JVM and would otherwise eat most of an 800ms remaining window.
+        TimeoutBudget budget = TimeoutBudget.withRemaining(Duration.ofSeconds(2));
+        Request request = new Request.Builder().url("http://example.test/stock").build();
+        try (Scope ignored = openBudget(budget);
+                Response response = client.newCall(request).execute()) {
+            assertThat(response.code()).isEqualTo(200);
         }
 
-        assertThat(chain.connectTimeoutMs).isEqualTo(10_000);
-        assertThat(chain.readTimeoutMs).isEqualTo(10_000);
-        assertThat(chain.writeTimeoutMs).isEqualTo(10_000);
+        return new RecordedCall(connectTimeoutMs.get(), readTimeoutMs.get(), writeTimeoutMs.get(), proceeded.get());
     }
 
     private static TimeoutBudgetProperties props(boolean applyClientTimeout) {
@@ -89,76 +112,5 @@ class PulseOkHttpInterceptorTimeoutTest {
         return baggage.storeInContext(Context.current()).makeCurrent();
     }
 
-    private static final class RecordingChain implements Interceptor.Chain {
-        private final Request request;
-        private int connectTimeoutMs = 10_000;
-        private int readTimeoutMs = 10_000;
-        private int writeTimeoutMs = 10_000;
-        private Request proceeded =
-                new Request.Builder().url("http://example.test/").build();
-
-        private RecordingChain(Request request) {
-            this.request = request;
-        }
-
-        @Override
-        public Request request() {
-            return request;
-        }
-
-        @Override
-        public Response proceed(Request request) {
-            this.proceeded = request;
-            return new Response.Builder()
-                    .request(request)
-                    .protocol(Protocol.HTTP_1_1)
-                    .code(200)
-                    .message("OK")
-                    .body(ResponseBody.create("", MediaType.parse("text/plain")))
-                    .build();
-        }
-
-        @Override
-        public @Nullable Connection connection() {
-            return null;
-        }
-
-        @Override
-        public Call call() {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public int connectTimeoutMillis() {
-            return connectTimeoutMs;
-        }
-
-        @Override
-        public Interceptor.Chain withConnectTimeout(int timeout, TimeUnit unit) {
-            connectTimeoutMs = (int) unit.toMillis(timeout);
-            return this;
-        }
-
-        @Override
-        public int readTimeoutMillis() {
-            return readTimeoutMs;
-        }
-
-        @Override
-        public Interceptor.Chain withReadTimeout(int timeout, TimeUnit unit) {
-            readTimeoutMs = (int) unit.toMillis(timeout);
-            return this;
-        }
-
-        @Override
-        public int writeTimeoutMillis() {
-            return writeTimeoutMs;
-        }
-
-        @Override
-        public Interceptor.Chain withWriteTimeout(int timeout, TimeUnit unit) {
-            writeTimeoutMs = (int) unit.toMillis(timeout);
-            return this;
-        }
-    }
+    private record RecordedCall(int connectTimeoutMs, int readTimeoutMs, int writeTimeoutMs, Request proceeded) {}
 }

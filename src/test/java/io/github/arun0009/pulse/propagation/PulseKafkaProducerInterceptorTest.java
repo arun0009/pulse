@@ -86,7 +86,13 @@ class PulseKafkaProducerInterceptorTest {
             }
             assertThat(remainingMs).isBetween(1500L, 2000L);
             String deadlineHeader = headerValue(record, TimeoutBudget.KAFKA_DEADLINE_HEADER);
-            long deadlineEpoch = Long.parseLong(deadlineHeader);
+            long deadlineEpoch;
+            try {
+                deadlineEpoch = Long.parseLong(deadlineHeader);
+            } catch (NumberFormatException e) {
+                throw new AssertionError(
+                        TimeoutBudget.KAFKA_DEADLINE_HEADER + " must be a long, got: " + deadlineHeader, e);
+            }
             assertThat(deadlineEpoch).isGreaterThan(System.currentTimeMillis());
             assertThat(deadlineEpoch).isLessThanOrEqualTo(System.currentTimeMillis() + 2000L);
         }

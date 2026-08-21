@@ -83,7 +83,7 @@ agent.
 | Driver | What it does | Read more |
 |---|---|---|
 | **Cardinality firewall** | Hard cap per `(meter, tag)` with overflow bucket and one-time WARN. ~17 ns/op cached. | [features/cardinality-firewall](https://arun0009.github.io/pulse/features/cardinality-firewall/) |
-| **Timeout-budget propagation** | Deadline travels with the request — across `RestTemplate`, `RestClient`, `WebClient`, `OkHttp`, Apache HttpClient 5, Kafka. | [features/timeout-budget](https://arun0009.github.io/pulse/features/timeout-budget/) |
+| **Timeout-budget propagation** | Deadline travels with the request — HTTP remaining-ms, Kafka absolute deadline. Abort and client-timeout are opt-in. | [features/timeout-budget](https://arun0009.github.io/pulse/features/timeout-budget/) |
 | **Context across `@Async` / `@Scheduled` / Kafka** | Every `TaskExecutor` and `TaskScheduler` is wrapped automatically. No `MDC` ritual. | [features/context-propagation](https://arun0009.github.io/pulse/features/context-propagation/) |
 | **Trace-context guard** | `pulse.trace.received` vs `pulse.trace.missing` per route, with shipped alert. Find the upstream stripping `traceparent`. | [features/trace-context-guard](https://arun0009.github.io/pulse/features/trace-context-guard/) |
 | **Structured logs (OTel-aligned)** | OTel-semconv JSON on every line — deploy / commit / pod / cloud region stamped automatically. PII masking on by default. | [features/structured-logs](https://arun0009.github.io/pulse/features/structured-logs/) |

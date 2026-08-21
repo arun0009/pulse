@@ -16,6 +16,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class TimeoutBudgetOutboundAbortTest {
 
     private static TimeoutBudgetProperties props(boolean abort) {
+        return props(abort, false);
+    }
+
+    private static TimeoutBudgetProperties props(boolean abort, boolean applyClientTimeout) {
         return new TimeoutBudgetProperties(
                 true,
                 "Pulse-Timeout-Ms",
@@ -25,6 +29,7 @@ class TimeoutBudgetOutboundAbortTest {
                 Duration.ofMillis(50),
                 Duration.ofMillis(100),
                 abort,
+                applyClientTimeout,
                 PulseRequestMatcherProperties.empty());
     }
 
@@ -74,6 +79,39 @@ class TimeoutBudgetOutboundAbortTest {
 
         try (Scope ignored = openBudget(budget)) {
             assertThat(outbound.resolveRemaining("kafka")).contains(Duration.ZERO);
+        }
+    }
+
+    @Test
+    void apply_client_timeout_off_returns_empty_even_with_remaining_budget() {
+        TimeoutBudgetOutbound outbound = new TimeoutBudgetOutbound(new SimpleMeterRegistry(), props(false, false));
+        TimeoutBudget budget = TimeoutBudget.withRemaining(Duration.ofSeconds(1));
+
+        try (Scope ignored = openBudget(budget)) {
+            assertThat(outbound.applyClientTimeout()).isFalse();
+            assertThat(outbound.remainingForClientTimeout()).isEmpty();
+        }
+    }
+
+    @Test
+    void apply_client_timeout_on_returns_remaining_when_positive() {
+        TimeoutBudgetOutbound outbound = new TimeoutBudgetOutbound(new SimpleMeterRegistry(), props(false, true));
+        TimeoutBudget budget = TimeoutBudget.withRemaining(Duration.ofMillis(750));
+
+        try (Scope ignored = openBudget(budget)) {
+            assertThat(outbound.applyClientTimeout()).isTrue();
+            Duration remaining = outbound.remainingForClientTimeout().orElseThrow();
+            assertThat(remaining).isLessThanOrEqualTo(Duration.ofMillis(750)).isGreaterThan(Duration.ofMillis(500));
+        }
+    }
+
+    @Test
+    void apply_client_timeout_on_skips_zero_remaining() {
+        TimeoutBudgetOutbound outbound = new TimeoutBudgetOutbound(new SimpleMeterRegistry(), props(false, true));
+        TimeoutBudget budget = TimeoutBudget.atDeadline(Instant.now().minusSeconds(1));
+
+        try (Scope ignored = openBudget(budget)) {
+            assertThat(outbound.remainingForClientTimeout()).isEmpty();
         }
     }
 }

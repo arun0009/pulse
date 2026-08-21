@@ -268,6 +268,8 @@ public final class PulseDiagnostics {
         Map<String, Object> kafkaDetails = new LinkedHashMap<>();
         kafkaDetails.put("classpathPresent", kafkaWired);
         kafkaDetails.put("consumerTimeLagEnabled", p.kafka().consumerTimeLagEnabled());
+        kafkaDetails.put("skipStaleRecords", p.kafka().skipStaleRecords());
+        kafkaDetails.put("skipStaleMaxAge", p.kafka().skipStaleMaxAge().toString());
         kafkaDetails.put(
                 "status",
                 kafkaConfigured ? (kafkaWired ? "active" : "off (spring-kafka not on classpath)") : "disabled");
@@ -296,7 +298,8 @@ public final class PulseDiagnostics {
                                 "safetyMargin", p.timeoutBudget().safetyMargin().toString(),
                                 "minimumBudget",
                                         p.timeoutBudget().minimumBudget().toString(),
-                                "abortOnExhaustion", p.timeoutBudget().abortOnExhaustion())));
+                                "abortOnExhaustion", p.timeoutBudget().abortOnExhaustion(),
+                                "applyClientTimeout", p.timeoutBudget().applyClientTimeout())));
         map.put(
                 "wideEvents",
                 entry(

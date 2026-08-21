@@ -20,7 +20,7 @@ through for the full page.
 | Feature | Default | What it gives you | Skip when |
 | --- | --- | --- | --- |
 | [Cardinality firewall](cardinality-firewall.md) | on | Hard cap per `(meter, tag)`; one bad tag can't 100× the metrics bill | You already enforce this in the OTel Collector |
-| [Timeout-budget propagation](timeout-budget.md) | on | Remaining deadline header across `RestTemplate` / `WebClient` / Kafka; abort is opt-in | You manage budgets at the gateway |
+| [Timeout-budget propagation](timeout-budget.md) | on | Remaining deadline across HTTP + Kafka; abort and client-timeout are opt-in; Kafka uses an absolute deadline header | You manage budgets at the gateway |
 | [Context propagation](context-propagation.md) | on | MDC + OTel context restored on every `TaskExecutor`, `TaskScheduler`, Kafka listener | You only run synchronous request handlers |
 | [Trace-context guard](trace-context-guard.md) | on | `pulse.trace.received` vs `pulse.trace.missing` per route + alert | Your platform already enforces ingress trace headers |
 | [Structured logs](structured-logs.md) | on | OTel-aligned JSON; deploy/commit/pod stamped; PII masked | You already ship a custom JSON layout |
@@ -31,7 +31,7 @@ through for the full page.
 | [Multi-tenant context](multi-tenant.md) | **opt-in** | Tenant id from header / JWT / subdomain → MDC + baggage + outbound headers + opt-in meter tag | You're not multi-tenant |
 | [Request priority](priority.md) | **opt-in** | `Pulse-Priority` on MDC + baggage + outbound; `RequestPriority.current()` for shedding | You don't load-shed by request class |
 | [Container-aware memory](container-memory.md) | metrics on; readiness **opt-in** | cgroup v1/v2 reader, OOM-kill counter, accurate memory metrics in containers | You run on bare metal |
-| [Kafka time-based lag](kafka-time-lag.md) | on if Kafka | `now() − record.timestamp()` as the SLO, not raw offset lag | You don't run Kafka consumers |
+| [Kafka time-based lag](kafka-time-lag.md) | on if Kafka | `now() − record.timestamp()` as the SLO; opt-in skip-stale for event freshness | You don't run Kafka consumers |
 | [Request fan-out](fan-out.md) | on | `pulse.request.fan_out` per endpoint so you spot routes that call thirty services | You only call one downstream |
 | [SLO-as-code](slo-as-code.md) | **opt-in** | Declare SLOs in YAML; `/actuator/pulse/slo` emits a multi-burn-rate `PrometheusRule` | You don't run Prometheus |
 | [Resilience4j auto-instrumentation](resilience4j.md) | on if R4j | Circuit breaker / retry / bulkhead events → metrics + span events with no annotations | You don't use Resilience4j |
@@ -70,8 +70,8 @@ hot path, and all of them decide whether observability actually works at
     ---
 
     The deadline travels with the request. `RestTemplate`, `WebClient`,
-    `OkHttp`, Kafka all forward the *remaining* budget. Fail fast instead of
-    holding doomed connections.
+    `OkHttp`, Kafka all forward the *remaining* budget. Opt-in: fail fast,
+    bound the socket. Kafka does not drop business events on HTTP expiry.
 
 -   :material-merge:{ .lg .middle } **[Context propagation](context-propagation.md)**
 

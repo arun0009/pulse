@@ -2,8 +2,9 @@
 
 > **TL;DR.** The remaining deadline travels with the request across
 > `RestTemplate`, `RestClient`, `WebClient`, `OkHttp`, Apache HttpClient 5,
-> and Kafka. Doomed downstream calls fail fast instead of holding
-> connections through the next retry storm.
+> and Kafka. Two clocks: an **RPC deadline** (the caller is waiting) and
+> **event freshness** (how old is this Kafka record). They are not the
+> same, and Pulse does not treat them as the same.
 
 The platform default timeout — 30 seconds, set once and forgotten — is what
 every downstream service uses. The original caller may have already given up
@@ -11,8 +12,27 @@ after 2 seconds. The chain doesn't know, holds connections open, and feeds
 the retry storm that takes the cluster down.
 
 **Pulse propagates the deadline, not the timeout.** Each hop sees the real
-remaining budget, fails fast when there's no time left, and never makes a
-doomed call against a dying downstream.
+remaining budget. On HTTP, you can opt in to fail fast and to bound the
+client's own socket. On Kafka, the consumer reconstructs an *absolute*
+deadline so a message that sat in the topic does not get a fresh 2s budget.
+
+## Two clocks
+
+| Clock | What it answers | Default | How Pulse implements it |
+| --- | --- | --- | --- |
+| **RPC / request deadline** | The HTTP caller is still waiting. Should this hop even fire? | Observe only (stamp remaining, still call) | `Pulse-Timeout-Ms` on HTTP. On Kafka, `Pulse-Timeout-Deadline-Ms` (absolute epoch-millis) plus remaining for legacy records. Opt-in: `abort-on-exhaustion`, `apply-client-timeout`. |
+| **Event freshness** | Is this Kafka record too old to act on? | Off | `pulse.kafka.skip-stale-records` + `skip-stale-max-age`. Independent of the HTTP budget. |
+
+A handler that returns `202 Accepted` and publishes "charge the card later"
+must **not** drop that event because the original request's 2s budget
+expired. Pulse never skips a Kafka listener just because the RPC deadline
+passed. Enable skip-stale only when *your* business rule is "ignore events
+older than N".
+
+Kafka record timestamps are **not** used to reconstruct the RPC deadline.
+They are often event-time (`order.placed_at`), not produce wall-clock.
+The producer stamps `Pulse-Timeout-Deadline-Ms` from the in-process
+`TimeoutBudget` instead.
 
 ## What you get
 
@@ -25,9 +45,7 @@ Edge       ──POST /charge   Pulse-Timeout-Ms: 1500──▶  Payment       (
 ```
 
 When something is slow and the budget runs out, Pulse increments a counter
-and still makes the call by default (it does **not** rewrite the HTTP
-client's read/connect timeout, and it does **not** cancel an in-flight
-call). A single Prometheus query lights up:
+and still makes the call by default. A single Prometheus query lights up:
 
 ```promql
 sum by (transport) (rate(pulse_timeout_budget_exhausted_total[5m]))
@@ -39,7 +57,7 @@ This is the leading indicator of a cascading failure. With the shipped
 ## Turn it on
 
 On by default with a 2 second budget per request. Outbound calls still
-execute when the budget is exhausted; see abort-on-exhaustion below.
+execute when the budget is exhausted; see the opt-in flags below.
 
 To set a different default, or to forward a different header name to match an
 existing convention:
@@ -66,14 +84,16 @@ TimeoutBudget.current().ifPresent(budget -> {
 | Where | Key | Value |
 | --- | --- | --- |
 | HTTP header (in / out) | `Pulse-Timeout-Ms` | Milliseconds remaining on the deadline |
-| OTel baggage | `pulse.timeout.deadline_ms` | Absolute epoch-millis deadline |
+| Kafka header | `Pulse-Timeout-Deadline-Ms` | Absolute epoch-millis deadline (RPC clock). Preferred on consume. |
+| Kafka header (legacy + HTTP-shaped) | `Pulse-Timeout-Ms` | Remaining ms at produce time. Consume falls back to "remaining from now" only when the deadline header is absent. |
+| OTel baggage | `pulse.timeout-budget.deadline.epoch.ms` | Absolute epoch-millis deadline |
 | MDC (logs) | `timeout_remaining_ms` | Snapshot at log time |
 | Metric | `pulse.timeout_budget.exhausted` (tag: `transport`) | Outbound calls made (or aborted) with remaining budget at or below `minimum-budget` |
 
 The metric is tagged by transport: `resttemplate`, `restclient`, `webclient`,
 `okhttp`, `apache-hc5`, `kafka`. So you can see *which* client gave up.
 
-To skip the doomed call instead of only recording it:
+### Fail fast (skip the doomed call)
 
 ```yaml
 pulse:
@@ -81,9 +101,36 @@ pulse:
     abort-on-exhaustion: true
 ```
 
+When remaining budget is at or below `minimum-budget`, outbound **HTTP**
+calls throw `TimeoutBudgetExhaustedException` instead of executing. Kafka
+produces are never aborted — dropping a produce is not an observability
+decision, and Kafka consume never skips because the HTTP deadline expired.
+
 Enable abort only after you have confirmed the default 2s budget (or your
 own) matches the service's real latency envelope. Combined with abort, a
 2s default will fail slow legitimate endpoints.
+
+### Bound the socket (the call cannot outlive the caller)
+
+Stamping a header does not stop RestTemplate from waiting 30s. To actually
+cap the in-flight call:
+
+```yaml
+pulse:
+  timeout-budget:
+    apply-client-timeout: true
+```
+
+| Client | What Pulse can do |
+| --- | --- |
+| OkHttp | Per-call connect / read / write timeout = remaining |
+| WebClient | Reactor `.timeout(remaining)` on the exchange |
+| Apache HttpClient 5 | Per-request `responseTimeout` = remaining |
+| RestTemplate / RestClient | **Not supported** — no per-request timeout API. Use `abort-on-exhaustion`, or switch the factory to OkHttp / Apache. |
+
+Do not turn this on in production while `default-budget` is the shipped 2s
+unless 2s is your real p99 envelope. A healthy 800ms hop with 1.5s remaining
+is fine; a 4s legitimate endpoint is not.
 
 ## When to skip it
 
@@ -130,19 +177,22 @@ Three pieces work together:
    `finally`.
 2. An interceptor on the way out — wired into every supported HTTP and Kafka
    client — computes `remaining − safety-margin` and writes the outbound
-   header.
+   header. Kafka also writes `Pulse-Timeout-Deadline-Ms` (absolute).
 3. If the remaining budget is at or below `minimum-budget` *before* the
    call fires, Pulse increments `pulse.timeout_budget.exhausted` and
    stamps the remaining value (including `0`). The call still executes.
    Set `pulse.timeout-budget.abort-on-exhaustion=true` to throw
    `TimeoutBudgetExhaustedException` instead — HTTP only; Kafka produces
-   are never aborted. Pulse still does not set RestTemplate/WebClient
-   read timeouts and cannot cancel a call that has already left the
-   socket.
+   are never aborted. Set `apply-client-timeout=true` so OkHttp / WebClient /
+   Apache HttpClient 5 cannot wait longer than remaining. RestTemplate and
+   RestClient still cannot set a per-request socket timeout.
 
 The header name follows RFC 6648 (no `X-` prefix). `inbound-header` and
 `outbound-header` can be configured separately if you need to bridge between
 two conventions.
+
+Kafka event freshness (skip stale records) is documented with
+[Kafka time-based lag](kafka-time-lag.md).
 
 ---
 

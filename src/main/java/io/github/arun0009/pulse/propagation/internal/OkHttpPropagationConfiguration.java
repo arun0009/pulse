@@ -22,7 +22,10 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 
 /**
  * If the application puts an {@link OkHttpClient.Builder} in the Spring context, Pulse instruments
@@ -119,7 +122,16 @@ public class OkHttpPropagationConfiguration {
                         .remainingForOutbound("okhttp")
                         .ifPresent(remaining -> builder.header(budgetHeader, Long.toString(remaining.toMillis())));
             }
-            return chain.proceed(builder.build());
+            Request outgoing = builder.build();
+            Optional<Duration> clientTimeout = budgetHelper.remainingForClientTimeout();
+            if (clientTimeout.isPresent()) {
+                int ms = (int) Math.min(Integer.MAX_VALUE, clientTimeout.get().toMillis());
+                return chain.withConnectTimeout(ms, TimeUnit.MILLISECONDS)
+                        .withReadTimeout(ms, TimeUnit.MILLISECONDS)
+                        .withWriteTimeout(ms, TimeUnit.MILLISECONDS)
+                        .proceed(outgoing);
+            }
+            return chain.proceed(outgoing);
         }
     }
 }

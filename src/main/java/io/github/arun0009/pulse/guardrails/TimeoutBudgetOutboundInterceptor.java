@@ -17,8 +17,9 @@ import java.io.IOException;
  * <p>When {@link TimeoutBudgetProperties#abortOnExhaustion()} is {@code true} and the remaining
  * budget is at or below {@code minimum-budget}, the interceptor throws
  * {@link TimeoutBudgetExhaustedException} and does not execute the call. The default is to stamp
- * the remaining budget (including {@code 0}) and still make the call — Pulse does not rewrite
- * the client's read/connect timeouts.
+ * the remaining budget (including {@code 0}) and still make the call. RestTemplate / RestClient
+ * have no per-request timeout API, so {@code apply-client-timeout} does not apply here — use
+ * abort-on-exhaustion, or OkHttp / WebClient / Apache HttpClient 5.
  *
  * <p>When the remaining budget is zero (the upstream caller's deadline has already passed) the
  * {@code pulse.timeout_budget.exhausted} counter is incremented, tagged with the {@code transport}

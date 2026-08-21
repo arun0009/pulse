@@ -6,13 +6,17 @@ import io.github.arun0009.pulse.guardrails.TimeoutBudget;
 import io.github.arun0009.pulse.guardrails.TimeoutBudgetProperties;
 import io.github.arun0009.pulse.priority.PriorityProperties;
 import io.github.arun0009.pulse.resilience.RetryProperties;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.common.header.internals.RecordHeaders;
+import org.apache.kafka.common.record.TimestampType;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.slf4j.MDC;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -103,8 +107,113 @@ class PulseKafkaRecordInterceptorTest {
         }
     }
 
+    @Test
+    void absolute_deadline_header_is_preferred_over_remaining_ms() {
+        // Remaining-ms of 30s would look healthy if restarted at consume time; the absolute
+        // deadline is already in the past because the message sat in the topic.
+        Instant deadline = Instant.now().minusSeconds(5);
+        ConsumerRecord<Object, Object> record = consumerRecord();
+        record.headers().add("Pulse-Timeout-Ms", "30000".getBytes(StandardCharsets.UTF_8));
+        record.headers()
+                .add(
+                        TimeoutBudget.KAFKA_DEADLINE_HEADER,
+                        Long.toString(deadline.toEpochMilli()).getBytes(StandardCharsets.UTF_8));
+
+        interceptor.intercept(record, /* consumer */ null);
+        try {
+            Optional<TimeoutBudget> budget = TimeoutBudget.current();
+            assertThat(budget).isPresent();
+            assertThat(budget.get().remaining()).isEqualTo(Duration.ZERO);
+            assertThat(budget.get().expired()).isTrue();
+        } finally {
+            interceptor.afterRecord(record, /* consumer */ null);
+        }
+    }
+
+    @Test
+    void stale_record_is_not_skipped_by_default() {
+        ConsumerRecord<Object, Object> record = recordWithTimestamp(
+                System.currentTimeMillis() - Duration.ofHours(1).toMillis());
+
+        assertThat(interceptor.intercept(record, /* consumer */ null)).isSameAs(record);
+        interceptor.afterRecord(record, /* consumer */ null);
+    }
+
+    @Test
+    void skip_stale_records_drops_old_events_without_opening_http_deadline() {
+        SimpleMeterRegistry registry = new SimpleMeterRegistry();
+        PulseKafkaRecordInterceptor skipping = new PulseKafkaRecordInterceptor(
+                defaultContext(),
+                defaultRetry(),
+                defaultPriority(),
+                defaultTimeoutBudget(),
+                null,
+                new KafkaPropagationProperties(true, true, true, Duration.ofMinutes(5)),
+                registry);
+        ConsumerRecord<Object, Object> record = recordWithTimestamp(
+                System.currentTimeMillis() - Duration.ofHours(1).toMillis());
+        record.headers().add("Pulse-Timeout-Ms", "30000".getBytes(StandardCharsets.UTF_8));
+
+        assertThat(skipping.intercept(record, /* consumer */ null)).isNull();
+        assertThat(TimeoutBudget.current()).isEmpty();
+        assertThat(registry.find(PulseKafkaRecordInterceptor.STALE_SKIPPED_COUNTER)
+                        .tag("topic", "orders")
+                        .counter())
+                .isNotNull()
+                .extracting(c -> c.count())
+                .isEqualTo(1.0);
+        skipping.afterRecord(record, /* consumer */ null);
+    }
+
+    @Test
+    void skip_stale_records_keeps_fresh_events() {
+        PulseKafkaRecordInterceptor skipping = new PulseKafkaRecordInterceptor(
+                defaultContext(),
+                defaultRetry(),
+                defaultPriority(),
+                defaultTimeoutBudget(),
+                null,
+                new KafkaPropagationProperties(true, true, true, Duration.ofMinutes(5)),
+                null);
+        ConsumerRecord<Object, Object> record = recordWithTimestamp(System.currentTimeMillis() - 1_000L);
+
+        assertThat(skipping.intercept(record, /* consumer */ null)).isSameAs(record);
+        skipping.afterRecord(record, /* consumer */ null);
+    }
+
+    @Test
+    void skip_stale_records_ignores_missing_timestamp() {
+        PulseKafkaRecordInterceptor skipping = new PulseKafkaRecordInterceptor(
+                defaultContext(),
+                defaultRetry(),
+                defaultPriority(),
+                defaultTimeoutBudget(),
+                null,
+                new KafkaPropagationProperties(true, true, true, Duration.ofMinutes(5)),
+                null);
+        ConsumerRecord<Object, Object> record = consumerRecord(); // timestamp == -1
+
+        assertThat(skipping.intercept(record, /* consumer */ null)).isSameAs(record);
+        skipping.afterRecord(record, /* consumer */ null);
+    }
+
     private static ConsumerRecord<Object, Object> consumerRecord() {
         return new ConsumerRecord<>("orders", 0, 0L, "key", "value");
+    }
+
+    private static ConsumerRecord<Object, Object> recordWithTimestamp(long timestamp) {
+        return new ConsumerRecord<>(
+                "orders",
+                0,
+                0L,
+                timestamp,
+                TimestampType.CREATE_TIME,
+                0,
+                0,
+                "key",
+                "value",
+                new RecordHeaders(),
+                Optional.empty());
     }
 
     static ContextProperties defaultContext() {
@@ -129,6 +238,7 @@ class PulseKafkaRecordInterceptorTest {
                 Duration.ofSeconds(30),
                 Duration.ofMillis(50),
                 Duration.ofMillis(100),
+                false,
                 false,
                 io.github.arun0009.pulse.autoconfigure.PulseRequestMatcherProperties.empty());
     }

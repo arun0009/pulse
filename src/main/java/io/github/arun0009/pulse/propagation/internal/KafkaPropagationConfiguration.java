@@ -103,7 +103,7 @@ public class KafkaPropagationConfiguration {
             KafkaConsumerTimeLagMetrics lag = (registry != null && kafka.consumerTimeLagEnabled())
                     ? new KafkaConsumerTimeLagMetrics(registry)
                     : null;
-            return new PulseKafkaRecordInterceptor(context, retry, priority, timeoutBudget, lag);
+            return new PulseKafkaRecordInterceptor(context, retry, priority, timeoutBudget, lag, kafka, registry);
         }
 
         /**

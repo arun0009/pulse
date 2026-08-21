@@ -41,6 +41,9 @@ version bump:
 - **HTTP headers** Pulse reads / stamps: `traceparent`, `tracestate`,
   `baggage`, `Pulse-Request-Id`, `Pulse-Timeout-Ms`, `Pulse-Tenant-Id`,
   `Pulse-Priority`, `Pulse-Retry-Depth`.
+- **Kafka headers** Pulse stamps: the same identity / retry / priority
+  headers plus `Pulse-Timeout-Ms` (remaining) and
+  `Pulse-Timeout-Deadline-Ms` (absolute epoch-millis RPC deadline).
 
 ## What's explicitly unstable
 

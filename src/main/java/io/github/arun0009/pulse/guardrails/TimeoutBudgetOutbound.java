@@ -23,10 +23,11 @@ import java.util.Optional;
  *
  * <p>Aborting the outbound call is <strong>opt-in</strong> via
  * {@link TimeoutBudgetProperties#abortOnExhaustion()}. The default is to stamp a remaining-budget
- * header (including {@code 0}) and still make the call: Pulse does not rewrite client read/connect
- * timeouts, and aborting a brownfield service on the 2s default budget would be a landing-page
- * rejection. Kafka always stamps and never aborts — dropping a produce is not an observability
- * decision.
+ * header (including {@code 0}) and still make the call. Aborting a brownfield service on the 2s
+ * default budget would be a landing-page rejection. Bounding the client's own timeout is a
+ * separate opt-in ({@link TimeoutBudgetProperties#applyClientTimeout()}) because a 2s default
+ * applied as a socket timeout is equally aggressive. Kafka always stamps and never aborts —
+ * dropping a produce is not an observability decision.
  */
 public final class TimeoutBudgetOutbound {
 
@@ -61,6 +62,26 @@ public final class TimeoutBudgetOutbound {
      */
     public Optional<Duration> remainingForOutbound(String transport) {
         return evaluate(transport, true);
+    }
+
+    /**
+     * Whether outbound HTTP clients should cap their own timeout at the remaining budget.
+     * RestTemplate / RestClient ignore this — they have no per-request timeout API.
+     */
+    public boolean applyClientTimeout() {
+        return config != null && config.applyClientTimeout();
+    }
+
+    /**
+     * Remaining budget to apply as a client-side timeout. Empty when the flag is off, there is
+     * no current budget, or remaining time is below 1 ms (a 0 ms OkHttp/HC5 timeout means
+     * "infinite", which is the opposite of what we want).
+     */
+    public Optional<Duration> remainingForClientTimeout() {
+        if (!applyClientTimeout()) {
+            return Optional.empty();
+        }
+        return TimeoutBudget.current().map(TimeoutBudget::remaining).filter(d -> d.toMillis() > 0);
     }
 
     private Optional<Duration> evaluate(String transport, boolean honorAbort) {

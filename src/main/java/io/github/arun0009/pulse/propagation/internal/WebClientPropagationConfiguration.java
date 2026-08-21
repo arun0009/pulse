@@ -21,7 +21,9 @@ import org.springframework.web.reactive.function.client.ClientRequest;
 import org.springframework.web.reactive.function.client.ExchangeFilterFunction;
 import org.springframework.web.reactive.function.client.WebClient;
 
+import java.time.Duration;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Adds an exchange filter to every {@link WebClient.Builder} bean that copies Pulse MDC keys onto
@@ -82,7 +84,9 @@ public class WebClientPropagationConfiguration {
                             .remainingForOutbound("webclient")
                             .ifPresent(remaining -> builder.header(budgetHeader, Long.toString(remaining.toMillis())));
                 }
-                return next.exchange(builder.build());
+                var exchange = next.exchange(builder.build());
+                Optional<Duration> clientTimeout = budgetHelper.remainingForClientTimeout();
+                return clientTimeout.map(exchange::timeout).orElse(exchange);
             };
         }
     }

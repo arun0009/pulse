@@ -212,7 +212,25 @@
       "name": "pulse.timeout-budget.abort-on-exhaustion",
       "type": "java.lang.Boolean",
       "defaultValue": false,
-      "description": "When true, outbound HTTP calls (RestTemplate, RestClient, WebClient, OkHttp, Apache HttpClient 5) throw TimeoutBudgetExhaustedException instead of executing once remaining budget is at or below minimum-budget. Kafka produces are never aborted. Default false: Pulse stamps the remaining budget and still makes the call. It does not rewrite client read/connect timeouts."
+      "description": "When true, outbound HTTP calls (RestTemplate, RestClient, WebClient, OkHttp, Apache HttpClient 5) throw TimeoutBudgetExhaustedException instead of executing once remaining budget is at or below minimum-budget. Kafka produces are never aborted. Default false: Pulse stamps the remaining budget and still makes the call. Pair with apply-client-timeout to also bound OkHttp/WebClient/Apache sockets to remaining time; RestTemplate/RestClient have no per-request timeout API."
+    },
+    {
+      "name": "pulse.timeout-budget.apply-client-timeout",
+      "type": "java.lang.Boolean",
+      "defaultValue": false,
+      "description": "When true, OkHttp connect/read/write timeouts, WebClient reactor timeout, and Apache HttpClient 5 response timeout are set to the remaining budget on each outbound call. RestTemplate and RestClient cannot do this per request. Do not enable with the 2s default budget unless that is your real latency envelope."
+    },
+    {
+      "name": "pulse.kafka.skip-stale-records",
+      "type": "java.lang.Boolean",
+      "defaultValue": false,
+      "description": "When true, Kafka consumers skip records whose Kafka timestamp is older than skip-stale-max-age (RecordInterceptor returns null). This is the event-freshness clock, independent of the HTTP timeout budget — a 202 Accepted publisher must still process 'charge later' after the original request's budget expired. Default false."
+    },
+    {
+      "name": "pulse.kafka.skip-stale-max-age",
+      "type": "java.time.Duration",
+      "defaultValue": "5m",
+      "description": "Maximum age of a Kafka record (now minus record.timestamp) before skip-stale-records drops it. Records with no timestamp are never skipped. Independent of Pulse-Timeout-Ms / Pulse-Timeout-Deadline-Ms."
     },
     {
       "name": "pulse.histograms.slo-buckets",

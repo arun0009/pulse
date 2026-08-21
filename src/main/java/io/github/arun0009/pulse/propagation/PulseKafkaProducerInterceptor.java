@@ -1,5 +1,6 @@
 package io.github.arun0009.pulse.propagation;
 
+import io.github.arun0009.pulse.guardrails.TimeoutBudget;
 import io.github.arun0009.pulse.guardrails.TimeoutBudgetOutbound;
 import org.apache.kafka.clients.producer.ProducerInterceptor;
 import org.apache.kafka.clients.producer.ProducerRecord;
@@ -48,15 +49,20 @@ public class PulseKafkaProducerInterceptor implements ProducerInterceptor<Object
             }
 
             String budgetHeader = KafkaPropagationContext.timeoutBudgetHeader();
-            if (headers.lastHeader(budgetHeader) == null) {
-                TimeoutBudgetOutbound budgetHelper = KafkaPropagationContext.budgetHelper();
-                if (budgetHelper != null) {
-                    budgetHelper
-                            .resolveRemaining("kafka")
-                            .ifPresent(remaining -> headers.add(
-                                    budgetHeader,
-                                    Long.toString(remaining.toMillis()).getBytes(StandardCharsets.UTF_8)));
-                }
+            TimeoutBudgetOutbound budgetHelper = KafkaPropagationContext.budgetHelper();
+            if (budgetHelper != null && headers.lastHeader(budgetHeader) == null) {
+                budgetHelper
+                        .resolveRemaining("kafka")
+                        .ifPresent(remaining -> headers.add(
+                                budgetHeader,
+                                Long.toString(remaining.toMillis()).getBytes(StandardCharsets.UTF_8)));
+            }
+            // Absolute deadline so the consumer does not restart remaining-ms at consume time.
+            if (headers.lastHeader(TimeoutBudget.KAFKA_DEADLINE_HEADER) == null) {
+                TimeoutBudget.current()
+                        .ifPresent(budget -> headers.add(
+                                TimeoutBudget.KAFKA_DEADLINE_HEADER,
+                                budget.toBaggageValue().getBytes(StandardCharsets.UTF_8)));
             }
         } catch (RuntimeException e) {
             // Never fail a send because of observability.

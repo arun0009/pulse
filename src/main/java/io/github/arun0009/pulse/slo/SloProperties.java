@@ -33,7 +33,7 @@ import java.util.List;
 @Validated
 @ConfigurationProperties(prefix = "pulse.slo")
 public record SloProperties(
-        @DefaultValue("true") boolean enabled,
+        @DefaultValue("false") boolean enabled,
         @DefaultValue({}) List<@Valid Objective> objectives) {
 
     public record Objective(

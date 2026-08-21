@@ -22,7 +22,7 @@ import java.util.List;
 @Validated
 @ConfigurationProperties(prefix = "pulse.tenant")
 public record TenantProperties(
-        @DefaultValue("true") boolean enabled,
+        @DefaultValue("false") boolean enabled,
         @DefaultValue @Valid Header header,
         @DefaultValue @Valid Jwt jwt,
         @DefaultValue @Valid Subdomain subdomain,

@@ -9,7 +9,7 @@ checkout > recommendations, paid-tier > free, foreground > background.
 Without a priority signal you load-shed indiscriminately and drop the
 requests that pay the bills.
 
-**Pulse propagates a `Pulse-Priority` header end-to-end** so your load
+**Pulse propagates a `Pulse-Priority` header end-to-end** (when enabled) so your load
 shedders can drop the right requests, and your alerts can ignore noisy
 low-priority error bursts.
 
@@ -35,8 +35,17 @@ of `INFO`, so the on-call sees them faster.
 
 ## Turn it on
 
-On by default with the five-tier vocabulary (`critical`, `high`, `normal`,
-`low`, `background`). Callers just send `Pulse-Priority: critical` (or
+Opt-in. Priority is a header with no load-shedder attached, so it stays
+off until you have shedding logic that reads `RequestPriority.current()`:
+
+```yaml
+pulse:
+  priority:
+    enabled: true
+```
+
+The vocabulary is the five-tier set (`critical`, `high`, `normal`,
+`low`, `background`). Callers send `Pulse-Priority: critical` (or
 whichever tier). The vocabulary is fixed by design — bounded cardinality is
 the whole point — so Pulse won't accept arbitrary tier names.
 

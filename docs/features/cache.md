@@ -26,11 +26,15 @@ deleted; one near 1 is a cache pulling its weight.
 
 ## Turn it on
 
-Nothing. Automatic when Caffeine is on the classpath.
+Opt-in. Spring Boot and Micrometer already bind Caffeine when you call
+`recordStats()`; Pulse's bind is a reminder for apps that forgot:
 
-If a manager bean was created without `recordStats()`, the bind happens
-anyway (meters report zero) and a one-time `WARN` per manager is logged so
-you know to add it.
+```yaml
+pulse:
+  cache:
+    caffeine:
+      enabled: true
+```
 
 ## What it adds
 

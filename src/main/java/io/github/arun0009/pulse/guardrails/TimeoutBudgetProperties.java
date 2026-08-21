@@ -15,7 +15,10 @@ import java.time.Duration;
  * OTel baggage, and exposes it via {@code TimeoutBudget#current}. Downstream calls subtract
  * elapsed time so a 2s inbound budget with 800ms spent in business logic gives the next
  * downstream call exactly 1.2s — not the platform default. Inbound headers are clamped to
- * {@link #maximumBudget()} for edge safety.
+ * {@link #maximumBudget()} for edge safety. Outbound HTTP calls still execute by default when
+ * the remaining budget is exhausted; set {@link #abortOnExhaustion()} to skip them. Set
+ * {@link #applyClientTimeout()} to bound OkHttp / WebClient / Apache HttpClient 5 to the
+ * remaining budget; RestTemplate and RestClient cannot do this per request.
  */
 @Validated
 @ConfigurationProperties(prefix = "pulse.timeout-budget")
@@ -27,4 +30,6 @@ public record TimeoutBudgetProperties(
         @DefaultValue("30s") Duration maximumBudget,
         @DefaultValue("50ms") Duration safetyMargin,
         @DefaultValue("100ms") Duration minimumBudget,
+        @DefaultValue("false") boolean abortOnExhaustion,
+        @DefaultValue("false") boolean applyClientTimeout,
         @DefaultValue @Valid PulseRequestMatcherProperties enabledWhen) {}

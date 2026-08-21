@@ -14,19 +14,32 @@ import java.util.Optional;
  * {@code pulse.timeout-budget.inbound-header} resolves to), anchors a deadline to the request
  * start, and stores the deadline (as epoch-millis) on the OTel {@link Baggage} so it propagates
  * across every async hop and downstream call the OTel SDK touches. Application code reads the
- * remaining budget via {@link #current()} and downstream HTTP/gRPC interceptors translate that
- * remaining budget into per-call timeouts.
+ * remaining budget via {@link #current()} and downstream HTTP interceptors stamp that remaining
+ * budget on the outbound header. Set {@code pulse.timeout-budget.abort-on-exhaustion=true} to
+ * skip the outbound call when the remaining budget is below {@code minimum-budget}. Set
+ * {@code pulse.timeout-budget.apply-client-timeout=true} to bound OkHttp / WebClient / Apache
+ * HttpClient 5 to the remaining budget. RestTemplate and RestClient have no per-request timeout
+ * API — use abort-on-exhaustion there.
  *
  * <p>Why this matters: without budget propagation, one slow downstream eats the caller's entire
  * remaining time. Each successive hop falls back to its platform default (often 30s on the first
  * try, then retries). A 2-second inbound SLA blows up into a 30-second cascading hang. With Pulse,
- * every hop receives the <em>actual</em> remaining time and fails fast when there is not enough
- * left to be useful.
+ * every hop receives the <em>actual</em> remaining time. Enable abort-on-exhaustion to fail fast
+ * instead of issuing a doomed call, and apply-client-timeout so a live call cannot outlive the
+ * caller.
  */
 public final class TimeoutBudget {
 
     /** Baggage key used to carry the absolute deadline (epoch-millis, decimal string). */
     public static final String BAGGAGE_KEY = "pulse.timeout-budget.deadline.epoch.ms";
+
+    /**
+     * Kafka header carrying the same absolute deadline as {@link #BAGGAGE_KEY}. Distinct from
+     * {@code Pulse-Timeout-Ms} (remaining duration) because a remaining-ms value restarting at
+     * consume time would give a listener a fresh budget after the message sat in the topic.
+     * Kafka record timestamps are not used: they are often event-time, not produce wall-clock.
+     */
+    public static final String KAFKA_DEADLINE_HEADER = "Pulse-Timeout-Deadline-Ms";
 
     private final Instant deadline;
 

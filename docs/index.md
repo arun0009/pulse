@@ -91,8 +91,8 @@ map, retry-amplification detection, multi-tenant context, container-aware
 memory, Kafka time-based lag, SLO-as-code, N+1 query detection,
 Resilience4j observability, and more.
 
-Each is on by default and opt-out with `pulse.<feature>.enabled=false`.
-You pay for what you turn on.
+Each extra is opt-in (or classpath-gated) via `pulse.<feature>.enabled`.
+The day-one core is on by default.
 
 [See the full feature catalogue →](features/index.md){ .md-button }
 

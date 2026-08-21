@@ -23,7 +23,7 @@ import org.springframework.context.annotation.Configuration;
  * operator opts in to {@code pulse.priority.tag-meters}.
  */
 @AutoConfiguration(after = PulseAutoConfiguration.class)
-@ConditionalOnProperty(prefix = "pulse.priority", name = "enabled", havingValue = "true", matchIfMissing = true)
+@ConditionalOnProperty(prefix = "pulse.priority", name = "enabled", havingValue = "true")
 public class PulsePriorityConfiguration {
 
     @Configuration(proxyBeanMethods = false)

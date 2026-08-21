@@ -34,7 +34,8 @@ import java.util.Set;
  * </ul>
  *
  * If the matching preset is already in the active profiles (the user opted in explicitly), or
- * if {@code pulse.profile-presets.auto-apply=false}, this processor does nothing.
+ * if {@code pulse.profile-presets.auto-apply} is unset or {@code false} (the default), this
+ * processor does nothing.
  *
  * <h2>How it integrates with Spring's config-data machinery</h2>
  *
@@ -83,7 +84,7 @@ public final class PulseProfilePresetEnvironmentPostProcessor implements Environ
 
     @Override
     public void postProcessEnvironment(ConfigurableEnvironment environment, SpringApplication application) {
-        if (!environment.getProperty(AUTO_APPLY_PROPERTY, Boolean.class, true)) {
+        if (!environment.getProperty(AUTO_APPLY_PROPERTY, Boolean.class, false)) {
             return;
         }
 

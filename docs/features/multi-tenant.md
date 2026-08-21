@@ -35,7 +35,16 @@ answers tenant-scoped questions:
 
 ## Turn it on
 
-Pick which sources Pulse should look at, in priority order:
+Opt-in. A generic Spring app is not multi-tenant, and a client-supplied
+`Pulse-Tenant-Id` header is not something Pulse should trust by default.
+
+```yaml
+pulse:
+  tenant:
+    enabled: true
+```
+
+Then pick which sources Pulse should look at, in priority order:
 
 ```yaml
 pulse:

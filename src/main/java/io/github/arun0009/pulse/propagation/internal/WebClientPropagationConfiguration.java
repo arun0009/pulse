@@ -21,7 +21,9 @@ import org.springframework.web.reactive.function.client.ClientRequest;
 import org.springframework.web.reactive.function.client.ExchangeFilterFunction;
 import org.springframework.web.reactive.function.client.WebClient;
 
+import java.time.Duration;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Adds an exchange filter to every {@link WebClient.Builder} bean that copies Pulse MDC keys onto
@@ -57,7 +59,7 @@ public class WebClientPropagationConfiguration {
             Map<String, String> headerMap = HeaderPropagation.headerToMdcKey(context, retry, priority);
             String budgetHeader = timeoutBudget.outboundHeader();
             boolean budgetEnabled = timeoutBudget.enabled();
-            TimeoutBudgetOutbound budgetHelper = new TimeoutBudgetOutbound(registry.getIfAvailable());
+            TimeoutBudgetOutbound budgetHelper = new TimeoutBudgetOutbound(registry.getIfAvailable(), timeoutBudget);
             return builder -> builder.filter(filter(headerMap, budgetHeader, budgetEnabled, budgetHelper));
         }
 
@@ -79,10 +81,12 @@ public class WebClientPropagationConfiguration {
                 }
                 if (budgetEnabled && request.headers().getFirst(budgetHeader) == null) {
                     budgetHelper
-                            .resolveRemaining("webclient")
+                            .remainingForOutbound("webclient")
                             .ifPresent(remaining -> builder.header(budgetHeader, Long.toString(remaining.toMillis())));
                 }
-                return next.exchange(builder.build());
+                var exchange = next.exchange(builder.build());
+                Optional<Duration> clientTimeout = budgetHelper.remainingForClientTimeout();
+                return clientTimeout.map(exchange::timeout).orElse(exchange);
             };
         }
     }

@@ -4,9 +4,8 @@
 #
 #     spring.profiles.active: prod,pulse-prod
 #
-# Or — when pulse.profile-presets.auto-apply is true (the default) — Pulse
-# detects "prod" in the active profiles and adds "pulse-prod" automatically,
-# so just SPRING_PROFILES_ACTIVE=prod is enough.
+# Auto-detect of "prod" (adding pulse-prod for you) is opt-in:
+# pulse.profile-presets.auto-apply=true. The default is not to auto-apply.
 #
 # Optimised for: low overhead, strict guardrails, paranoid defaults.
 # Trades: 10% trace sampling (set to 1.0 for short bursts during incident response).

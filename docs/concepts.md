@@ -62,12 +62,18 @@ hand.
 
 ## Defaults that survive a 3 AM on-call
 
-Every feature ships **on** with conservative production defaults:
+Every **core** feature ships **on** with conservative production defaults:
 
 - Cardinality firewall: 1000 distinct values per `(meter, tag)` before the
   rest get bucketed.
 - Timeout-budget: 2-second default, 30-second upper limit, 50 ms safety
-  margin before outbound calls.
+  margin before outbound calls. Calls still execute when the budget is
+  exhausted unless `pulse.timeout-budget.abort-on-exhaustion=true`.
+  Socket bounding is a separate opt-in:
+  `pulse.timeout-budget.apply-client-timeout=true` (OkHttp / WebClient /
+  Apache HttpClient 5; not RestTemplate). Kafka consume reconstructs an
+  absolute deadline and never skips the listener because the HTTP budget
+  expired.
 - PII masking: emails, SSNs, credit cards, Bearer tokens, and JSON
   `password / secret / token / apikey` fields, redacted by default.
 - Sampling: 100% in dev, configurable for prod via Spring Boot's standard
@@ -76,6 +82,11 @@ Every feature ships **on** with conservative production defaults:
   are recorded regardless of the head rate.
 - Trace-context guard, structured logs, exception fingerprints, async
   context propagation: all on.
+
+Architecture-specific extras (tenant, priority, profiling, SLO generation,
+OpenFeature, Caffeine bind, profile-preset auto-apply, container-memory
+readiness) are **off** until you enable them. Classpath-gated integrations
+(Kafka, Hibernate, Resilience4j) still activate when that library is present.
 
 Every feature can be turned **off** with `pulse.<feature>.enabled=false`.
 You pay for what you turn on.

@@ -76,7 +76,7 @@ defaults, and gotchas. The high-traffic ones:
 | Multi-tenant context | `pulse.tenant` | [features/multi-tenant.md](features/multi-tenant.md) |
 | Request priority | `pulse.priority` | [features/priority.md](features/priority.md) |
 | Container memory | `pulse.container-memory` | [features/container-memory.md](features/container-memory.md) |
-| Kafka time-lag | `pulse.kafka` (`propagation-enabled`, `consumer-time-lag-enabled`) | [features/kafka-time-lag.md](features/kafka-time-lag.md) |
+| Kafka time-lag | `pulse.kafka` (`propagation-enabled`, `consumer-time-lag-enabled`, `skip-stale-records`) | [features/kafka-time-lag.md](features/kafka-time-lag.md) |
 | Cache (Caffeine) | `pulse.cache.caffeine` | [features/cache.md](features/cache.md) |
 | OpenFeature | `pulse.open-feature` | [features/openfeature.md](features/openfeature.md) |
 | Shutdown / drain | `pulse.shutdown` | [features/graceful-shutdown.md](features/graceful-shutdown.md) |

@@ -8,12 +8,15 @@ import io.github.arun0009.pulse.priority.PriorityProperties;
 import io.github.arun0009.pulse.propagation.HeaderPropagation;
 import io.github.arun0009.pulse.resilience.RetryProperties;
 import io.micrometer.core.instrument.MeterRegistry;
+import org.apache.hc.client5.http.config.RequestConfig;
 import org.apache.hc.client5.http.impl.classic.HttpClientBuilder;
+import org.apache.hc.client5.http.protocol.HttpClientContext;
 import org.apache.hc.core5.http.EntityDetails;
 import org.apache.hc.core5.http.HttpException;
 import org.apache.hc.core5.http.HttpRequest;
 import org.apache.hc.core5.http.HttpRequestInterceptor;
 import org.apache.hc.core5.http.protocol.HttpContext;
+import org.apache.hc.core5.util.Timeout;
 import org.slf4j.MDC;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.config.BeanPostProcessor;
@@ -67,7 +70,7 @@ public class ApacheHttpClient5PropagationConfiguration {
                     headerMap,
                     timeoutBudget.outboundHeader(),
                     timeoutBudget.enabled(),
-                    new TimeoutBudgetOutbound(registry.getIfAvailable()));
+                    new TimeoutBudgetOutbound(registry.getIfAvailable(), timeoutBudget));
             return new BeanPostProcessor() {
                 @Override
                 public Object postProcessBeforeInitialization(Object bean, String beanName) {
@@ -102,7 +105,7 @@ public class ApacheHttpClient5PropagationConfiguration {
                     HeaderPropagation.headerToMdcKey(context, retry, priority),
                     timeoutBudget.outboundHeader(),
                     timeoutBudget.enabled(),
-                    new TimeoutBudgetOutbound(registry.getIfAvailable()));
+                    new TimeoutBudgetOutbound(registry.getIfAvailable(), timeoutBudget));
         }
     }
 
@@ -146,9 +149,18 @@ public class ApacheHttpClient5PropagationConfiguration {
             }
             if (budgetEnabled && !request.containsHeader(budgetHeader)) {
                 budgetHelper
-                        .resolveRemaining("apache-hc5")
+                        .remainingForOutbound("apache-hc5")
                         .ifPresent(remaining -> request.setHeader(budgetHeader, Long.toString(remaining.toMillis())));
             }
+            budgetHelper.remainingForClientTimeout().ifPresent(remaining -> applyResponseTimeout(context, remaining));
+        }
+
+        private static void applyResponseTimeout(HttpContext context, java.time.Duration remaining) {
+            HttpClientContext clientContext = HttpClientContext.cast(context);
+            RequestConfig current = clientContext.getRequestConfig();
+            RequestConfig.Builder cfg = current != null ? RequestConfig.copy(current) : RequestConfig.custom();
+            cfg.setResponseTimeout(Timeout.ofMilliseconds(remaining.toMillis()));
+            clientContext.setRequestConfig(cfg.build());
         }
     }
 }

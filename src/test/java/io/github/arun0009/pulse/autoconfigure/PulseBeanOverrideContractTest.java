@@ -90,6 +90,7 @@ class PulseBeanOverrideContractTest {
 
         private final WebApplicationContextRunner runner = new WebApplicationContextRunner()
                 .withBean(MeterRegistry.class, SimpleMeterRegistry::new)
+                .withPropertyValues("pulse.tenant.enabled=true")
                 .withConfiguration(PULSE_BASE)
                 .withConfiguration(AutoConfigurations.of(PulseTenantConfiguration.class));
 

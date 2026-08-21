@@ -23,7 +23,8 @@ version bump:
   `PulseEventContext`, `DependencyClassifier`, `ErrorFingerprintStrategy`,
   `TenantExtractor`, `ContextContributor`, `PulseRequestMatcher`,
   `HostNameProvider`, `ResourceAttributeResolver`,
-  `PulseEnforcementMode`, `PulseFeature`, `PulseFeatureSupport`).
+  `PulseEnforcementMode`, `PulseFeature`, `PulseFeatureSupport`,
+  `TimeoutBudgetExhaustedException`).
 - **Metric names** and their tag keys: `pulse.*` meters and their
   low-cardinality tags are pinned. Tag **values** may expand (e.g. a new
   `reason` bucket) within a minor release.
@@ -40,6 +41,9 @@ version bump:
 - **HTTP headers** Pulse reads / stamps: `traceparent`, `tracestate`,
   `baggage`, `Pulse-Request-Id`, `Pulse-Timeout-Ms`, `Pulse-Tenant-Id`,
   `Pulse-Priority`, `Pulse-Retry-Depth`.
+- **Kafka headers** Pulse stamps: the same identity / retry / priority
+  headers plus `Pulse-Timeout-Ms` (remaining) and
+  `Pulse-Timeout-Deadline-Ms` (absolute epoch-millis RPC deadline).
 
 ## What's explicitly unstable
 

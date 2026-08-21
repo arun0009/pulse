@@ -37,7 +37,7 @@ import org.springframework.context.annotation.Bean;
  */
 @AutoConfiguration(after = PulseAutoConfiguration.class)
 @ConditionalOnClass(OpenFeatureAPI.class)
-@ConditionalOnProperty(prefix = "pulse.open-feature", name = "enabled", havingValue = "true", matchIfMissing = true)
+@ConditionalOnProperty(prefix = "pulse.open-feature", name = "enabled", havingValue = "true")
 public class PulseOpenFeatureConfiguration {
 
     @Bean

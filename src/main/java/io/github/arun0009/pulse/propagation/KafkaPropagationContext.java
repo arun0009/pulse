@@ -1,6 +1,7 @@
 package io.github.arun0009.pulse.propagation;
 
 import io.github.arun0009.pulse.guardrails.TimeoutBudgetOutbound;
+import io.github.arun0009.pulse.guardrails.TimeoutBudgetProperties;
 import io.micrometer.core.instrument.MeterRegistry;
 import org.jspecify.annotations.Nullable;
 
@@ -32,9 +33,21 @@ public final class KafkaPropagationContext {
      */
     public static synchronized void initialize(
             Map<String, String> headerToMdcKey, String timeoutBudgetHeader, @Nullable MeterRegistry meterRegistry) {
+        initialize(headerToMdcKey, timeoutBudgetHeader, meterRegistry, null);
+    }
+
+    /**
+     * Internal — same as {@link #initialize(Map, String, MeterRegistry)} plus the timeout-budget
+     * properties so exhaustion uses {@code minimum-budget}. Kafka never aborts a produce.
+     */
+    public static synchronized void initialize(
+            Map<String, String> headerToMdcKey,
+            String timeoutBudgetHeader,
+            @Nullable MeterRegistry meterRegistry,
+            @Nullable TimeoutBudgetProperties config) {
         KafkaPropagationContext.headerToMdcKey = Map.copyOf(headerToMdcKey);
         KafkaPropagationContext.timeoutBudgetHeader = timeoutBudgetHeader;
-        KafkaPropagationContext.budgetHelper = new TimeoutBudgetOutbound(meterRegistry);
+        KafkaPropagationContext.budgetHelper = new TimeoutBudgetOutbound(meterRegistry, config);
         KafkaPropagationContext.initialized = true;
     }
 

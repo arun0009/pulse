@@ -19,7 +19,7 @@ import org.springframework.context.annotation.Bean;
  * Wires Pulse's profiling-correlation subsystem.
  *
  * <p>The configuration produces two beans (both gated on {@code pulse.profiling.enabled=true},
- * default {@code true}):
+ * default {@code false}):
  *
  * <ul>
  *   <li>A {@link PulseProfilingSpanProcessor} exposed as a {@link SpanProcessor} bean. Spring
@@ -35,7 +35,7 @@ import org.springframework.context.annotation.Bean;
  */
 @AutoConfiguration(after = PulseAutoConfiguration.class)
 @ConditionalOnClass(SpanProcessor.class)
-@ConditionalOnProperty(prefix = "pulse.profiling", name = "enabled", havingValue = "true", matchIfMissing = true)
+@ConditionalOnProperty(prefix = "pulse.profiling", name = "enabled", havingValue = "true")
 public class PulseProfilingConfiguration {
 
     private static final Logger log = LoggerFactory.getLogger(PulseProfilingConfiguration.class);

@@ -76,7 +76,7 @@ the same `pulse.*` properties documented elsewhere; reading the YAMLs
 themselves is the fastest way to see exactly what changes:
 
 ```bash
-$ jar -tf pulse-spring-boot-starter-2.0.0.jar | grep '^application-pulse'
+$ jar -tf pulse-spring-boot-starter-2.0.2.jar | grep '^application-pulse'
 application-pulse-dev.yml
 application-pulse-prod.yml
 application-pulse-test.yml

@@ -13,20 +13,20 @@ Pulse is on
     <dependency>
       <groupId>io.github.arun0009</groupId>
       <artifactId>pulse-spring-boot-starter</artifactId>
-      <version>2.0.0</version>
+      <version>2.0.2</version>
     </dependency>
     ```
 
 === "Gradle (Kotlin DSL)"
 
     ```kotlin
-    implementation("io.github.arun0009:pulse-spring-boot-starter:2.0.0")
+    implementation("io.github.arun0009:pulse-spring-boot-starter:2.0.2")
     ```
 
 === "Gradle (Groovy DSL)"
 
     ```groovy
-    implementation 'io.github.arun0009:pulse-spring-boot-starter:2.0.0'
+    implementation 'io.github.arun0009:pulse-spring-boot-starter:2.0.2'
     ```
 
 ??? note "Log4j2 users — add it yourself"
@@ -42,7 +42,7 @@ Pulse is on
     <dependency>
       <groupId>io.github.arun0009</groupId>
       <artifactId>pulse-spring-boot-starter</artifactId>
-      <version>2.0.0</version>
+      <version>2.0.2</version>
     </dependency>
     <dependency>
       <groupId>org.springframework.boot</groupId>

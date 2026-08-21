@@ -7,6 +7,8 @@ and follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format.
 
 ## [Unreleased]
 
+## [2.0.2] — 2026-08-21
+
 ### Behavior changes
 
 Pulse was doing too many things on by default. The day-one core is unchanged (cardinality firewall, timeout-budget *propagation*, async/Kafka context, trace-context guard, structured logs, exception fingerprints, actuator). Architecture-specific extras are now **opt-in**:
@@ -40,6 +42,12 @@ Restore previous behaviour with the matching `enabled: true` (and `auto-apply: t
 - Native-image AOT on a Logback-only app loaded `PiiMaskingConverter` (a Log4j2 type). Masking logic now lives on `PiiMasking`; Log4j2 hints register only when log4j-core is present.
 - Homepage copy claimed timeout-budget "fails fast" by default. Fail-fast is opt-in.
 - Preset YAML comments claimed `pulse.profile-presets.auto-apply` defaulted to true.
+- OkHttp 5.4 compile break in the timeout interceptor test (`Interceptor.Chain` grew new methods).
+
+## [2.0.1] — 2026-04-25
+
+- `PulseFeature` SPI so applications can register organization-specific guardrails next to built-in subsystems.
+- Dependency and plugin updates (Spring, NullAway, Testcontainers, build plugins).
 
 ## [2.0.0] — 2026-04-20
 
@@ -71,5 +79,7 @@ Initial public release — Spring Boot 4 starter for OpenTelemetry + Micrometer:
 
 Details: [README](README.md). Falsifiable hot-path numbers: `make bench` (JMH).
 
+[2.0.2]: https://github.com/arun0009/pulse/releases/tag/v2.0.2
+[2.0.1]: https://github.com/arun0009/pulse/releases/tag/v2.0.1
 [2.0.0]: https://github.com/arun0009/pulse/releases/tag/v2.0.0
 [1.0.0]: https://github.com/arun0009/pulse/releases/tag/v1.0.0

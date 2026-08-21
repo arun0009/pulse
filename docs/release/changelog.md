@@ -7,7 +7,11 @@ and follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format.
 
 ## [Unreleased]
 
-See the repository root [`CHANGELOG.md`](https://github.com/arun0009/pulse/blob/main/CHANGELOG.md#unreleased). Core stays on by default; tenant, priority, profiling, SLO generation, OpenFeature, Caffeine bind, and profile-preset auto-apply are opt-in. Timeout-budget abort is opt-in. Logging follows Boot (Logback); Log4j2 is optional. HTTP and Kafka stamp an absolute deadline header.
+See the repository root [`CHANGELOG.md`](https://github.com/arun0009/pulse/blob/main/CHANGELOG.md#unreleased).
+
+## [2.0.2] — 2026-08-21
+
+See the repository root [`CHANGELOG.md`](https://github.com/arun0009/pulse/blob/main/CHANGELOG.md#2022--2026-08-21).
 
 ## [2.0.0] — 2026-04-20
 
@@ -39,5 +43,7 @@ Initial public release — Spring Boot 4 starter for OpenTelemetry + Micrometer:
 
 Details: [Documentation home](../index.md). Falsifiable hot-path numbers: `make bench` (JMH).
 
+[2.0.2]: https://github.com/arun0009/pulse/releases/tag/v2.0.2
+[2.0.1]: https://github.com/arun0009/pulse/releases/tag/v2.0.1
 [2.0.0]: https://github.com/arun0009/pulse/releases/tag/v2.0.0
 [1.0.0]: https://github.com/arun0009/pulse/releases/tag/v1.0.0

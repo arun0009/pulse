@@ -71,7 +71,7 @@
         <!-- Reproducible builds: byte-identical artifacts across rebuilds.
              Override per-release via -Dproject.build.outputTimestamp=… or set to a
              commit SHA / commit time. See https://maven.apache.org/guides/mini/guide-reproducible-builds.html -->
-        <project.build.outputTimestamp>2026-04-25T05:02:14Z</project.build.outputTimestamp>
+        <project.build.outputTimestamp>2026-08-21T10:13:00Z</project.build.outputTimestamp>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <resilience4j.version>2.4.0</resilience4j.version>

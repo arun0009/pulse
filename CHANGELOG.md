@@ -37,6 +37,7 @@ Restore previous behaviour with the matching `enabled: true` (and `auto-apply: t
 - Timeout-budget docs claimed outbound calls were aborted when remaining budget was below `minimum-budget`. The interceptors stamped `0` and still made the call. The docs now match the default; abort is the new opt-in flag.
 - Kafka consume treated `Pulse-Timeout-Ms` remaining duration as a fresh budget from consume time. A record that sat in the topic for longer than the original remaining time still opened a full remaining window on the listener. New produces stamp an absolute deadline header; consume prefers it.
 - HTTP inbound treated `Pulse-Timeout-Ms: 0` (and other non-positive values) as "no header" and applied the 2s default — the next hop got a new life after the caller had already expired. Explicit remaining now opens an expired budget. Tiny inbound values are no longer floored up to `minimum-budget`; that floor applies only to the implicit default.
+- Native-image AOT on a Logback-only app loaded `PiiMaskingConverter` (a Log4j2 type). Masking logic now lives on `PiiMasking`; Log4j2 hints register only when log4j-core is present.
 - Homepage copy claimed timeout-budget "fails fast" by default. Fail-fast is opt-in.
 - Preset YAML comments claimed `pulse.profile-presets.auto-apply` defaulted to true.
 

@@ -115,9 +115,23 @@ class TimeoutBudgetOutboundAbortTest {
             outbound.stampHeaders("Pulse-Timeout-Ms", "restclient", true, headers::putIfAbsent);
         }
 
-        assertThat(Long.parseLong(headers.get("Pulse-Timeout-Ms"))).isBetween(1500L, 2000L);
-        assertThat(Long.parseLong(headers.get(TimeoutBudget.DEADLINE_HEADER)))
-                .isGreaterThan(System.currentTimeMillis());
+        long remainingMs;
+        try {
+            remainingMs = Long.parseLong(headers.get("Pulse-Timeout-Ms"));
+        } catch (NumberFormatException e) {
+            throw new AssertionError("Pulse-Timeout-Ms must be a long, got: " + headers.get("Pulse-Timeout-Ms"), e);
+        }
+        assertThat(remainingMs).isBetween(1500L, 2000L);
+        long deadlineEpoch;
+        try {
+            deadlineEpoch = Long.parseLong(headers.get(TimeoutBudget.DEADLINE_HEADER));
+        } catch (NumberFormatException e) {
+            throw new AssertionError(
+                    TimeoutBudget.DEADLINE_HEADER + " must be a long, got: "
+                            + headers.get(TimeoutBudget.DEADLINE_HEADER),
+                    e);
+        }
+        assertThat(deadlineEpoch).isGreaterThan(System.currentTimeMillis());
     }
 
     @Test

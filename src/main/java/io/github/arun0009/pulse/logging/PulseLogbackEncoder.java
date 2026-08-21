@@ -38,7 +38,7 @@ import java.util.Map;
  * {@code logstash-logback-encoder}. Field count is small (~20 keys) and the JSON is hand-rendered
  * with {@link StringBuilder}, which is faster than a generic JSON encoder for this shape and
  * keeps Pulse's classpath surface narrow. PII masking is applied to the {@code message} field and
- * to MDC values via {@link PiiMaskingConverter#mask(String)}.
+ * to MDC values via {@link PiiMasking#mask(String)}.
  *
  * <p>Wired in {@code logback-spring.xml}; consumers do not instantiate this directly.
  */
@@ -90,7 +90,7 @@ public class PulseLogbackEncoder extends EncoderBase<ILoggingEvent> {
         appendString(sb, "level", event.getLevel().toString());
         appendString(sb, "logger", event.getLoggerName());
         appendString(sb, "thread", event.getThreadName());
-        appendString(sb, "message", PiiMaskingConverter.mask(event.getFormattedMessage()));
+        appendString(sb, "message", PiiMasking.mask(event.getFormattedMessage()));
 
         Map<String, String> mdc = readMdcSafely(event);
 
@@ -164,7 +164,7 @@ public class PulseLogbackEncoder extends EncoderBase<ILoggingEvent> {
     private static void appendMdc(StringBuilder sb, String key, Map<String, String> mdc, String mdcKey) {
         String value = mdc == null ? null : mdc.get(mdcKey);
         if (value == null || value.isEmpty()) return;
-        appendString(sb, key, PiiMaskingConverter.mask(value));
+        appendString(sb, key, PiiMasking.mask(value));
     }
 
     /**
@@ -182,7 +182,7 @@ public class PulseLogbackEncoder extends EncoderBase<ILoggingEvent> {
             sb.append('"')
                     .append(escape(entry.getKey()))
                     .append("\":\"")
-                    .append(escape(PiiMaskingConverter.mask(entry.getValue())))
+                    .append(escape(PiiMasking.mask(entry.getValue())))
                     .append('"');
             first = false;
         }

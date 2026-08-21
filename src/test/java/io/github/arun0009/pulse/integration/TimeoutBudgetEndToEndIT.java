@@ -90,8 +90,8 @@ class TimeoutBudgetEndToEndIT {
                 .isLessThan(2000)
                 .isGreaterThan(1500);
         String deadline = captured.get(0).getHeader("Pulse-Timeout-Deadline-Ms");
-        assertThat(deadline).as("absolute deadline must travel on HTTP too").isNotBlank();
-        assertThat(Long.parseLong(deadline)).isGreaterThan(System.currentTimeMillis());
+        assertThat(parseTimeoutHeader(deadline, "absolute deadline must travel on HTTP too"))
+                .isGreaterThan(System.currentTimeMillis());
     }
 
     @Test

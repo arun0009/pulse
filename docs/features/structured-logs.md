@@ -135,7 +135,7 @@ to your `pom.xml`. No code changes.
 
 ---
 
-**Source:** [`log4j2-spring.xml`](https://github.com/arun0009/pulse/blob/main/src/main/resources/log4j2-spring.xml) ·
+**Source:** [`PiiMasking.java`](https://github.com/arun0009/pulse/blob/main/src/main/java/io/github/arun0009/pulse/logging/PiiMasking.java) ·
 [`PiiMaskingConverter.java`](https://github.com/arun0009/pulse/blob/main/src/main/java/io/github/arun0009/pulse/logging/PiiMaskingConverter.java) ·
 **Runbook:** [Trace context missing](../runbooks/trace-context-missing.md) ·
 **Status:** Stable since 1.0.0

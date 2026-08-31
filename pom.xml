@@ -370,7 +370,7 @@
         <dependency>
             <groupId>dev.openfeature</groupId>
             <artifactId>sdk</artifactId>
-            <version>1.22.0</version>
+            <version>1.22.1</version>
             <optional>true</optional>
         </dependency>
 

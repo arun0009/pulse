@@ -57,7 +57,7 @@
              packages so it's incremental-friendly. -->
         <error-prone-core.version>2.50.0</error-prone-core.version>
         <java.version>21</java.version>
-        <jreleaser-maven-plugin.version>1.25.0</jreleaser-maven-plugin.version>
+        <jreleaser-maven-plugin.version>1.26.0</jreleaser-maven-plugin.version>
         <jspecify.version>1.0.1</jspecify.version>
         <!-- Build / publish toolchain — versions aligned with arun0009/idempotent for
          consistency across the io.github.arun0009 namespace. -->
@@ -75,7 +75,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <resilience4j.version>2.4.0</resilience4j.version>
-        <spotless.version>3.10.0</spotless.version>
+        <spotless.version>3.10.1</spotless.version>
         <spring.boot.version>4.1.1</spring.boot.version>
         <versions-maven-plugin.version>2.21.0</versions-maven-plugin.version>
         <wiremock.version>3.13.2</wiremock.version>
@@ -578,7 +578,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.15.0</version>
+                <version>3.16.0</version>
                 <configuration>
                     <release>${java.version}</release>
                     <parameters>true</parameters>

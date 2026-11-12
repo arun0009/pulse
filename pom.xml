@@ -77,7 +77,7 @@
         <resilience4j.version>2.4.0</resilience4j.version>
         <spotless.version>3.11.0</spotless.version>
         <spring.boot.version>4.1.2</spring.boot.version>
-        <versions-maven-plugin.version>2.24.0</versions-maven-plugin.version>
+        <versions-maven-plugin.version>2.25.1</versions-maven-plugin.version>
         <wiremock.version>3.13.2</wiremock.version>
     </properties>
 
@@ -978,7 +978,7 @@
                     <plugin>
                         <groupId>org.codehaus.mojo</groupId>
                         <artifactId>exec-maven-plugin</artifactId>
-                        <version>3.6.4</version>
+                        <version>3.7.0</version>
                         <configuration>
                             <executable>java</executable>
                             <classpathScope>test</classpathScope>
